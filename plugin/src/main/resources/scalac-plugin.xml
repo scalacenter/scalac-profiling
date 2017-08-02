@@ -1,0 +1,4 @@
+<plugin>
+    <name>scalac-profiling</name>
+    <classname>ch.epfl.scala.ProfilingPlugin</classname>
+</plugin>
