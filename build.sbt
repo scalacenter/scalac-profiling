@@ -127,6 +127,6 @@ lazy val integrations = project
         (optionsForSourceCompilerPlugin in plugin).value
     ),
     test := {
-      (compile in Compile in CirceTests).value
+      (compile in Test in CirceTests).value
     }
   )

@@ -12,13 +12,23 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
   }
 
   import scala.tools.nsc.Mode
+
+  /**
+   * The profiling macro plugin instruments the macro interface to check
+   * certain behaviours. For now, the profiler takes care of:
+   * 
+   * - Reporting the size of expanded trees.
+   * 
+   * It would be useful in the future to report on the amount of expanded
+   * trees that are and are not discarded.
+   */
   object ProfilingMacroPlugin extends global.analyzer.MacroPlugin {
-    def guessTreeSize(tree: Tree): Int = tree.children.size
-    override def pluginsMacroExpand(typer: analyzer.Typer,
-                                    expandee: Tree,
-                                    mode: Mode,
-                                    pt: Type): Option[Tree] = {
-      object expander extends analyzer.DefMacroExpander(typer, expandee, mode, pt) {
+    type Typer = analyzer.Typer
+    private def guessTreeSize(tree: Tree): Int =
+      1 + tree.children.map(guessTreeSize).sum
+
+    override def pluginsMacroExpand(t: Typer, expandee: Tree, mode: Mode, pt: Type): Option[Tree] = {
+      object expander extends analyzer.DefMacroExpander(t, expandee, mode, pt) {
         override def onSuccess(expanded: Tree) = {
           val callSitePos = expandee.pos
           val treeSize = guessTreeSize(expanded)
