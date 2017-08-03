@@ -1,0 +1,30 @@
+pipeline:
+  sftp_cache:
+    image: plugins/sftp-cache
+    restore: true
+    ignore_branch: true
+    when:
+      event: [ push, pull_request, tag, deployment ]
+    mount:
+      - /drone/.ivy2
+      - /drone/.coursier
+      - /drone/.sbt
+      - /drone/.git
+
+  build:
+    image: scalacenter/scala:1.3
+    commands:
+      - git log | head -n 20
+      - sbt clean "plugin/test" "integrations/test"
+
+  sftp_cache:
+    image: plugins/sftp-cache
+    rebuild: true
+    when:
+      status: [ success, failure ]
+      event: [ push, pull_request, tag, deployment ]
+    mount:
+      - /drone/.ivy2
+      - /drone/.coursier
+      - /drone/.sbt
+      - /drone/.git

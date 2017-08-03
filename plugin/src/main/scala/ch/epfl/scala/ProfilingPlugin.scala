@@ -17,12 +17,18 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   private object NewTypeComponent extends PluginComponent {
     override val global: implementation.global.type = implementation.global
     override val phaseName: String = "compile-newtype"
-    override val runsAfter: List[String] = List("typer")
-    override val runsBefore: List[String] = List("patmat")
+    override val runsAfter: List[String] = List("jvm")
+    override val runsBefore: List[String] = List("terminal")
 
+    import scala.reflect.internal.util.NoPosition
     override def newPhase(prev: Phase): Phase = {
       new StdPhase(prev) {
+        private def info(msg: String): Unit =
+          global.reporter.info(NoPosition, msg, true)
         override def apply(unit: global.CompilationUnit): Unit = {
+          val macroProfiler = implementation.getMacroProfiler
+          info(s"Expanded macros: ${macroProfiler.expandedMacros}")
+          info(s"Expanded node trees: ${macroProfiler.expandedNodes}")
           val traverser = new implementation.ProfilingTraverser
           traverser.traverse(unit.body)
         }
