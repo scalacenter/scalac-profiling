@@ -72,7 +72,7 @@ lazy val plugin = project
     },
     scalacOptions in Test ++= optionsForSourceCompilerPlugin.value,
     // Log implicits to identify which info we get currently
-    scalacOptions in Test += "-Xlog-implicits",
+    // scalacOptions in Test += "-Xlog-implicits",
     // Generate toolbox classpath while compiling for both configurations
     resourceGenerators in Compile += generateToolboxClasspath.taskValue,
     resourceGenerators in Test += Def.task {
