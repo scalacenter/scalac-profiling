@@ -1,11 +1,17 @@
 val ScalaVersions = Seq("2.11.11", "2.12.3")
+
+val enablePerformanceDebugging =
+  settingKey[Boolean]("Enable performance debugging if true.")
+
 inThisBuild(
   Seq(
     resolvers += Resolver.sonatypeRepo("staging"),
     scalaVersion in ThisBuild := ScalaVersions.last,
     crossScalaVersions in ThisBuild := ScalaVersions,
-    organization in ThisBuild := "me.vican.jorge"
-  ))
+    organization in ThisBuild := "me.vican.jorge",
+    enablePerformanceDebugging in ThisBuild := false
+  )
+)
 
 lazy val testDependencies = Seq(
   "junit" % "junit" % "4.12" % "test",
@@ -72,7 +78,10 @@ lazy val plugin = project
     },
     scalacOptions in Test ++= optionsForSourceCompilerPlugin.value,
     // Log implicits to identify which info we get currently
-    // scalacOptions in Test += "-Xlog-implicits",
+    scalacOptions in Test ++= {
+      if (!enablePerformanceDebugging.value) Nil
+      else List("-Xlog-implicits")
+    },
     // Generate toolbox classpath while compiling for both configurations
     resourceGenerators in Compile += generateToolboxClasspath.taskValue,
     resourceGenerators in Test += Def.task {
