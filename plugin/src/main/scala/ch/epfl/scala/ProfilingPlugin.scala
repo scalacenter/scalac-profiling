@@ -6,8 +6,8 @@ import scala.tools.nsc.{Global, Phase}
 import scala.tools.nsc.plugins.{Plugin, PluginComponent}
 
 class ProfilingPlugin(val global: Global) extends Plugin {
-  val name = "newtype"
-  val description = "Adds a newtype compile-time check a la Haskell."
+  val name = "scalac-profiling"
+  val description = "Adds instrumentation to keep an eye on Scalac performance."
   val components = List[PluginComponent](NewTypeComponent)
 
   // Make it not `lazy` and it will slay the compiler :)
