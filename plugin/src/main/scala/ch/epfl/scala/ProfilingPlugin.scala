@@ -19,7 +19,8 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     override def newPhase(prev: Phase): Phase = {
       new StdPhase(prev) {
         override def apply(unit: global.CompilationUnit): Unit = {
-          ()
+          val traverser = new implementation.ProfilingTraverser
+          traverser.traverse(unit.body)
         }
       }
     }

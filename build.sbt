@@ -51,6 +51,9 @@ def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
 val scalaPartialVersion =
   Def.setting(CrossVersion partialVersion scalaVersion.value)
 
+lazy val optionsForSourceCompilerPlugin =
+  taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
+
 lazy val plugin = project
   .settings(
     name := "scalac-profiling",
@@ -62,12 +65,13 @@ lazy val plugin = project
     testOptions in Test ++= List(Tests.Argument("-v"), Tests.Argument("-s")),
     publishSettings,
     // Make the tests to compile with the plugin
-    scalacOptions in Test ++= {
+    optionsForSourceCompilerPlugin := {
       val jar = (Keys.`package` in Compile).value
       val addPlugin = "-Xplugin:" + jar.getAbsolutePath
       val dummy = "-Jdummy=" + jar.lastModified
       Seq(addPlugin, dummy)
     },
+    scalacOptions in Test ++= optionsForSourceCompilerPlugin.value,
     // Generate toolbox classpath while compiling for both configurations
     resourceGenerators in Compile += generateToolboxClasspath.taskValue,
     resourceGenerators in Test += Def.task {
@@ -99,3 +103,16 @@ lazy val generateToolboxClasspath = Def.task {
   IO.write(toolboxTestClasspath, classpath)
   List(toolboxTestClasspath.getAbsoluteFile)
 }
+
+val Circe = RootProject(uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"))
+val CirceTests = ProjectRef(uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"), "tests")
+
+lazy val integrations = project
+  .in(file("integrations"))
+  .dependsOn(Circe)
+  .settings(
+    inCompileAndTest(
+      scalacOptions in CirceTests ++=
+        (optionsForSourceCompilerPlugin in plugin).value
+    )
+  )
