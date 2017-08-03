@@ -51,7 +51,7 @@ def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
 val scalaPartialVersion =
   Def.setting(CrossVersion partialVersion scalaVersion.value)
 
-lazy val optionsForSourceCompilerPlugin =
+val optionsForSourceCompilerPlugin =
   taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
 
 lazy val plugin = project
@@ -59,8 +59,7 @@ lazy val plugin = project
     name := "scalac-profiling",
     scalaVersion := ScalaVersions.last,
     crossScalaVersions := ScalaVersions,
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full),
-    libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaVersion.value,
+    libraryDependencies += scalaOrganization.value % "scala-compiler" % scalaVersion.value,
     libraryDependencies ++= testDependencies,
     testOptions in Test ++= List(Tests.Argument("-v"), Tests.Argument("-s")),
     publishSettings,
@@ -72,6 +71,8 @@ lazy val plugin = project
       Seq(addPlugin, dummy)
     },
     scalacOptions in Test ++= optionsForSourceCompilerPlugin.value,
+    // Log implicits to identify which info we get currently
+    scalacOptions in Test += "-Xlog-implicits",
     // Generate toolbox classpath while compiling for both configurations
     resourceGenerators in Compile += generateToolboxClasspath.taskValue,
     resourceGenerators in Test += Def.task {
@@ -107,6 +108,7 @@ lazy val generateToolboxClasspath = Def.task {
 val Circe = RootProject(uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"))
 val CirceTests = ProjectRef(uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"), "tests")
 
+val testIntegrations = taskKey[Unit]("Run the integration tests")
 lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe)
@@ -114,5 +116,8 @@ lazy val integrations = project
     inCompileAndTest(
       scalacOptions in CirceTests ++=
         (optionsForSourceCompilerPlugin in plugin).value
-    )
+    ),
+    test := {
+      (compile in Compile in CirceTests).value
+    }
   )

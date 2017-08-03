@@ -1,4 +1,4 @@
-package newtype.tools
+package ch.epfl.scala.profilers.tools
 
 final class Debugger[G <: scala.tools.nsc.Global](val global: G) {
   // In the future, `debug` will be aliased to `global.debuglog`

@@ -1,5 +1,7 @@
 package ch.epfl.scala
 
+import ch.epfl.scala.profilers.ProfilingImpl
+
 import scala.tools.nsc.{Global, Phase}
 import scala.tools.nsc.plugins.{Plugin, PluginComponent}
 
@@ -8,7 +10,9 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   val description = "Adds a newtype compile-time check a la Haskell."
   val components = List[PluginComponent](NewTypeComponent)
 
+  // Make it not `lazy` and it will slay the compiler :)
   lazy val implementation = new ProfilingImpl(ProfilingPlugin.this.global)
+  implementation.registerProfilers()
 
   private object NewTypeComponent extends PluginComponent {
     override val global: implementation.global.type = implementation.global
