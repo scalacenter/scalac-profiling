@@ -6,10 +6,10 @@ When compile times become a problem, how can Scala developers reason about their
 
 ## Goal of the project
 
-The goal of this proposal is to allow user to optimize their codebase to
-reduce compile times, spotting inefficient implicit searches, expanded macro
-code, and other culprits that slow down compile times and decrease developer
-productivity.
+The goal of this proposal is to allow Scala developers to optimize their
+codebase to reduce compile times, spotting inefficient implicit searches,
+expanded macro code, and other culprits that slow down compile times and
+decrease developer productivity.
 
 This repository holds the compiler plugin and a fork of mainstream scalac that
 will be eventually be merged upstream. This work is prompted by [Morgan Stanley's proposal](PROPOSAL.md) and was approved in our last advisory board.
