@@ -105,7 +105,7 @@ lazy val plugin = project
     })
   )
 
-/* Write all the compile-time dependencies of the spores macro to a file,
+/* Write all the compile-time dependencies of the compiler plugin to a file,
  * in order to read it from the created Toolbox to run the neg tests. */
 lazy val generateToolboxClasspath = Def.task {
   val scalaBinVersion = (scalaBinaryVersion in Compile).value
