@@ -75,7 +75,10 @@ lazy val plugin = project
     // Make the tests to compile with the plugin
     optionsForSourceCompilerPlugin := {
       val jar = (Keys.`package` in Compile).value
-      val addPlugin = "-Xplugin:" + jar.getAbsolutePath
+      // Should we filter out all the scala artifacts?
+      val pluginDeps = (managedClasspath in Compile).value.files.toList
+      val pluginAndDeps = (jar.getAbsolutePath :: pluginDeps).mkString(":")
+      val addPlugin = "-Xplugin:" + pluginAndDeps
       val dummy = "-Jdummy=" + jar.lastModified
       Seq(addPlugin, dummy)
     },
