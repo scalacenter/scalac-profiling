@@ -35,7 +35,9 @@ class ProfilingPlugin(val global: Global) extends Plugin {
           super.run()
 
           val macroProfiler = implementation.getMacroProfiler
-          info("Macro data per call-site", macroProfiler.perCallSite)
+          // Don't show per call-site unless verbose is enabled for now
+          if (global.settings.verbose.value)
+            info("Macro data per call-site", macroProfiler.perCallSite)
           info("Macro data per file", macroProfiler.perFile)
           info("Macro data in total", macroProfiler.inTotal)
         }
