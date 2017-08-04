@@ -1,19 +1,20 @@
 # Providing Better Compilation Performance Information
 
-(This repository is **heavy work-in-progress**.)
+(:warning: This repository is **heavy work-in-progress**. :warning:)
 
-When compile times become a problem, there is no easy way to debug the compiler
-to find the places where most of the compile time is spent. This prevents Scala
-developers from becoming familiar with the compile-time cost of their code, and
-optimizing for it when it becomes critical.
+When compile times become a problem, how can Scala developers reason about their code and how much time it takes to compile?
 
-This compiler plugin, along with changes to mainstream scalac, hopes to provide
-tools to Scala developers to detect inefficient implicit searches, expanded code
-from macros, and other reasons that slow down compiles.
+## Goal of the project
 
-This is still an early prototype of [SCP-010](PROPOSAL.md), the Scala Center Advisory Board proposal that prompted this work.
+The goal of this proposal is to allow user to optimize their codebase to
+reduce compile times, spotting inefficient implicit searches, expanded macro
+code, and other culprits that slow down compile times and decrease developer
+productivity.
 
-## What do we want to report?
+This repository holds the compiler plugin and a fork of mainstream scalac that
+will be eventually be merged upstream. This work is prompted by [Morgan Stanley's proposal](PROPOSAL.md) and was approved in our last advisory board.
+
+## Collected data
 
 ### Information about macros
 
@@ -44,4 +45,4 @@ it possible to advice Scala developers how to organize to optimize implicit sear
 
 For instance, if we detect that typer is continuosly testing implicit candidates that fail but have higher precedence (because of implicit search priorities or implicit names in scope), can we develop an algorithm that understands priorities and is able to tell users "remove that wildcard import" or "move that implicit definition to a higher priority scope, like X"?
 
-My hunch feeling is that we can, but this requires testing and a deeper investigation.
+(My hunch feeling is that we can, but this requires testing and a deeper investigation.)
