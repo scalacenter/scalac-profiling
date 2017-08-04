@@ -4,7 +4,8 @@ Status](https://platform-ci.scala-lang.org/api/badges/scalacenter/scalac-profili
 (:warning: This repository is **heavy work-in-progress**. :warning:)
 
 When compile times become a problem, how can Scala developers reason about
-their code and how much time it takes to compile?
+the relation between their code and compile times?
+
 ## Goal of the project
 The goal of this proposal is to allow Scala developers to optimize their
 codebase to reduce compile times, spotting inefficient implicit searches,
