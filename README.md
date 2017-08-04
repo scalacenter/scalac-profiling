@@ -1,4 +1,4 @@
-# SCP-010: Providing Better Compilation Performance Information
+# Providing Better Compilation Performance Information
 
 (This repository is **heavy work-in-progress**.)
 
