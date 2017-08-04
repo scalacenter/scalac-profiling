@@ -27,10 +27,13 @@ class ProfilingPlugin(val global: Global) extends Plugin {
           global.reporter.info(NoPosition, msg, true)
 
         override def run(): Unit = {
+          // Run first the phase across all compilation units
           super.run()
+
           val macroProfiler = implementation.getMacroProfiler
-          info(s"Expanded macros: ${macroProfiler.expandedMacros}")
-          info(s"Expanded node trees: ${macroProfiler.expandedNodes}")
+          info(s"Macro info per call-site: ${macroProfiler.perCallSite}")
+          info(s"Macro info per file: ${macroProfiler.perFile}")
+          info(s"Macro info in total: ${macroProfiler.inTotal}")
         }
 
         override def apply(unit: global.CompilationUnit): Unit = {

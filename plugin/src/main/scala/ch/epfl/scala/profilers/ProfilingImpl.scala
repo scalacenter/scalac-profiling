@@ -11,11 +11,44 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
     analyzer.addMacroPlugin(ProfilingMacroPlugin)
   }
 
-  case class MacroProfiler(expandedMacros: Int, expandedNodes: Int)
-  def getMacroProfiler: MacroProfiler =
-    MacroProfiler(ProfilingMacroPlugin.expandedMacros, ProfilingMacroPlugin.expandedNodes)
+  /**
+   * Represents the profiling information about expanded macros.
+   * 
+   * Note that we could derive the value of expanded macros from the
+   * number of instances of [[MacroInfo]] if it were not by the fact
+   * that a macro can expand in the same position more than once. We
+   * want to be able to report/analyse such cases on their own, so
+   * we keep it as a paramater of this entity.
+   */
+  case class MacroInfo(expandedMacros: Int, expandedNodes: Int) {
+    def +(other: MacroInfo): MacroInfo = {
+      val totalExpanded = expandedMacros + other.expandedMacros
+      val totalNodes = expandedNodes + other.expandedNodes
+      MacroInfo(totalExpanded, totalNodes)
+    }
+  }
 
-  import scala.tools.nsc.Mode
+  object MacroInfo {
+    private[ProfilingImpl] final val Empty = MacroInfo(0, 0)
+  }
+
+  import scala.reflect.internal.util.SourceFile
+  case class MacroProfiler(
+      perCallSite: Map[Position, MacroInfo],
+      perFile: Map[SourceFile, MacroInfo],
+      inTotal: MacroInfo
+  )
+
+  def getMacroProfiler: MacroProfiler = {
+    val perCallSite = ProfilingMacroPlugin.macroInfos.toMap
+    val perFile = perCallSite.groupBy(_._1.source).map {
+      case (file, posInfos) =>
+        val onlyInfos = posInfos.iterator.map(_._2)
+        val aggregatedInfos = onlyInfos.foldLeft(MacroInfo.Empty)(_ + _)
+        file -> aggregatedInfos
+    }
+    MacroProfiler(perCallSite, perFile, MacroInfo.Empty)
+  }
 
   /**
     * The profiling macro plugin instruments the macro interface to check
@@ -30,18 +63,18 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
     type Typer = analyzer.Typer
     private def guessTreeSize(tree: Tree): Int =
       1 + tree.children.map(guessTreeSize).sum
-    private[ProfilingImpl] var expandedMacros: Int = 0
-    private[ProfilingImpl] var expandedNodes: Int = 0
 
+    private[ProfilingImpl] val macroInfos = perRunCaches.newMap[Position, MacroInfo]
+
+    import scala.tools.nsc.Mode
     override def pluginsMacroExpand(t: Typer, expandee: Tree, mode: Mode, pt: Type): Option[Tree] = {
       object expander extends analyzer.DefMacroExpander(t, expandee, mode, pt) {
         override def onSuccess(expanded: Tree) = {
-          expandedMacros += 1
-          val treeSize = guessTreeSize(expanded)
-          expandedNodes += treeSize
           val callSitePos = expandee.pos
-          val msg = s"Expanded into a tree of size $treeSize: ${expanded}"
-          //reporter.info(callSitePos, msg, true)
+          val macroInfo = macroInfos.get(callSitePos).getOrElse(MacroInfo.Empty)
+          val expandedMacros = macroInfo.expandedMacros + 1
+          val treeSize = macroInfo.expandedNodes + guessTreeSize(expanded)
+          macroInfos += callSitePos -> MacroInfo(expandedMacros, treeSize)
           super.onSuccess(expanded)
         }
       }
