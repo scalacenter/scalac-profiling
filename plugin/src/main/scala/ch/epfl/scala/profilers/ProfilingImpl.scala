@@ -12,14 +12,14 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
   }
 
   /**
-   * Represents the profiling information about expanded macros.
-   * 
-   * Note that we could derive the value of expanded macros from the
-   * number of instances of [[MacroInfo]] if it were not by the fact
-   * that a macro can expand in the same position more than once. We
-   * want to be able to report/analyse such cases on their own, so
-   * we keep it as a paramater of this entity.
-   */
+    * Represents the profiling information about expanded macros.
+    *
+    * Note that we could derive the value of expanded macros from the
+    * number of instances of [[MacroInfo]] if it were not by the fact
+    * that a macro can expand in the same position more than once. We
+    * want to be able to report/analyse such cases on their own, so
+    * we keep it as a paramater of this entity.
+    */
   case class MacroInfo(expandedMacros: Int, expandedNodes: Int) {
     def +(other: MacroInfo): MacroInfo = {
       val totalExpanded = expandedMacros + other.expandedMacros
@@ -30,6 +30,9 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
 
   object MacroInfo {
     private[ProfilingImpl] final val Empty = MacroInfo(0, 0)
+    def aggregate(infos: Iterator[MacroInfo]): MacroInfo = {
+      infos.foldLeft(MacroInfo.Empty)(_ + _)
+    }
   }
 
   import scala.reflect.internal.util.SourceFile
@@ -44,10 +47,10 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
     val perFile = perCallSite.groupBy(_._1.source).map {
       case (file, posInfos) =>
         val onlyInfos = posInfos.iterator.map(_._2)
-        val aggregatedInfos = onlyInfos.foldLeft(MacroInfo.Empty)(_ + _)
-        file -> aggregatedInfos
+        file -> MacroInfo.aggregate(onlyInfos)
     }
-    MacroProfiler(perCallSite, perFile, MacroInfo.Empty)
+    val inTotal = MacroInfo.aggregate(perFile.iterator.map(_._2))
+    MacroProfiler(perCallSite, perFile, inTotal)
   }
 
   /**
