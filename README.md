@@ -19,17 +19,22 @@ Stanley's proposal](PROPOSAL.md) and was approved in our last advisory board.
 
 ### Information about macros
 Per call-site, file and total:
-* How many macros are expanded? How long do they take to run? How many tree
-* nodes do macros create? How many of these tree nodes are discarded?
+* How many macros are expanded?
+* How long do they take to run?
+* How many tree nodes do macros create?
+* How many of these tree nodes are discarded?
+* What's the ratio of generated code/user-defined code?
 
 ### Information about implicit search
 Getting hold of this information requires changes in mainstream scalac.
 
 Per call-site, file and total:
-* How many implicit searches are triggered by user-defined code? How many
-* implicit searches are triggered my macro code? How long implicit searches
-* take to run? How many implicit search failures are? How many implicit search
-* hits are? What's the ration of search failures/hits?
+* How many implicit searches are triggered by user-defined code?
+* How many implicit searches are triggered my macro code?
+* How long implicit searches take to run?
+* How many implicit search failures are?
+* How many implicit search hits are?
+* What's the ratio of search failures/hits?
 
 ### Ideas to be considered
 
