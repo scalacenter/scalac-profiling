@@ -122,8 +122,14 @@ lazy val generateToolboxClasspath = Def.task {
 
 val Circe = RootProject(uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"))
 val CirceTests = ProjectRef(uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"), "tests")
+val Scalac = RootProject(file("./scalac"))
 
 val testIntegrations = taskKey[Unit]("Run the integration tests")
+
+lazy val scalac = project
+  .in(file("compiler"))
+  .dependsOn(Scalac)
+
 lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe)
