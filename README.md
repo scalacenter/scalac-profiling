@@ -13,10 +13,10 @@ decrease developer productivity.
 
 This repository holds the compiler plugin and a fork of mainstream scalac
 that will be eventually be merged upstream. This work is prompted by [Morgan
-Stanley's proposal](PROPOSAL) and was approved in our last advisory board.
+Stanley's proposal](PROPOSAL.md) and was approved in our last advisory board.
 ## Collected data
 
-In the following secions, I elaborate on the collected data that we want to extract from the compiler as well as technical details for every section in the original [PROPOSAL](PROPOSAL).
+In the following secions, I elaborate on the collected data that we want to extract from the compiler as well as technical details for every section in the [original proposal](PROPOSAL.md).
 
 (:warning: This repository is **heavy work-in-progress**. :warning:)
 
@@ -79,5 +79,3 @@ As a side note, repetitions in expanded code can be addressed in two ways:
 * Create a cache of expanded code in the compiler macro infrastructure.
 * Create a cache of expanded code in the macro implementation (more
   challenging).
-
-[PROPOSAL]: PROPOSAL.md
