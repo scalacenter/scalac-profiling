@@ -25,10 +25,15 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       new StdPhase(prev) {
         private def info(msg: String): Unit =
           global.reporter.info(NoPosition, msg, true)
-        override def apply(unit: global.CompilationUnit): Unit = {
+
+        override def run(): Unit = {
+          super.run()
           val macroProfiler = implementation.getMacroProfiler
           info(s"Expanded macros: ${macroProfiler.expandedMacros}")
           info(s"Expanded node trees: ${macroProfiler.expandedNodes}")
+        }
+
+        override def apply(unit: global.CompilationUnit): Unit = {
           val traverser = new implementation.ProfilingTraverser
           traverser.traverse(unit.body)
         }
