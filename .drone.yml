@@ -1,4 +1,11 @@
 pipeline:
+  clone:
+    image: plugins/git
+    tags: true
+    recursive: true
+    submodule_override:
+      wiki: https://github.com/scala/scala.git
+
   sftp_cache:
     image: plugins/sftp-cache
     restore: true
