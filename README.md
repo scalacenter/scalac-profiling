@@ -1,5 +1,7 @@
 # Providing Better Compilation Performance Information
 
+[![Build Status](https://platform-ci.scala-lang.org/api/badges/scalacenter/scalac-profiling/status.svg)](https://platform-ci.scala-lang.org/scalacenter/scalac-profiling)
+
 (:warning: This repository is **heavy work-in-progress**. :warning:)
 
 When compile times become a problem, how can Scala developers reason about their code and how much time it takes to compile?
