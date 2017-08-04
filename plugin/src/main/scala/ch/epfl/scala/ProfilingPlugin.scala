@@ -35,9 +35,9 @@ class ProfilingPlugin(val global: Global) extends Plugin {
           super.run()
 
           val macroProfiler = implementation.getMacroProfiler
-          info("Macro info per call-site", macroProfiler.perCallSite)
-          info("Macro info per file", macroProfiler.perFile)
-          info("Macro info in total", macroProfiler.inTotal)
+          info("Macro data per call-site", macroProfiler.perCallSite)
+          info("Macro data per file", macroProfiler.perFile)
+          info("Macro data in total", macroProfiler.inTotal)
         }
 
         override def apply(unit: global.CompilationUnit): Unit = {
