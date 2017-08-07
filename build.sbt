@@ -120,9 +120,11 @@ lazy val generateToolboxClasspath = Def.task {
   List(toolboxTestClasspath.getAbsoluteFile)
 }
 
-// Source dependency is cached by sbt
+// Source dependencies from git are cached by sbt
 val Circe = RootProject(uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"))
 val CirceTests = ProjectRef(Circe.build, "tests")
+val Monocle = RootProject(uri("git://github.com/jvican/Monocle.git#713054c46728c1fe912d2a7bae0ec19470ecaab9"))
+val MonocleExample = ProjectRef(Monocle.build, "example")
 
 // Source dependency is a submodule that we modify
 val Scalac = RootProject(file("./scalac"))
@@ -137,10 +139,12 @@ lazy val scalac = project
 
 lazy val integrations = project
   .in(file("integrations"))
-  .dependsOn(Circe)
+  .dependsOn(Circe, Monocle)
   .settings(
     inCompileAndTest(
       scalacOptions in Compile ++=
+        (optionsForSourceCompilerPlugin in plugin).value,
+      scalacOptions in Compile in MonocleExample ++=
         (optionsForSourceCompilerPlugin in plugin).value,
       scalacOptions in CirceTests ++=
         (optionsForSourceCompilerPlugin in plugin).value
@@ -148,7 +152,8 @@ lazy val integrations = project
     test := {
       Def.sequential(
         (compile in Compile),
-        (compile in Test in CirceTests)
+        (compile in Test in CirceTests),
+        (compile in Compile in MonocleExample)
       ).value
     }
   )
