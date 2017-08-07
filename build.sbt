@@ -105,7 +105,7 @@ lazy val plugin = project
     })
   )
 
-/* Write all the compile-time dependencies of the compiler plugin to a file,
+/** Write all the compile-time dependencies of the compiler plugin to a file,
  * in order to read it from the created Toolbox to run the neg tests. */
 lazy val generateToolboxClasspath = Def.task {
   val scalaBinVersion = (scalaBinaryVersion in Compile).value
@@ -120,6 +120,7 @@ lazy val generateToolboxClasspath = Def.task {
   List(toolboxTestClasspath.getAbsoluteFile)
 }
 
+// Source dependency is cached by sbt
 val Circe = RootProject(uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"))
 val CirceTests = ProjectRef(Circe.build, "tests")
 
@@ -139,10 +140,15 @@ lazy val integrations = project
   .dependsOn(Circe)
   .settings(
     inCompileAndTest(
+      scalacOptions in Compile ++=
+        (optionsForSourceCompilerPlugin in plugin).value,
       scalacOptions in CirceTests ++=
         (optionsForSourceCompilerPlugin in plugin).value
     ),
     test := {
-      (compile in Test in CirceTests).value
+      Def.sequential(
+        (compile in Compile),
+        (compile in Test in CirceTests)
+      ).value
     }
   )
