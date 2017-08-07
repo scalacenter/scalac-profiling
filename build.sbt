@@ -144,7 +144,7 @@ lazy val integrations = project
     inCompileAndTest(
       scalacOptions in Compile ++=
         (optionsForSourceCompilerPlugin in plugin).value,
-      scalacOptions in Compile in MonocleExample ++=
+      scalacOptions in MonocleExample ++=
         (optionsForSourceCompilerPlugin in plugin).value,
       scalacOptions in CirceTests ++=
         (optionsForSourceCompilerPlugin in plugin).value
