@@ -153,7 +153,7 @@ lazy val integrations = project
       Def.sequential(
         (compile in Compile),
         (compile in Test in CirceTests),
-        (compile in Compile in MonocleExample)
+        (compile in Test in MonocleExample)
       ).value
     }
   )
