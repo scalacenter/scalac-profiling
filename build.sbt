@@ -125,6 +125,7 @@ val Circe = RootProject(uri("git://github.com/circe/circe.git#96d419611c045e638c
 val CirceTests = ProjectRef(Circe.build, "tests")
 val Monocle = RootProject(uri("git://github.com/jvican/Monocle.git#713054c46728c1fe912d2a7bae0ec19470ecaab9"))
 val MonocleExample = ProjectRef(Monocle.build, "example")
+val MonocleTests = ProjectRef(Monocle.build, "testJVM")
 
 // Source dependency is a submodule that we modify
 val Scalac = RootProject(file("./scalac"))
@@ -146,6 +147,8 @@ lazy val integrations = project
         (optionsForSourceCompilerPlugin in plugin).value,
       scalacOptions in MonocleExample ++=
         (optionsForSourceCompilerPlugin in plugin).value,
+    scalacOptions in MonocleTests ++=
+      (optionsForSourceCompilerPlugin in plugin).value,
       scalacOptions in CirceTests ++=
         (optionsForSourceCompilerPlugin in plugin).value
     ),
@@ -153,6 +156,7 @@ lazy val integrations = project
       Def.sequential(
         (compile in Compile),
         (compile in Test in CirceTests),
+        (compile in Test in MonocleTests),
         (compile in Test in MonocleExample)
       ).value
     }
