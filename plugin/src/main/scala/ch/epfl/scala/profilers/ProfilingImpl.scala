@@ -39,21 +39,26 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
   case class MacroProfiler(
       perCallSite: Map[Position, MacroInfo],
       perFile: Map[SourceFile, MacroInfo],
-      inTotal: MacroInfo
+      inTotal: MacroInfo,
+      repeatedExpansions: Map[Tree, Int]
   )
 
   def getMacroProfiler: MacroProfiler = {
-    val perCallSite = ProfilingMacroPlugin.macroInfos.toMap
+    import ProfilingMacroPlugin.{macroInfos, repeatedTrees}
+    val perCallSite = macroInfos.toMap
     val perFile = perCallSite.groupBy(_._1.source).map {
       case (file, posInfos) =>
         val onlyInfos = posInfos.iterator.map(_._2)
         file -> MacroInfo.aggregate(onlyInfos)
     }
     val inTotal = MacroInfo.aggregate(perFile.iterator.map(_._2))
-    MacroProfiler(perCallSite, perFile, inTotal)
+    val repeated =
+      repeatedTrees.valuesIterator.filter(_.count > 1).map(v => v.original -> v.count).toMap
+    MacroProfiler(perCallSite, perFile, inTotal, repeated)
   }
 
   import global.analyzer.MacroPlugin
+
   /**
     * The profiling macro plugin instruments the macro interface to check
     * certain behaviours. For now, the profiler takes care of:
@@ -68,17 +73,27 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
     private def guessTreeSize(tree: Tree): Int =
       1 + tree.children.map(guessTreeSize).sum
 
+    type RepeatedKey = (String, String)
+    case class RepeatedValue(original: Tree, result: Tree, count: Int)
+    private[ProfilingImpl] val repeatedTrees = perRunCaches.newMap[RepeatedKey, RepeatedValue]
     private[ProfilingImpl] val macroInfos = perRunCaches.newMap[Position, MacroInfo]
 
+    private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
     import scala.tools.nsc.Mode
     override def pluginsMacroExpand(t: Typer, expandee: Tree, mode: Mode, pt: Type): Option[Tree] = {
       object expander extends analyzer.DefMacroExpander(t, expandee, mode, pt) {
         override def onSuccess(expanded: Tree) = {
           val callSitePos = expandee.pos
-          val macroInfo = macroInfos.get(callSitePos).getOrElse(MacroInfo.Empty)
+          val printedExpandee = showRaw(expandee)
+          val printedExpanded = showRaw(expanded)
+          val key = (printedExpandee, printedExpanded)
+          val currentValue = repeatedTrees.getOrElse(key, EmptyRepeatedValue)
+          val newValue = RepeatedValue(expandee, expanded, currentValue.count + 1)
+          repeatedTrees.put(key, newValue)
+          val macroInfo = macroInfos.getOrElse(callSitePos, MacroInfo.Empty)
           val expandedMacros = macroInfo.expandedMacros + 1
           val treeSize = macroInfo.expandedNodes + guessTreeSize(expanded)
-          macroInfos += callSitePos -> MacroInfo(expandedMacros, treeSize)
+          macroInfos.put(callSitePos, MacroInfo(expandedMacros, treeSize))
           super.onSuccess(expanded)
         }
       }

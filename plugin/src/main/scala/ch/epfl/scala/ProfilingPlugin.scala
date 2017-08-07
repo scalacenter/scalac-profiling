@@ -40,6 +40,9 @@ class ProfilingPlugin(val global: Global) extends Plugin {
             info("Macro data per call-site", macroProfiler.perCallSite)
           info("Macro data per file", macroProfiler.perFile)
           info("Macro data in total", macroProfiler.inTotal)
+          val expansions =
+            macroProfiler.repeatedExpansions.map(kv => global.showCode(kv._1) -> kv._2)
+          info("Macro repeated expansions", expansions)
         }
 
         override def apply(unit: global.CompilationUnit): Unit = {
