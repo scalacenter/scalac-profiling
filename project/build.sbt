@@ -3,6 +3,5 @@ lazy val root = project
   .in(file("."))
   .dependsOn(SbtReleaseEarly)
   .settings(
-    addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC8"),
-    dependencyOverrides += "org.scalamacros" %% "quasiquotes" % "2.1.0"
+    addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC8")
   )
