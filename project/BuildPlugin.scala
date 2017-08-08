@@ -16,14 +16,52 @@ object BuildPlugin extends AutoPlugin {
 }
 
 object BuildKeys {
-  import sbt.{settingKey, RootProject, ProjectRef, file}
-  val enablePerformanceDebugging =
+  import sbt.{settingKey, taskKey, richFile, file, toGroupID}
+  import sbt.{RootProject, ProjectRef, Setting, Compile}
+  final val enablePerformanceDebugging =
     settingKey[Boolean]("Enable performance debugging if true.")
+  final val optionsForSourceCompilerPlugin =
+    taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
 
   // Source dependency is a submodule that we modify
-  val Scalac = RootProject(file("./scalac"))
-  val ScalacCompiler = ProjectRef(Scalac.build, "compiler")
-  val ScalacBuild = ProjectRef(Scalac.build, "dist")
+  final val Scalac = RootProject(file("./scalac"))
+  final val ScalacCompiler = ProjectRef(Scalac.build, "compiler")
+  final val ScalacLibrary = ProjectRef(Scalac.build, "library")
+  final val ScalacReflect = ProjectRef(Scalac.build, "reflect")
+  final val ScalacDoc = ProjectRef(Scalac.build, "scaladoc")
+  final val AllScalacProjects = List(ScalacCompiler, ScalacLibrary, ScalacReflect, ScalacDoc)
+
+  final val testDependencies = Seq(
+    "junit" % "junit" % "4.12" % "test",
+    "com.novocode" % "junit-interface" % "0.11" % "test"
+  )
+
+  def inReference(ref: sbt.Reference)(ss: Seq[Setting[_]]): Seq[Setting[_]] =
+    sbt.inScope(sbt.ThisScope.in(project = ref))(ss)
+
+  def inScalacProjects(ss: Setting[_]*): Seq[Setting[_]] =
+    AllScalacProjects.flatMap(inReference(_)(ss))
+
+  def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
+    Seq(sbt.Compile, sbt.Test).flatMap(sbt.inConfig(_)(ss))
+
+  final val scalaPartialVersion =
+    Def.setting(sbt.CrossVersion partialVersion Keys.scalaVersion.value)
+
+  /** Write all the compile-time dependencies of the compiler plugin to a file,
+    * in order to read it from the created Toolbox to run the neg tests. */
+  lazy val generateToolboxClasspath = Def.task {
+    val scalaBinVersion = (Keys.scalaBinaryVersion in Compile).value
+    val targetDir = (Keys.target in Compile).value
+    val compiledClassesDir = targetDir / s"scala-$scalaBinVersion/classes"
+    val testClassesDir = targetDir / s"scala-$scalaBinVersion/test-classes"
+    val libraryJar = Keys.scalaInstance.value.libraryJar.getAbsolutePath
+    val classpath = s"$compiledClassesDir:$testClassesDir:$libraryJar"
+    val resourceDir = (Keys.resourceManaged in Compile).value
+    val toolboxTestClasspath = resourceDir / "toolbox.classpath"
+    sbt.IO.write(toolboxTestClasspath, classpath)
+    List(toolboxTestClasspath.getAbsoluteFile)
+  }
 }
 
 object BuildDefaults {
@@ -55,6 +93,13 @@ object BuildDefaults {
     PgpKeys.pgpPublicRing := file("/drone/.gnupg/pubring.asc"),
     PgpKeys.pgpSecretRing := file("/drone/.gnupg/secring.asc"),
     ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.SonatypePublisher
+  )
+
+  final val scalacSettings: Seq[Def.Setting[_]] = BuildKeys.inScalacProjects(
+    Keys.aggregate in Keys.doc := false,
+    Keys.sources in Compile in Keys.doc := Seq.empty,
+    Keys.scalacOptions in Compile in Keys.doc := Seq.empty,
+    Keys.publishArtifact in Compile in Keys.packageDoc := false
   )
 
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
@@ -91,7 +136,7 @@ object BuildDefaults {
 
   final val projectSettings: Seq[Def.Setting[_]] = Seq(
     Keys.scalacOptions in Compile := reasonableCompileOptions
-  )
+  ) ++ scalacSettings
 
   final val reasonableCompileOptions = (
     "-deprecation" :: "-encoding" :: "UTF-8" :: "-feature" :: "-language:existentials" ::

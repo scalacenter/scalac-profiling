@@ -4,5 +4,5 @@ lazy val root = project
   .dependsOn(SbtReleaseEarly)
   .settings(
     addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC8"),
-    addSbtPlugin("ch.epfl.scala" % "sbt-release-early" % "1.0.4+39-fb36f946")
+    dependencyOverrides += "org.scalamacros" %% "quasiquotes" % "2.1.0"
   )

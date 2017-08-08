@@ -1,8 +1,3 @@
-lazy val testDependencies = Seq(
-  "junit" % "junit" % "4.12" % "test",
-  "com.novocode" % "junit-interface" % "0.11" % "test"
-)
-
 lazy val root = project
   .in(file("."))
   .aggregate(plugin)
@@ -10,15 +5,6 @@ lazy val root = project
     publish := {},
     publishLocal := {}
   ))
-
-def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
-  Seq(Compile, Test).flatMap(inConfig(_)(ss))
-
-val scalaPartialVersion =
-  Def.setting(CrossVersion partialVersion scalaVersion.value)
-
-val optionsForSourceCompilerPlugin =
-  taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
 
 lazy val plugin = project
   .settings(
@@ -62,20 +48,9 @@ lazy val plugin = project
     })
   )
 
-/** Write all the compile-time dependencies of the compiler plugin to a file,
- * in order to read it from the created Toolbox to run the neg tests. */
-lazy val generateToolboxClasspath = Def.task {
-  val scalaBinVersion = (scalaBinaryVersion in Compile).value
-  val targetDir = (target in Compile).value
-  val compiledClassesDir = targetDir / s"scala-$scalaBinVersion/classes"
-  val testClassesDir = targetDir / s"scala-$scalaBinVersion/test-classes"
-  val libraryJar = scalaInstance.value.libraryJar.getAbsolutePath
-  val classpath = s"$compiledClassesDir:$testClassesDir:$libraryJar"
-  val resourceDir = (resourceManaged in Compile).value
-  val toolboxTestClasspath = resourceDir / "toolbox.classpath"
-  IO.write(toolboxTestClasspath, classpath)
-  List(toolboxTestClasspath.getAbsoluteFile)
-}
+lazy val scalac = project
+  .in(file("compiler"))
+  .dependsOn(Scalac)
 
 // Source dependencies from git are cached by sbt
 val Circe = RootProject(uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"))
@@ -84,16 +59,10 @@ val Monocle = RootProject(uri("git://github.com/jvican/Monocle.git#713054c46728c
 val MonocleExample = ProjectRef(Monocle.build, "example")
 val MonocleTests = ProjectRef(Monocle.build, "testJVM")
 
-lazy val scalac = project
-  .in(file("compiler"))
-  .dependsOn(Scalac)
-
 lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe, Monocle)
   .settings(
-    sources in Compile in doc in ScalacBuild := Seq.empty,
-    publishArtifact in Compile in packageDoc in ScalacBuild := false,
     inCompileAndTest(
       scalacOptions in Compile ++=
         (optionsForSourceCompilerPlugin in plugin).value,
