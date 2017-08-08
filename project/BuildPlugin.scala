@@ -152,8 +152,7 @@ object BuildDefaults {
       case Some((newState, Value(v))) => newState
       case None                       => sys.error(s"Key `${scalacPublishKey.key.label}` is not defined?")
       case Some((newState, Inc(inc))) =>
-        val previousError = Incomplete.show(inc.tpe)
-        sys.error(s"Got error when running ${scalacPublishKey.key.label}: $previousError")
+        sys.error(s"Got error when running ${scalacPublishKey.key.label}: $inc")
     }
   }
 }
