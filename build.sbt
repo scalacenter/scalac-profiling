@@ -1,55 +1,15 @@
-val ScalaVersions = Seq("2.11.11", "2.12.3")
-
-val enablePerformanceDebugging =
-  settingKey[Boolean]("Enable performance debugging if true.")
-
-inThisBuild(
-  Seq(
-    resolvers += Resolver.sonatypeRepo("staging"),
-    scalaVersion in ThisBuild := ScalaVersions.last,
-    crossScalaVersions in ThisBuild := ScalaVersions,
-    organization in ThisBuild := "me.vican.jorge",
-    enablePerformanceDebugging in ThisBuild := false
-  )
-)
-
 lazy val testDependencies = Seq(
   "junit" % "junit" % "4.12" % "test",
   "com.novocode" % "junit-interface" % "0.11" % "test"
 )
 
-lazy val publishSettings = Seq(
-  publishMavenStyle := true,
-  publishArtifact in Test := false,
-  licenses := Seq(
-    // Scala Center license... BSD 3-clause
-    "BSD" -> url("http://opensource.org/licenses/BSD-3-Clause")
-  ),
-  homepage := Some(url("https://github.com/scalacenter/scalac-profiling")),
-  autoAPIMappings := true,
-  startYear := Some(2017),
-  scmInfo := Some(
-    ScmInfo(
-      url("https://github.com/scalacenter/scalac-profiling"),
-      "scm:git:git@github.com:scalacenter/scalac-profiling.git"
-    )
-  ),
-  developers := List(
-    Developer("jvican",
-              "Jorge Vicente Cantero",
-              "jorge.vicentecantero@epfl.ch",
-              url("http://github.com/jvican"))
-  )
-)
-
-lazy val noPublish = Seq(
-  publish := {},
-  publishLocal := {}
-)
-
 lazy val root = project
   .in(file("."))
   .aggregate(plugin)
+  .settings(Seq(
+    publish := {},
+    publishLocal := {}
+  ))
 
 def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
   Seq(Compile, Test).flatMap(inConfig(_)(ss))
@@ -63,15 +23,12 @@ val optionsForSourceCompilerPlugin =
 lazy val plugin = project
   .settings(
     name := "scalac-profiling",
-    scalaVersion := ScalaVersions.last,
-    crossScalaVersions := ScalaVersions,
     libraryDependencies ++= List(
       "com.lihaoyi" %% "pprint" % "0.5.0",
       scalaOrganization.value % "scala-compiler" % scalaVersion.value
     ),
     libraryDependencies ++= testDependencies,
     testOptions in Test ++= List(Tests.Argument("-v"), Tests.Argument("-s")),
-    publishSettings,
     // Make the tests to compile with the plugin
     optionsForSourceCompilerPlugin := {
       val jar = (Keys.`package` in Compile).value
@@ -127,13 +84,6 @@ val Monocle = RootProject(uri("git://github.com/jvican/Monocle.git#713054c46728c
 val MonocleExample = ProjectRef(Monocle.build, "example")
 val MonocleTests = ProjectRef(Monocle.build, "testJVM")
 
-// Source dependency is a submodule that we modify
-val Scalac = RootProject(file("./scalac"))
-val ScalacCompiler = ProjectRef(Scalac.build, "compiler")
-val ScalaBuild = ProjectRef(Scalac.build, "dist")
-
-val testIntegrations = taskKey[Unit]("Run the integration tests")
-
 lazy val scalac = project
   .in(file("compiler"))
   .dependsOn(Scalac)
@@ -142,13 +92,15 @@ lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe, Monocle)
   .settings(
+    sources in Compile in doc in ScalacBuild := Seq.empty,
+    publishArtifact in Compile in packageDoc in ScalacBuild := false,
     inCompileAndTest(
       scalacOptions in Compile ++=
         (optionsForSourceCompilerPlugin in plugin).value,
       scalacOptions in MonocleExample ++=
         (optionsForSourceCompilerPlugin in plugin).value,
-    scalacOptions in MonocleTests ++=
-      (optionsForSourceCompilerPlugin in plugin).value,
+      scalacOptions in MonocleTests ++=
+        (optionsForSourceCompilerPlugin in plugin).value,
       scalacOptions in CirceTests ++=
         (optionsForSourceCompilerPlugin in plugin).value
     ),
