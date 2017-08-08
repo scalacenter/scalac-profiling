@@ -3,5 +3,6 @@ lazy val root = project
   .in(file("."))
   .dependsOn(SbtReleaseEarly)
   .settings(
-    addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC8")
+    addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC8"),
+    addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.9.3")
   )

@@ -28,8 +28,7 @@ object BuildKeys {
   final val ScalacCompiler = ProjectRef(Scalac.build, "compiler")
   final val ScalacLibrary = ProjectRef(Scalac.build, "library")
   final val ScalacReflect = ProjectRef(Scalac.build, "reflect")
-  final val ScalacDoc = ProjectRef(Scalac.build, "scaladoc")
-  final val AllScalacProjects = List(ScalacCompiler, ScalacLibrary, ScalacReflect, ScalacDoc)
+  final val AllScalacProjects = List(ScalacCompiler, ScalacLibrary, ScalacReflect)
 
   final val testDependencies = Seq(
     "junit" % "junit" % "4.12" % "test",
@@ -95,6 +94,7 @@ object BuildDefaults {
     ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.SonatypePublisher
   )
 
+  // Paranoid level: removes doc generation by all means
   final val scalacSettings: Seq[Def.Setting[_]] = BuildKeys.inScalacProjects(
     Keys.aggregate in Keys.doc := false,
     Keys.sources in Compile in Keys.doc := Seq.empty,
@@ -106,18 +106,25 @@ object BuildDefaults {
     Keys.triggeredMessage in ThisBuild := Watched.clearWhenTriggered,
     Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
     Keys.onLoad := { (state: State) =>
-      val logger = Keys.sLog.value
-      val extracted = sbt.Project.extract(state)
-      val buildData = extracted.structure.data
-      val maybeVersion = ScalacVersion.get(buildData)
-      maybeVersion match {
-        case Some(version) =>
-          (Keys.scalaVersion in ThisBuild).get(buildData) match {
-            case Some(scalaVersion) if scalaVersion == version =>
-              publishCustomScalaFork(state, version, logger)
-            case _ => state // Do nothing
-          }
-        case None => state // Do nothing
+      import com.typesafe.sbt.git.JGit
+      // Only publish scalac if file doesn't exist
+      val baseDirectory = (Keys.baseDirectory in sbt.ThisBuild).value
+      val repository = JGit(baseDirectory./("scalac"))
+      if (!repository.hasUncommittedChanges) state
+      else {
+        val logger = Keys.sLog.value
+        val extracted = sbt.Project.extract(state)
+        val buildData = extracted.structure.data
+        val maybeVersion = ScalacVersion.get(buildData)
+        maybeVersion match {
+          case Some(version) =>
+            (Keys.scalaVersion in ThisBuild).get(buildData) match {
+              case Some(scalaVersion) if scalaVersion == version =>
+                publishCustomScalaFork(state, version, logger)
+              case _ => state // Do nothing
+            }
+          case None => state // Do nothing
+        }
       }
     }
   )
@@ -144,15 +151,19 @@ object BuildDefaults {
       "-Yno-adapted-args" :: "-Ywarn-numeric-widen" :: "-Xfuture" :: "-Xlint" :: Nil
   )
 
-  private final val scalacPublishKey = Keys.publishLocal in BuildKeys.ScalacCompiler
   def publishCustomScalaFork(state0: State, version: String, logger: Logger): State = {
     import sbt.{Project, Value, Inc, Incomplete}
     logger.warn(s"Publishing Scala version $version from the fork...")
-    Project.runTask(scalacPublishKey, state0) match {
+    // Bah, reuse the same state for everything.
+    val publishing = Project
+      .runTask(Keys.publishLocal in BuildKeys.ScalacLibrary, state0)
+      .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacReflect, state0))
+      .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacCompiler, state0))
+    publishing match {
+      case None                       => sys.error(s"Key for publishing is not defined?")
       case Some((newState, Value(v))) => newState
-      case None                       => sys.error(s"Key `${scalacPublishKey.key.label}` is not defined?")
       case Some((newState, Inc(inc))) =>
-        sys.error(s"Got error when running ${scalacPublishKey.key.label}: $inc")
+        sys.error(s"Got error when publishing the Scala fork: $inc")
     }
   }
 }
