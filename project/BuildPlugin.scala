@@ -23,6 +23,9 @@ object BuildKeys {
   final val optionsForSourceCompilerPlugin =
     taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
 
+  // Refer to setting via reference because there is no dependency to the scalac build here.
+  final val scalacVersionSuffix = sbt.SettingKey[String]("baseVersionSuffix")
+
   // Source dependency is a submodule that we modify
   final val Scalac = RootProject(file("./scalac"))
   final val ScalacCompiler = ProjectRef(Scalac.build, "compiler")
@@ -99,19 +102,29 @@ object BuildDefaults {
     Keys.aggregate in Keys.doc := false,
     Keys.sources in Compile in Keys.doc := Seq.empty,
     Keys.scalacOptions in Compile in Keys.doc := Seq.empty,
-    Keys.publishArtifact in Compile in Keys.packageDoc := false
+    Keys.publishArtifact in Compile in Keys.packageDoc := false,
+    // Use snapshot only for local development plz.
+    // If placed in global settings, it's not applied. Sbt bug?
+    BuildKeys.scalacVersionSuffix in BuildKeys.Scalac := "bin-performance-SNAPSHOT"
   )
 
+  private final val UnknownHash = "UNKNOWN"
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
-    Keys.triggeredMessage in ThisBuild := Watched.clearWhenTriggered,
     Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
     Keys.onLoad := { (state: State) =>
+      import sbt.IO
       import com.typesafe.sbt.git.JGit
       // Only publish scalac if file doesn't exist
       val baseDirectory = (Keys.baseDirectory in sbt.ThisBuild).value
+      val scalacHashFile = baseDirectory./(".scalac-hash")
       val repository = JGit(baseDirectory./("scalac"))
-      if (!repository.hasUncommittedChanges) state
-      else {
+      // If sha cannot be fetched, always force publishing of fork.
+      val currentHash = repository.headCommitSha.getOrElse(UnknownHash)
+      if (!repository.hasUncommittedChanges &&
+          scalacHashFile.exists() &&
+          currentHash == IO.read(scalacHashFile)) {
+        state
+      } else {
         val logger = Keys.sLog.value
         val extracted = sbt.Project.extract(state)
         val buildData = extracted.structure.data
@@ -120,7 +133,10 @@ object BuildDefaults {
           case Some(version) =>
             (Keys.scalaVersion in ThisBuild).get(buildData) match {
               case Some(scalaVersion) if scalaVersion == version =>
-                publishCustomScalaFork(state, version, logger)
+                val newState = publishCustomScalaFork(state, version, logger)
+                if (currentHash != UnknownHash)
+                  IO.write(scalacHashFile, currentHash)
+                newState
               case _ => state // Do nothing
             }
           case None => state // Do nothing
@@ -137,6 +153,7 @@ object BuildDefaults {
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
     Keys.scalaVersion := ScalacVersion.value,
     Keys.crossScalaVersions := ScalaVersions ++ List(ScalacVersion.value),
+    Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enablePerformanceDebugging in ThisBuild := false
   ) ++ publishSettings
 
