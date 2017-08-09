@@ -3,6 +3,7 @@ pipeline:
     image: plugins/git
     tags: true
     recursive: true
+    depth: 50
     submodule_override:
       scalac: https://github.com/scala/scala.git
 
