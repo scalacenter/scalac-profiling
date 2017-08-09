@@ -29,7 +29,7 @@ lazy val plugin = project
     // Log implicits to identify which info we get currently
     scalacOptions in Test ++= {
       if (!enablePerformanceDebugging.value) Nil
-      else List("-Xlog-implicits")
+      else List("-Xlog-implicits", "-Ystatistics:typer")
     },
     // Generate toolbox classpath while compiling for both configurations
     resourceGenerators in Compile += generateToolboxClasspath.taskValue,
