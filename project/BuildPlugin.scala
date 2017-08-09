@@ -135,7 +135,6 @@ object BuildDefaults {
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.resolvers += Resolver.sonatypeRepo("staging"),
     Keys.scalaVersion := ScalacVersion.value,
     Keys.crossScalaVersions := ScalaVersions ++ List(ScalacVersion.value),
     BuildKeys.enablePerformanceDebugging in ThisBuild := false

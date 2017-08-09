@@ -52,8 +52,10 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
         file -> MacroInfo.aggregate(onlyInfos)
     }
     val inTotal = MacroInfo.aggregate(perFile.iterator.map(_._2))
-    val repeated =
-      repeatedTrees.valuesIterator.filter(_.count > 1).map(v => v.original -> v.count).toMap
+    val repeated = repeatedTrees.valuesIterator
+      .filter(_.count > 1)
+      .map(v => v.original -> v.count)
+      .toMap
     MacroProfiler(perCallSite, perFile, inTotal, repeated)
   }
 
