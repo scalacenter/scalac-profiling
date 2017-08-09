@@ -23,14 +23,13 @@ lazy val plugin = project
       val pluginAndDeps = (jar.getAbsolutePath :: pluginDeps).mkString(":")
       val addPlugin = "-Xplugin:" + pluginAndDeps
       val dummy = "-Jdummy=" + jar.lastModified
-      Seq(addPlugin, dummy)
+      // Enable debugging information when necessary
+      val debuggingPluginOptions =
+        if (!enablePerformanceDebugging.value) Nil
+        else List("-Xlog-implicits", "-Ystatistics:typer")
+      Seq(addPlugin, dummy) ++ debuggingPluginOptions
     },
     scalacOptions in Test ++= optionsForSourceCompilerPlugin.value,
-    // Log implicits to identify which info we get currently
-    scalacOptions in Test ++= {
-      if (!enablePerformanceDebugging.value) Nil
-      else List("-Xlog-implicits", "-Ystatistics:typer")
-    },
     // Generate toolbox classpath while compiling for both configurations
     resourceGenerators in Compile += generateToolboxClasspath.taskValue,
     resourceGenerators in Test += Def.task {
