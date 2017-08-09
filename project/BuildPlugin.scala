@@ -17,7 +17,7 @@ object BuildPlugin extends AutoPlugin {
 
 object BuildKeys {
   import sbt.{settingKey, taskKey, richFile, file, toGroupID}
-  import sbt.{RootProject, ProjectRef, Setting, Compile}
+  import sbt.{RootProject, ProjectRef, Setting, Compile, BuildRef}
   final val enablePerformanceDebugging =
     settingKey[Boolean]("Enable performance debugging if true.")
   final val optionsForSourceCompilerPlugin =
@@ -26,8 +26,13 @@ object BuildKeys {
   // Refer to setting via reference because there is no dependency to the scalac build here.
   final val scalacVersionSuffix = sbt.SettingKey[String]("baseVersionSuffix")
 
+  // Use absolute paths so that references work even though the `ThisBuild` changes
+  final val AbsolutePath = file(".").getAbsolutePath
+  final val HomeBuild = BuildRef(RootProject(file(AbsolutePath)).build)
+
   // Source dependency is a submodule that we modify
-  final val Scalac = RootProject(file("./scalac"))
+  final val Scalac = RootProject(file(s"$AbsolutePath/scalac"))
+  final val ScalacBuild = BuildRef(Scalac.build)
   final val ScalacCompiler = ProjectRef(Scalac.build, "compiler")
   final val ScalacLibrary = ProjectRef(Scalac.build, "library")
   final val ScalacReflect = ProjectRef(Scalac.build, "reflect")
@@ -145,6 +150,14 @@ object BuildDefaults {
     }
   )
 
+  final val commandAliases: Seq[Def.Setting[sbt.State => sbt.State]] = {
+    val scalacRef = sbt.Reference.display(BuildKeys.ScalacBuild)
+    val scalac = sbt.addCommandAlias("scalac", s"project ${scalacRef}")
+    val homeRef = sbt.Reference.display(BuildKeys.HomeBuild)
+    val home = sbt.addCommandAlias("home", s"project ${homeRef}")
+    scalac ++ home
+  }
+
   private final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
   private final val ScalaVersions = Seq("2.11.11", "2.12.3")
   final val buildSettings: Seq[Def.Setting[_]] = Seq(
@@ -155,7 +168,7 @@ object BuildDefaults {
     Keys.crossScalaVersions := ScalaVersions ++ List(ScalacVersion.value),
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enablePerformanceDebugging in ThisBuild := false
-  ) ++ publishSettings
+  ) ++ publishSettings ++ commandAliases
 
   final val projectSettings: Seq[Def.Setting[_]] = Seq(
     Keys.scalacOptions in Compile := reasonableCompileOptions
@@ -167,7 +180,7 @@ object BuildDefaults {
       "-Yno-adapted-args" :: "-Ywarn-numeric-widen" :: "-Xfuture" :: "-Xlint" :: Nil
   )
 
-  def publishCustomScalaFork(state0: State, version: String, logger: Logger): State = {
+  private def publishCustomScalaFork(state0: State, version: String, logger: Logger): State = {
     import sbt.{Project, Value, Inc, Incomplete}
     logger.warn(s"Publishing Scala version $version from the fork...")
     // Bah, reuse the same state for everything.
