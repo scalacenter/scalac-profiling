@@ -4,6 +4,7 @@ pipeline:
     tags: true
     recursive: true
     depth: 50
+    submodule_update_remote: true
     submodule_override:
       scalac: https://github.com/scala/scala.git
 
