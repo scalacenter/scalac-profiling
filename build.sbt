@@ -54,21 +54,28 @@ lazy val scalac = project
 
 // Source dependencies from git are cached by sbt
 val Circe = RootProject(uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"))
+val CirceBuild = BuildRef(Circe.build)
 val CirceTests = ProjectRef(Circe.build, "tests")
 val Monocle = RootProject(uri("git://github.com/jvican/Monocle.git#713054c46728c1fe912d2a7bae0ec19470ecaab9"))
+val MonocleBuild = BuildRef(Monocle.build)
 val MonocleExample = ProjectRef(Monocle.build, "example")
 val MonocleTests = ProjectRef(Monocle.build, "testJVM")
+
 val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests)
+
 val showScalaInstances = taskKey[Unit]("Show versions of all integration tests")
 
 lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe, Monocle)
   .settings(
-    inProjectRefs(AllIntegrationProjects)(
+    // Monocle build needs this to be scoped to compile and test, and so we do for circe too
+    inProjectRefs(AllIntegrationProjects)(inCompileAndTest(
       // Set both -- scalaInstance is not reloaded when scalaVersion changes
       scalaVersion := (scalaVersion in Test in plugin).value,
-      scalaInstance := (scalaInstance in Test in plugin).value,
+      scalaInstance := (scalaInstance in Test in plugin).value
+    ): _*),
+    inProjectRefs(AllIntegrationProjects)(
       scalacOptions ++= (optionsForSourceCompilerPlugin in plugin).value
     ),
     scalacOptions in Compile ++=
