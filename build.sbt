@@ -59,35 +59,35 @@ val Monocle = RootProject(uri("git://github.com/jvican/Monocle.git#713054c46728c
 val MonocleExample = ProjectRef(Monocle.build, "example")
 val MonocleTests = ProjectRef(Monocle.build, "testJVM")
 val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests)
-val showVersions = taskKey[Unit]("Show versions of all integration tests")
+val showScalaInstances = taskKey[Unit]("Show versions of all integration tests")
 
 lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe, Monocle)
   .settings(
-    inProjectRefs(AllIntegrationProjects)(inCompileAndTest(
-      scalaVersion := ScalacVersion.value,
+    inProjectRefs(AllIntegrationProjects)(
+      // Set both -- scalaInstance is not reloaded when scalaVersion changes
+      scalaVersion := (scalaVersion in Test in plugin).value,
+      scalaInstance := (scalaInstance in Test in plugin).value,
       scalacOptions ++= (optionsForSourceCompilerPlugin in plugin).value
-    ): _*),
-    inCompileAndTest(
-      scalacOptions in Compile ++=
-        (optionsForSourceCompilerPlugin in plugin).value
     ),
-    showVersions := {
+    scalacOptions in Compile ++=
+      (optionsForSourceCompilerPlugin in plugin).value,
+    showScalaInstances := {
       val logger = streams.value.log
       logger.info((name in Compile).value)
-      logger.info((scalaVersion in Compile).value)
+      logger.info((scalaInstance in Compile).value.toString)
       logger.info((name in Test in CirceTests).value)
-      logger.info((scalaVersion in Test in CirceTests).value)
+      logger.info((scalaInstance in Test in CirceTests).value.toString)
       logger.info((name in Test in MonocleTests).value)
-      logger.info((scalaVersion in Test in MonocleTests).value)
+      logger.info((scalaInstance in Test in MonocleTests).value.toString)
       logger.info((name in Test in MonocleExample).value)
-      logger.info((scalaVersion in Test in MonocleExample).value)
+      logger.info((scalaInstance in Test in MonocleExample).value.toString)
       ()
     },
     test := {
       Def.sequential(
-        showVersions,
+        showScalaInstances,
         (compile in Compile),
         (compile in Test in CirceTests),
         (compile in Test in MonocleTests),
