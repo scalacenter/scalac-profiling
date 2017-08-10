@@ -58,19 +58,18 @@ val CirceTests = ProjectRef(Circe.build, "tests")
 val Monocle = RootProject(uri("git://github.com/jvican/Monocle.git#713054c46728c1fe912d2a7bae0ec19470ecaab9"))
 val MonocleExample = ProjectRef(Monocle.build, "example")
 val MonocleTests = ProjectRef(Monocle.build, "testJVM")
+val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests)
 
 lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe, Monocle)
   .settings(
+    inProjectRefs(AllIntegrationProjects)(inCompileAndTest(
+      scalaVersion := ScalacVersion.value,
+      scalacOptions ++= (optionsForSourceCompilerPlugin in plugin).value
+    ): _*),
     inCompileAndTest(
       scalacOptions in Compile ++=
-        (optionsForSourceCompilerPlugin in plugin).value,
-      scalacOptions in MonocleExample ++=
-        (optionsForSourceCompilerPlugin in plugin).value,
-      scalacOptions in MonocleTests ++=
-        (optionsForSourceCompilerPlugin in plugin).value,
-      scalacOptions in CirceTests ++=
         (optionsForSourceCompilerPlugin in plugin).value
     ),
     test := {

@@ -37,17 +37,21 @@ object BuildKeys {
   final val ScalacLibrary = ProjectRef(Scalac.build, "library")
   final val ScalacReflect = ProjectRef(Scalac.build, "reflect")
   final val AllScalacProjects = List(ScalacCompiler, ScalacLibrary, ScalacReflect)
+  final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
 
   final val testDependencies = Seq(
     "junit" % "junit" % "4.12" % "test",
     "com.novocode" % "junit-interface" % "0.11" % "test"
   )
 
-  def inReference(ref: sbt.Reference)(ss: Seq[Setting[_]]): Seq[Setting[_]] =
+  def inProject(ref: sbt.Reference)(ss: Seq[Setting[_]]): Seq[Setting[_]] =
     sbt.inScope(sbt.ThisScope.in(project = ref))(ss)
 
+  def inProjectRefs(refs: Seq[sbt.Reference])(ss: Setting[_]*): Seq[Setting[_]] =
+    refs.flatMap(inProject(_)(ss))
+
   def inScalacProjects(ss: Setting[_]*): Seq[Setting[_]] =
-    AllScalacProjects.flatMap(inReference(_)(ss))
+    inProjectRefs(AllScalacProjects)(ss: _*)
 
   def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
     Seq(sbt.Compile, sbt.Test).flatMap(sbt.inConfig(_)(ss))
@@ -133,7 +137,7 @@ object BuildDefaults {
         val logger = Keys.sLog.value
         val extracted = sbt.Project.extract(state)
         val buildData = extracted.structure.data
-        val maybeVersion = ScalacVersion.get(buildData)
+        val maybeVersion = BuildKeys.ScalacVersion.get(buildData)
         maybeVersion match {
           case Some(version) =>
             (Keys.scalaVersion in ThisBuild).get(buildData) match {
@@ -158,14 +162,13 @@ object BuildDefaults {
     scalac ++ home
   }
 
-  private final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
   private final val ScalaVersions = Seq("2.11.11", "2.12.3")
   final val buildSettings: Seq[Def.Setting[_]] = Seq(
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := ScalacVersion.value,
-    Keys.crossScalaVersions := ScalaVersions ++ List(ScalacVersion.value),
+    Keys.scalaVersion := BuildKeys.ScalacVersion.value,
+    Keys.crossScalaVersions := ScalaVersions ++ List(BuildKeys.ScalacVersion.value),
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enablePerformanceDebugging in ThisBuild := sys.env.get("CI").isDefined
   ) ++ publishSettings ++ commandAliases
