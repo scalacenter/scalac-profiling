@@ -26,7 +26,8 @@ lazy val plugin = project
       // Enable debugging information when necessary
       val debuggingPluginOptions =
         if (!enablePerformanceDebugging.value) Nil
-        else List("-Xlog-implicits", "-Ystatistics:typer")
+        else List("-Ystatistics:typer")
+        //else List("-Xlog-implicits", "-Ystatistics:typer")
       Seq(addPlugin, dummy) ++ debuggingPluginOptions
     },
     scalacOptions in Test ++= optionsForSourceCompilerPlugin.value,
