@@ -37,7 +37,10 @@ object BuildKeys {
   final val ScalacLibrary = ProjectRef(Scalac.build, "library")
   final val ScalacReflect = ProjectRef(Scalac.build, "reflect")
   final val AllScalacProjects = List(ScalacCompiler, ScalacLibrary, ScalacReflect)
+
+  // Assumes that the previous scala version is the last bincompat version
   final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
+  final val PreviousScalaVersion = Keys.scalaVersion in BuildKeys.ScalacCompiler
 
   final val testDependencies = Seq(
     "junit" % "junit" % "4.12" % "test",
@@ -120,7 +123,7 @@ object BuildDefaults {
   private final val UnknownHash = "UNKNOWN"
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
     Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
-    Keys.onLoad := { (state: State) =>
+    Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen { (state: State) =>
       import sbt.IO
       import com.typesafe.sbt.git.JGit
       // Only publish scalac if file doesn't exist
@@ -170,7 +173,7 @@ object BuildDefaults {
     Keys.scalaVersion := BuildKeys.ScalacVersion.value,
     Keys.crossScalaVersions := ScalaVersions ++ List(BuildKeys.ScalacVersion.value),
     Keys.triggeredMessage := Watched.clearWhenTriggered,
-    BuildKeys.enablePerformanceDebugging in ThisBuild := sys.env.get("CI").isDefined
+    BuildKeys.enablePerformanceDebugging := sys.env.get("CI").isDefined
   ) ++ publishSettings ++ commandAliases
 
   final val projectSettings: Seq[Def.Setting[_]] = Seq(
