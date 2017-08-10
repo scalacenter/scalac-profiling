@@ -167,7 +167,7 @@ object BuildDefaults {
     Keys.scalaVersion := ScalacVersion.value,
     Keys.crossScalaVersions := ScalaVersions ++ List(ScalacVersion.value),
     Keys.triggeredMessage := Watched.clearWhenTriggered,
-    BuildKeys.enablePerformanceDebugging in ThisBuild := false
+    BuildKeys.enablePerformanceDebugging in ThisBuild := sys.env.get("CI").isDefined
   ) ++ publishSettings ++ commandAliases
 
   final val projectSettings: Seq[Def.Setting[_]] = Seq(
