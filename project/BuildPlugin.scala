@@ -110,7 +110,7 @@ object BuildDefaults {
     Keys.publishArtifact in Compile in Keys.packageDoc := false,
     // Use snapshot only for local development plz.
     // If placed in global settings, it's not applied. Sbt bug?
-    BuildKeys.scalacVersionSuffix in BuildKeys.Scalac := "bin-performance-SNAPSHOT"
+    BuildKeys.scalacVersionSuffix in BuildKeys.Scalac := "bin-stats-SNAPSHOT"
   )
 
   private final val UnknownHash = "UNKNOWN"
