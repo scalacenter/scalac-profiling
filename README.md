@@ -14,17 +14,33 @@ decrease developer productivity.
 This repository holds the compiler plugin and a fork of mainstream scalac
 that will be eventually be merged upstream. This work is prompted by [Morgan
 Stanley's proposal](PROPOSAL.md) and was approved in our last advisory board.
+
+## Information about the setup
+
+The project uses a forked scalac version that is used to compile both the compiler plugin
+and several OSS projects from the community. The integration tests are for now [Circe](https://github.com/circe/circe) and [Monocle](https://github.com/julien-truffaut/Monocle),
+and they help us look into big profiling numbers and detect hot spots and misbehaviours.
+
+If you think a particular codebase is a good candidate to become an integration test, please [open an issue](https://github.com/scalacenter/scalac-profiling/issues/new).
+
+### Structure
+
+1. [A forked scalac](scalac/) with patches to collect profiling information.
+   All changes are expected to be ported upstream.
+2. [A compiler plugin](plugin/) to get information from the macro infrastructure independently
+   of the used Scalac version.
+
 ## Collected data
 
 In the following secions, I elaborate on the collected data that we want to extract from the compiler as well as technical details for every section in the [original proposal](PROPOSAL.md).
 
-(:warning: This repository is **heavy work-in-progress**. :warning:)
+(This repository is **heavy work-in-progress**. Expect things to change.)
 
 ### Information about macros
 Per call-site, file and total:
-* How many macros are expanded?
+* How many macros are expanded? :heavy_check_mark:
 * How long do they take to run?
-* How many tree nodes do macros create?
+* How many tree nodes do macros create? :heavy_check_mark:
 * How many of these tree nodes are discarded?
 * What's the ratio of generated code/user-defined code?
 
@@ -38,6 +54,8 @@ Per call-site, file and total:
 * How many implicit search failures are?
 * How many implicit search hits are?
 * What's the ratio of search failures/hits?
+
+### 
 
 ### Ideas to be considered
 
