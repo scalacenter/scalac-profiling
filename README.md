@@ -114,17 +114,17 @@ investigation.)
 #### Report on concrete, inefficient macros
 Macro-generated code is usually inefficient because macro authors do not
 optimize for compactness and compile times and express the macro logic with
-Scala.
+high-level Scala.
 
 Instead, they could use low-level constructs that spare work to the compiler
 (manually generating getters and setters, code-generating shorter fresh
-names, spare use of `final` flags, explicitly typing all the members,
-avoiding the use of traits, et cetera).
+names, spare use of `final` and `private[this]` flags, explicitly typing all
+the members, avoiding the use of traits, et cetera).
 
-Another efficiency of macros is that different call-sites that invoke a macro
-with the same inputs generate different trees with identical semantics. This
-lack of caching at the macro level is one of the main sources for inefficient
-code.
+A well-known problem of macros is that different call-sites that invoke a
+macro with the same inputs will generate different trees with identical
+semantics. This lack of caching at the macro level is one of the main
+problems affecting compile times.
 
 Ideally, this plugin would be able to:
 1. Identify inefficient expanded code with tree-size heuristics and the use
