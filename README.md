@@ -1,4 +1,5 @@
 # Providing Better Compilation Performance Information
+
 [![Build
 Status](https://platform-ci.scala-lang.org/api/badges/scalacenter/scalac-profiling/status.svg)](https://platform-ci.scala-lang.org/scalacenter/scalac-profiling)
 
@@ -6,9 +7,10 @@ When compile times become a problem, how can Scala developers reason about
 the relation between their code and compile times?
 
 ## Goal of the project
+
 The goal of this proposal is to allow Scala developers to optimize their
 codebase to reduce compile times, spotting inefficient implicit searches,
-expanded macro code, and other culprits that slow down compile times and
+expanded macro code, and other reasons that slow down compile times and
 decrease developer productivity.
 
 This repository holds the compiler plugin and a fork of mainstream scalac
@@ -26,9 +28,10 @@ If you think a particular codebase is a good candidate to become an integration 
 ## Plan
 
 The [proposal](PROPOSAL.md) is divided into three main areas:
+
 1. Data generation and capture.
-2. Data visualisation and comparison.
-3. Reproducibility.
+1. Data visualisation and comparison.
+1. Reproducibility.
 
 How to tackle each of these problems to make the implementation successful?
 
@@ -42,7 +45,7 @@ compiler plugin and a forked scalac).
 
 1. [A forked scalac](scalac/) with patches to collect profiling information.
    All changes are expected to be ported upstream.
-2. [A compiler plugin](plugin/) to get information from the macro infrastructure independently
+1. [A compiler plugin](plugin/) to get information from the macro infrastructure independently
    of the used Scalac version.
 
 The work is split into two parts so that Scala developers that are stuck in previous Scala
@@ -55,10 +58,11 @@ plugin, or put there things that cannot be merged upstream.
 
 The profiling data will be accessible in two different ways (provided that
 the pertinent profiling flags are enabled):
+
 1. A summary of the stats will be printed out in every compile run.
 1. A protobuf file will be generated at the root of the class files directory.
-  * The file is generated via protobuf so that it's backwards and forwards binary compatible
-  * The protobuf file will contain all the profiling information.
+   * The file is generated via protobuf so that it's backwards and forwards binary compatible
+   * The protobuf file will contain all the profiling information.
 
 Why a protobuf file instead of a JSON file? Forwards and backwards binary
 compatibility is important -- we want our tooling to be able to read files
