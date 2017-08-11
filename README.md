@@ -70,12 +70,23 @@ with the same inputs generate different trees with identical semantics. This
 lack of caching at the macro level is one of the main sources for inefficient
 code.
 
-Ideally, this plugin would be able to identify inefficient expanded code with
-tree-size heuristics and the use of particular features that could be
-expressed in a more low-level manner. It could also tell users if there's any
-repetition in the expanded code.
+Ideally, this plugin would be able to:
+1. Identify inefficient expanded code with tree-size heuristics and the use
+   of particular features that could be expressed in a more low-level manner.
+2. Tell users if there's any repetition in the expanded code.
+3. Let users inspect the macro generated code to manually investigate inefficient
+   macro expansions. The generated code could be written in a directory passed in
+   via compiler plugin settings, and would be disabled by default.
 
 As a side note, repetitions in expanded code can be addressed in two ways:
 * Create a cache of expanded code in the compiler macro infrastructure.
-* Create a cache of expanded code in the macro implementation (more
-  challenging).
+* Create a cache of expanded code in the macro implementation.
+
+Both alternatives are **challenging**, if not impossible. The easiest way to
+cache implicits is that the developers of implicit-intensive codebases create
+their own objects storing implicit values for all the target types and
+imports them in all the use sites.
+
+
+
+#### More to come...
