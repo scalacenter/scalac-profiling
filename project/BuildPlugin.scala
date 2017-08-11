@@ -227,11 +227,15 @@ object BuildImplementation {
 
     final val PluginProject = sbt.LocalProject("plugin")
     final val hijackScalaVersions: Hook = Def.setting { (state: State) =>
-      if (state.get(BuildKeys.hijacked).getOrElse(false)) state
+      if (state.get(BuildKeys.hijacked).getOrElse(false)) state.remove(BuildKeys.hijacked)
       else {
         val hijackedState = state.put(BuildKeys.hijacked, true)
         val extracted = sbt.Project.extract(hijackedState)
-        val toAppend = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
+        val forkedScalaVersion = (Keys.scalaVersion in Test in PluginProject).value
+        val globalSettings = List(
+          Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $forkedScalaVersion."
+        )
+        val projectSettings = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
           Keys.scalaVersion := (Keys.scalaVersion in Test in PluginProject).value,
           Keys.scalaInstance := (Keys.scalaInstance in Test in PluginProject).value,
           Keys.scalacOptions ++= (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value,
@@ -241,7 +245,7 @@ object BuildImplementation {
             previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
           }
         )
-        extracted.append(toAppend, hijackedState)
+        extracted.append(globalSettings ++ projectSettings, hijackedState)
       }
     }
 
