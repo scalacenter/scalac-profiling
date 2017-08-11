@@ -78,22 +78,22 @@ In the following secions, I elaborate on the collected data that we want to extr
 
 ### Information about macros
 Per call-site, file and total:
-* How many macros are expanded? :heavy_check_mark:
-* How long do they take to run?
-* How many tree nodes do macros create? :heavy_check_mark:
-* How many of these tree nodes are discarded?
-* What's the ratio of generated code/user-defined code?
+- [x] How many macros are expanded?
+- [ ] How long do they take to run?
+- [x] How many tree nodes do macros create?
+- [ ] How many of these tree nodes are discarded?
+- [ ] What's the ratio of generated code/user-defined code?
 
 ### Information about implicit search
 Getting hold of this information requires changes in mainstream scalac.
 
 Per call-site, file and total:
-* How many implicit searches are triggered by user-defined code?
-* How many implicit searches are triggered my macro code?
-* How long implicit searches take to run?
-* How many implicit search failures are? :heavy_check_mark:
-* How many implicit search hits are? :heavy_check_mark:
-* What's the ratio of search failures/hits?
+- [ ] How many implicit searches are triggered by user-defined code?
+- [ ] How many implicit searches are triggered my macro code?
+- [ ] How long implicit searches take to run?
+- [x] How many implicit search failures are?
+- [x] How many implicit search hits are?
+- [ ] What's the ratio of search failures/hits?
 
 ### Ideas to be considered
 
