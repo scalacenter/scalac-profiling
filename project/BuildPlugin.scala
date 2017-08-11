@@ -8,20 +8,21 @@ object BuildPlugin extends AutoPlugin {
   val autoImport = BuildKeys
 
   override def globalSettings: Seq[Def.Setting[_]] =
-    BuildDefaults.globalSettings
+    BuildImplementation.globalSettings
   override def buildSettings: Seq[Def.Setting[_]] =
-    BuildDefaults.buildSettings
+    BuildImplementation.buildSettings
   override def projectSettings: Seq[Def.Setting[_]] =
-    BuildDefaults.projectSettings
+    BuildImplementation.projectSettings
 }
 
 object BuildKeys {
-  import sbt.{settingKey, taskKey, richFile, file, toGroupID}
-  import sbt.{RootProject, ProjectRef, Setting, Compile, BuildRef}
+  import sbt.{settingKey, taskKey, richFile, file, uri, toGroupID}
+  import sbt.{RootProject, ProjectRef, Setting, Compile, BuildRef, Reference}
   final val enablePerformanceDebugging =
     settingKey[Boolean]("Enable performance debugging if true.")
   final val optionsForSourceCompilerPlugin =
     taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
+  final val showScalaInstances = taskKey[Unit]("Show versions of all integration tests")
 
   // Refer to setting via reference because there is no dependency to the scalac build here.
   final val scalacVersionSuffix = sbt.SettingKey[String]("baseVersionSuffix")
@@ -38,29 +39,24 @@ object BuildKeys {
   final val ScalacReflect = ProjectRef(Scalac.build, "reflect")
   final val AllScalacProjects = List(ScalacCompiler, ScalacLibrary, ScalacReflect)
 
+  // Source dependencies from git are cached by sbt
+  val Circe = RootProject(
+    uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"))
+  val CirceTests = ProjectRef(Circe.build, "tests")
+  val Monocle = RootProject(
+    uri("git://github.com/jvican/Monocle.git#713054c46728c1fe912d2a7bae0ec19470ecaab9"))
+  val MonocleExample = ProjectRef(Monocle.build, "example")
+  val MonocleTests = ProjectRef(Monocle.build, "testJVM")
+  val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests)
+
   // Assumes that the previous scala version is the last bincompat version
   final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
   final val PreviousScalaVersion = Keys.scalaVersion in BuildKeys.ScalacCompiler
 
-  final val testDependencies = Seq(
+  final val testDependencies = List(
     "junit" % "junit" % "4.12" % "test",
     "com.novocode" % "junit-interface" % "0.11" % "test"
   )
-
-  def inProject(ref: sbt.Reference)(ss: Seq[Setting[_]]): Seq[Setting[_]] =
-    sbt.inScope(sbt.ThisScope.in(project = ref))(ss)
-
-  def inProjectRefs(refs: Seq[sbt.Reference])(ss: Setting[_]*): Seq[Setting[_]] =
-    refs.flatMap(inProject(_)(ss))
-
-  def inScalacProjects(ss: Setting[_]*): Seq[Setting[_]] =
-    inProjectRefs(AllScalacProjects)(ss: _*)
-
-  def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
-    Seq(sbt.Compile, sbt.Test).flatMap(sbt.inConfig(_)(ss))
-
-  final val scalaPartialVersion =
-    Def.setting(sbt.CrossVersion partialVersion Keys.scalaVersion.value)
 
   /** Write all the compile-time dependencies of the compiler plugin to a file,
     * in order to read it from the created Toolbox to run the neg tests. */
@@ -76,9 +72,53 @@ object BuildKeys {
     sbt.IO.write(toolboxTestClasspath, classpath)
     List(toolboxTestClasspath.getAbsoluteFile)
   }
+
+  /**
+    * So you may want to ask, why is the code below this comment required?
+    *
+    * HA! Good question. Breathe and take your time.
+    *
+    * Sbt does not like overrides of setting values that happen in ThisBuild,
+    * nor in other project settings like integrations'. No. Sbt is exigent and
+    * always asks you to give your best.
+    *
+    * So, as I'm a busy developer that does not have the time to debug, find a
+    * reproduction to this insidious bug and report it upstream, I force the
+    * settings overrides via this cute hook in `onLoad`.
+    *
+    * Why so much code for such a simple idea? Well, `Project.extract` does force
+    * the execution and initialization of settings, so as `onLoad` is a setting
+    * it causes a recursive call to itself, yay!
+    *
+    * So, in short, solution: use an attribute in the state to short-circuit the
+    * recursive invocation.
+    *
+    * Notes to the future reader: the bug that prompted this solution is weird
+    * I can indeed override lots of settings via project refs, but when it comes
+    * to overriding a setting **in a project** (that has been generated via
+    * sbt-cross-project), it does not work. On top of this, this wouldn't happen
+    * if monocle defined the scala versions at the build level (it instead does it
+    * at the project level, which is bad practice). So, finding a repro for this
+    * is going to be fun. Escape while you can.
+    */
+  final val hijacked = sbt.AttributeKey[Boolean]("The hijacked sexy option.")
+
+  ////////////////////////////////////////////////////////////////////////////////
+
+  def inProject(ref: Reference)(ss: Seq[Setting[_]]): Seq[Setting[_]] =
+    sbt.inScope(sbt.ThisScope.in(project = ref))(ss)
+
+  def inProjectRefs(refs: Seq[Reference])(ss: Setting[_]*): Seq[Setting[_]] =
+    refs.flatMap(inProject(_)(ss))
+
+  def inScalacProjects(ss: Setting[_]*): Seq[Setting[_]] =
+    inProjectRefs(AllScalacProjects)(ss: _*)
+
+  def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
+    Seq(sbt.Compile, sbt.Test).flatMap(sbt.inConfig(_)(ss))
 }
 
-object BuildDefaults {
+object BuildImplementation {
   import sbt.{url, file, richFile, State, Logger}
   import sbt.{ScmInfo, Developer, Resolver, ThisBuild, Watched, Compile, Test}
 
@@ -120,10 +160,22 @@ object BuildDefaults {
     BuildKeys.scalacVersionSuffix in BuildKeys.Scalac := "bin-stats-SNAPSHOT"
   )
 
-  private final val UnknownHash = "UNKNOWN"
-  final val globalSettings: Seq[Def.Setting[_]] = Seq(
-    Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
-    Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen { (state: State) =>
+  object BuildDefaults {
+    final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
+      val logger = Keys.streams.value.log
+      logger.info((Keys.name in Test in BuildKeys.CirceTests).value)
+      logger.info((Keys.scalaInstance in Test in BuildKeys.CirceTests).value.toString)
+      logger.info((Keys.name in Test in BuildKeys.MonocleTests).value)
+      logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleTests).value.toString)
+      logger.info((Keys.name in Test in BuildKeys.MonocleExample).value)
+      logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleExample).value.toString)
+      ()
+    }
+
+    type Hook = Def.Initialize[State => State]
+
+    private final val UnknownHash = "UNKNOWN"
+    final val publishForkScalac: Hook = Def.setting { (state: State) =>
       import sbt.IO
       import com.typesafe.sbt.git.JGit
       // Only publish scalac if file doesn't exist
@@ -155,6 +207,55 @@ object BuildDefaults {
         }
       }
     }
+
+    import sbt.ModuleID
+
+    /**
+      * Removes scala version from those modules that use full cross version and injects
+      * the manual Scala version in the library dependency name assuming that the library
+      * will not use any binary incompatible change in the compiler sources (or assuming
+      * that there is none, which is even better!).
+      */
+    def trickLibraryDependency(dependency: ModuleID, validVersion: String): ModuleID = {
+      dependency.crossVersion match {
+        case fullVersion: sbt.CrossVersion.Full =>
+          val manualNameWithScala = s"${dependency.name}_$validVersion"
+          dependency.copy(name = manualNameWithScala).copy(crossVersion = sbt.CrossVersion.Disabled)
+        case _ => dependency
+      }
+    }
+
+    final val PluginProject = sbt.LocalProject("plugin")
+    final val hijackScalaVersions: Hook = Def.setting { (state: State) =>
+      if (state.get(BuildKeys.hijacked).getOrElse(false)) state.remove(BuildKeys.hijacked)
+      else {
+        val hijackedState = state.put(BuildKeys.hijacked, true)
+        val extracted = sbt.Project.extract(hijackedState)
+        val forkedScalaVersion = (Keys.scalaVersion in Test in PluginProject).value
+        val globalSettings = List(
+          Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $forkedScalaVersion."
+        )
+        val projectSettings = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
+          Keys.scalaVersion := forkedScalaVersion,
+          Keys.scalaInstance := (Keys.scalaInstance in Test in PluginProject).value,
+          Keys.scalacOptions ++= (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value,
+          Keys.libraryDependencies ~= { previousDependencies =>
+            // Assumes that all of these projects are on the same bincompat version (2.12.x)
+            val validScalaVersion = BuildKeys.PreviousScalaVersion.value
+            previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
+          }
+        )
+        extracted.append(globalSettings ++ projectSettings, hijackedState)
+      }
+    }
+
+    final val customOnLoad: Hook =
+      Def.setting(publishForkScalac.value andThen hijackScalaVersions.value)
+  }
+
+  final val globalSettings: Seq[Def.Setting[_]] = Seq(
+    Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
+    Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value)
   )
 
   final val commandAliases: Seq[Def.Setting[sbt.State => sbt.State]] = {
@@ -173,7 +274,8 @@ object BuildDefaults {
     Keys.scalaVersion := BuildKeys.ScalacVersion.value,
     Keys.crossScalaVersions := ScalaVersions ++ List(BuildKeys.ScalacVersion.value),
     Keys.triggeredMessage := Watched.clearWhenTriggered,
-    BuildKeys.enablePerformanceDebugging := sys.env.get("CI").isDefined
+    BuildKeys.enablePerformanceDebugging := sys.env.get("CI").isDefined,
+    BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value
   ) ++ publishSettings ++ commandAliases
 
   final val projectSettings: Seq[Def.Setting[_]] = Seq(
