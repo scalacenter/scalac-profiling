@@ -236,7 +236,7 @@ object BuildImplementation {
           Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $forkedScalaVersion."
         )
         val projectSettings = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
-          Keys.scalaVersion := (Keys.scalaVersion in Test in PluginProject).value,
+          Keys.scalaVersion := forkedScalaVersion,
           Keys.scalaInstance := (Keys.scalaInstance in Test in PluginProject).value,
           Keys.scalacOptions ++= (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value,
           Keys.libraryDependencies ~= { previousDependencies =>
