@@ -81,7 +81,9 @@ In the following secions, I elaborate on the collected data that we want to extr
 (This repository is **heavy work-in-progress**. Expect things to change.)
 
 ### Information about macros
+
 Per call-site, file and total:
+
 - [x] How many macros are expanded?
 - [ ] How long do they take to run?
 - [x] How many tree nodes do macros create?
@@ -89,9 +91,11 @@ Per call-site, file and total:
 - [ ] What's the ratio of generated code/user-defined code?
 
 ### Information about implicit search
+
 Getting hold of this information requires changes in mainstream scalac.
 
 Per call-site, file and total:
+
 - [ ] How many implicit searches are triggered by user-defined code?
 - [ ] How many implicit searches are triggered my macro code?
 - [ ] How long implicit searches take to run?
@@ -102,6 +106,7 @@ Per call-site, file and total:
 ### Ideas to be considered
 
 #### Tell users how to organize their code to maximize implicit search hits
+
 Based on all the implicit search information that we collect from typer, is
 it possible to advice Scala developers how to organize to optimize implicit
 search hits?
@@ -116,6 +121,7 @@ X"?
 (My hunch feeling is that we can, but this requires testing and a deeper
 investigation.)
 #### Report on concrete, inefficient macros
+
 Macro-generated code is usually inefficient because macro authors do not
 optimize for compactness and compile times and express the macro logic with
 high-level Scala.
@@ -131,14 +137,16 @@ semantics. This lack of caching at the macro level is one of the main
 problems affecting compile times.
 
 Ideally, this plugin would be able to:
+
 1. Identify inefficient expanded code with tree-size heuristics and the use
    of particular features that could be expressed in a more low-level manner.
-2. Tell users if there's any repetition in the expanded code.
-3. Let users inspect the macro generated code to manually investigate inefficient
+1. Tell users if there's any repetition in the expanded code.
+1. Let users inspect the macro generated code to manually investigate inefficient
    macro expansions. The generated code could be written in a directory passed in
    via compiler plugin settings, and would be disabled by default.
 
 As a side note, repetitions in expanded code can be addressed in two ways:
+
 * Create a cache of expanded code in the compiler macro infrastructure.
 * Create a cache of expanded code in the macro implementation.
 
