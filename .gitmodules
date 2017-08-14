@@ -1,4 +1,4 @@
 [submodule "scalac"]
 	path = scalac
 	url = git@github.com:scalacenter/scala.git
-	branch = stats-correct
+	branch = stats+heuristics
