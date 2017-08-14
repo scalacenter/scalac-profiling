@@ -19,9 +19,11 @@ Stanley's proposal](PROPOSAL.md) and was approved in our last advisory board.
 
 ## Information about the setup
 
-The project uses a forked scalac version that is used to compile both the compiler plugin
-and several OSS projects from the community. The integration tests are for now [Circe](https://github.com/circe/circe) and [Monocle](https://github.com/julien-truffaut/Monocle),
-and they help us look into big profiling numbers and detect hot spots and misbehaviours.
+The project uses a forked scalac version that is used to compile both the
+compiler plugin and several OSS projects from the community. The integration
+tests are for now [Circe](https://github.com/circe/circe) and
+[Monocle](https://github.com/julien-truffaut/Monocle), and they help us look
+into big profiling numbers and detect hot spots and misbehaviours.
 
 If you think a particular codebase is a good candidate to become an integration test, please [open an issue](https://github.com/scalacenter/scalac-profiling/issues/new).
 
@@ -97,7 +99,7 @@ Getting hold of this information requires changes in mainstream scalac.
 Per call-site, file and total:
 
 - [ ] How many implicit searches are triggered by user-defined code?
-- [ ] How many implicit searches are triggered my macro code?
+- [ ] How many implicit searches are triggered by macro code?
 - [ ] How long implicit searches take to run?
 - [x] How many implicit search failures are?
 - [x] How many implicit search hits are?
@@ -120,6 +122,7 @@ X"?
 
 (My hunch feeling is that we can, but this requires testing and a deeper
 investigation.)
+
 #### Report on concrete, inefficient macros
 
 Macro-generated code is usually inefficient because macro authors do not
@@ -154,7 +157,5 @@ Both alternatives are **challenging**, if not impossible. The easiest way to
 cache implicits is that the developers of implicit-intensive codebases create
 their own objects storing implicit values for all the target types and
 imports them in all the use sites.
-
-
 
 #### More to come...
