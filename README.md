@@ -159,3 +159,27 @@ their own objects storing implicit values for all the target types and
 imports them in all the use sites.
 
 #### More to come...
+
+### Results
+
+#### What the proposal wants
+
+- [x] Compilation time per file (*this is provided by `-Ystatistics`*)
+  - [x] Total
+  - [x] Broken down by phase
+- [ ] Times per macro (*this is provided by the macro plugin*)
+  - [ ] Per file
+  - [ ] Per macro
+    - [ ] Invocations
+    - [ ] Total time
+- [ ] Implicit search details (time and number)
+  - [ ] By type
+  - [ ] By invocation
+  - [ ] By file
+- [ ] User time, kernel time, wall clock, I/O time
+- [ ] Time for flagged features (for certain features – e.g. optimisation)
+  * Unknown at this point: how can we efficiently capture this information?
+- [ ] Time resolving types from classpath
+  - [ ] Total
+  - [ ] by jar
+- [ ] Imports – unused/wildcard timings?
