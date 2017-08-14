@@ -245,7 +245,11 @@ object BuildImplementation {
             previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
           }
         )
-        extracted.append(globalSettings ++ projectSettings, hijackedState)
+        val currentSession = sbt.Project.session(state)
+        val currentProject = currentSession.current
+        val currentSessionSettings = currentSession.append.get(currentProject).toList.flatten.map(_._1)
+        val allSessionSettings = currentSessionSettings ++ currentSession.rawAppend
+        extracted.append(globalSettings ++ projectSettings ++ allSessionSettings, hijackedState)
       }
     }
 
