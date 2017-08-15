@@ -20,16 +20,17 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
     * want to be able to report/analyse such cases on their own, so
     * we keep it as a paramater of this entity.
     */
-  case class MacroInfo(expandedMacros: Int, expandedNodes: Int) {
+  case class MacroInfo(expandedMacros: Int, expandedNodes: Int, expansionMillis: Long) {
     def +(other: MacroInfo): MacroInfo = {
       val totalExpanded = expandedMacros + other.expandedMacros
       val totalNodes = expandedNodes + other.expandedNodes
-      MacroInfo(totalExpanded, totalNodes)
+      val totalTime = expansionMillis + other.expansionMillis
+      MacroInfo(totalExpanded, totalNodes, totalTime)
     }
   }
 
   object MacroInfo {
-    private[ProfilingImpl] final val Empty = MacroInfo(0, 0)
+    private[ProfilingImpl] final val Empty = MacroInfo(0, 0, 0L)
     def aggregate(infos: Iterator[MacroInfo]): MacroInfo = {
       infos.foldLeft(MacroInfo.Empty)(_ + _)
     }
@@ -79,11 +80,39 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
     case class RepeatedValue(original: Tree, result: Tree, count: Int)
     private[ProfilingImpl] val repeatedTrees = perRunCaches.newMap[RepeatedKey, RepeatedValue]
     private[ProfilingImpl] val macroInfos = perRunCaches.newMap[Position, MacroInfo]
-
     private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
+
     import scala.tools.nsc.Mode
+    import scala.tools.nsc.typechecker.MacrosStats
+    import scala.reflect.internal.util.Statistics
+    import ProfilingStatistics.preciseMacroTimer
+
     override def pluginsMacroExpand(t: Typer, expandee: Tree, mode: Mode, pt: Type): Option[Tree] = {
       object expander extends analyzer.DefMacroExpander(t, expandee, mode, pt) {
+
+        /**
+          * Overrides the default method that expands all macros.
+          *
+          * We perform this because we need our own timer and access to the first timer snapshot
+          * in order to obtain the expansion time for every expanded tree.
+          */
+        override def apply(desugared: Tree): Tree = {
+          val start = Statistics.startTimer(preciseMacroTimer)
+          try super.apply(desugared)
+          finally updateExpansionTime(desugared, start)
+        }
+
+        def updateExpansionTime(desugared: Tree, start: Statistics.TimerSnapshot): Unit = {
+          Statistics.stopTimer(preciseMacroTimer, start)
+          val timeMillis = preciseMacroTimer.nanos / 1000000
+          val callSitePos = desugared.pos
+          // Those that are not present failed to expand
+          macroInfos.get(callSitePos).foreach { found =>
+            val updatedInfo = found.copy(expansionMillis = timeMillis)
+            macroInfos(callSitePos) = updatedInfo
+          }
+        }
+
         override def onSuccess(expanded: Tree) = {
           val callSitePos = expandee.pos
           val printedExpandee = showRaw(expandee)
@@ -95,7 +124,8 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
           val macroInfo = macroInfos.getOrElse(callSitePos, MacroInfo.Empty)
           val expandedMacros = macroInfo.expandedMacros + 1
           val treeSize = macroInfo.expandedNodes + guessTreeSize(expanded)
-          macroInfos.put(callSitePos, MacroInfo(expandedMacros, treeSize))
+          // Use 0L for the timer because it will be filled in by the caller `apply`
+          macroInfos.put(callSitePos, MacroInfo(expandedMacros, treeSize, 0L))
           super.onSuccess(expanded)
         }
       }
@@ -108,4 +138,11 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
       super.traverse(tree)
     }
   }
+}
+
+object ProfilingStatistics {
+  import scala.reflect.internal.util.Statistics
+  import scala.reflect.internal.TypesStats.typerNanos
+  // Define here so that it can be accessed from the outside if necessary.
+  final val preciseMacroTimer = Statistics.newTimer("precise time in macroExpand")
 }

@@ -245,6 +245,7 @@ object BuildImplementation {
             previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
           }
         )
+        // NOTE: This is done because sbt does not handle session settings correctly. Should be reported upstream.
         val currentSession = sbt.Project.session(state)
         val currentProject = currentSession.current
         val currentSessionSettings = currentSession.append.get(currentProject).toList.flatten.map(_._1)
