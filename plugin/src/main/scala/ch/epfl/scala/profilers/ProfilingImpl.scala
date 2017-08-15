@@ -89,6 +89,7 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
 
     override def pluginsMacroExpand(t: Typer, expandee: Tree, mode: Mode, pt: Type): Option[Tree] = {
       object expander extends analyzer.DefMacroExpander(t, expandee, mode, pt) {
+        private var alreadyTracking: Boolean = false
 
         /**
           * Overrides the default method that expands all macros.
@@ -97,9 +98,10 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
           * in order to obtain the expansion time for every expanded tree.
           */
         override def apply(desugared: Tree): Tree = {
-          val start = if (Statistics.canEnable) Statistics.startTimer(preciseMacroTimer) else null
+          val shouldTrack = Statistics.canEnable && !alreadyTracking
+          val start = if (shouldTrack) Statistics.startTimer(preciseMacroTimer) else null
           try super.apply(desugared)
-          finally if (Statistics.canEnable) updateExpansionTime(desugared, start) else ()
+          finally if (shouldTrack) updateExpansionTime(desugared, start) else ()
         }
 
         def updateExpansionTime(desugared: Tree, start: Statistics.TimerSnapshot): Unit = {
