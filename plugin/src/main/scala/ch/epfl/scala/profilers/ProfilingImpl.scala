@@ -97,9 +97,9 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
           * in order to obtain the expansion time for every expanded tree.
           */
         override def apply(desugared: Tree): Tree = {
-          val start = Statistics.startTimer(preciseMacroTimer)
+          val start = if (Statistics.canEnable) Statistics.startTimer(preciseMacroTimer) else null
           try super.apply(desugared)
-          finally updateExpansionTime(desugared, start)
+          finally if (Statistics.canEnable) updateExpansionTime(desugared, start) else ()
         }
 
         def updateExpansionTime(desugared: Tree, start: Statistics.TimerSnapshot): Unit = {
