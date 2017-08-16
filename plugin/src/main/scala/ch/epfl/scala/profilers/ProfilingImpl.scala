@@ -83,7 +83,6 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
     private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
 
     import scala.tools.nsc.Mode
-    import scala.tools.nsc.typechecker.MacrosStats
     import scala.reflect.internal.util.Statistics
     import ProfilingStatistics.preciseMacroTimer
 
@@ -121,6 +120,11 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
           }
         }
 
+        override def onFailure(expanded: Tree) = {
+          Statistics.incCounter(ProfilingStatistics.failedMacros)
+          super.onFailure(expanded)
+        }
+
         override def onSuccess(expanded: Tree) = {
           val callSitePos = expandee.pos
           val printedExpandee = showRaw(expandee)
@@ -150,7 +154,7 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
 
 object ProfilingStatistics {
   import scala.reflect.internal.util.Statistics
-  import scala.reflect.internal.TypesStats.typerNanos
   // Define here so that it can be accessed from the outside if necessary.
   final val preciseMacroTimer = Statistics.newTimer("precise time in macroExpand")
+  final val failedMacros = Statistics.newCounter("failed macros")
 }

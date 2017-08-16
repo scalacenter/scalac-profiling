@@ -3,7 +3,6 @@ package newtype.tools
 import scala.reflect._
 
 object TestUtil {
-  import scala.language.postfixOps
   import tools.reflect.{ToolBox, ToolBoxError}
 
   def intercept[T <: Throwable: ClassTag](test: => Any): T = {
@@ -42,7 +41,7 @@ object TestUtil {
       errorSnippet: String,
       compileOptions: String = "",
       baseCompileOptions: String =
-        s"-cp $toolboxClasspath $toolboxPluginOptions")(code: String) {
+        s"-cp $toolboxClasspath $toolboxPluginOptions")(code: String) = {
     val errorMessage = intercept[ToolBoxError] {
       eval(code, s"$compileOptions $baseCompileOptions")
     }.getMessage
