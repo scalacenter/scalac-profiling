@@ -45,8 +45,10 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
   )
 
   def getMacroProfiler: MacroProfiler = {
-    def toMillis(macroInfo: MacroInfo): MacroInfo =
-      macroInfo.copy(expansionNanos = macroInfo.expansionNanos / 1000000)
+    def toMillis(macroInfo: MacroInfo): MacroInfo = {
+      import java.util.concurrent.TimeUnit.NANOSECONDS
+      macroInfo.copy(expansionNanos = NANOSECONDS.toMillis(macroInfo.expansionNanos))
+    }
     import ProfilingMacroPlugin.{macroInfos, repeatedTrees}
     val perCallSite = macroInfos.toMap
     val perFile = perCallSite.groupBy(_._1.source).map {
