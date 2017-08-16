@@ -158,10 +158,11 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
 }
 
 object ProfilingStatistics {
+  import scala.tools.nsc.typechecker.MacrosStats
   import scala.reflect.internal.util.Statistics
   import scala.reflect.internal.TypesStats.typerNanos
-  // Define here so that it can be accessed from the outside if necessary.
+
   final val preciseMacroTimer = Statistics.newSubTimer("precise time in macroExpand", typerNanos)
-  final val failedMacros = Statistics.newCounter("failed macros", "typer")
-  final val delayedMacros = Statistics.newCounter("delayed macros", "typer")
+  final val failedMacros = Statistics.newSubCounter("failed macros", MacrosStats.macroExpandCount)
+  final val delayedMacros = Statistics.newSubCounter("delayed macros", MacrosStats.macroExpandCount)
 }
