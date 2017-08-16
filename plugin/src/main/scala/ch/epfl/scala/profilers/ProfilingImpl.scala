@@ -20,11 +20,11 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
     * want to be able to report/analyse such cases on their own, so
     * we keep it as a paramater of this entity.
     */
-  case class MacroInfo(expandedMacros: Int, expandedNodes: Int, expansionMillis: Long) {
+  case class MacroInfo(expandedMacros: Int, expandedNodes: Int, expansionNanos: Long) {
     def +(other: MacroInfo): MacroInfo = {
       val totalExpanded = expandedMacros + other.expandedMacros
       val totalNodes = expandedNodes + other.expandedNodes
-      val totalTime = expansionMillis + other.expansionMillis
+      val totalTime = expansionNanos + other.expansionNanos
       MacroInfo(totalExpanded, totalNodes, totalTime)
     }
   }
@@ -45,19 +45,22 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
   )
 
   def getMacroProfiler: MacroProfiler = {
+    def toMillis(macroInfo: MacroInfo): MacroInfo =
+      macroInfo.copy(expansionNanos = macroInfo.expansionNanos / 1000000)
     import ProfilingMacroPlugin.{macroInfos, repeatedTrees}
     val perCallSite = macroInfos.toMap
     val perFile = perCallSite.groupBy(_._1.source).map {
       case (file, posInfos) =>
         val onlyInfos = posInfos.iterator.map(_._2)
-        file -> MacroInfo.aggregate(onlyInfos)
+        file -> toMillis(MacroInfo.aggregate(onlyInfos))
     }
     val inTotal = MacroInfo.aggregate(perFile.iterator.map(_._2))
     val repeated = repeatedTrees.valuesIterator
       .filter(_.count > 1)
       .map(v => v.original -> v.count)
       .toMap
-    MacroProfiler(perCallSite, perFile, inTotal, repeated)
+    // perFile and inTotal are already converted to millis
+    MacroProfiler(perCallSite.mapValues(toMillis), perFile, inTotal, repeated)
   }
 
   import global.analyzer.MacroPlugin
@@ -112,11 +115,11 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
         def updateExpansionTime(desugared: Tree, start: Statistics.TimerSnapshot): Unit = {
           Statistics.stopTimer(preciseMacroTimer, start)
           val (nanos0, _) = start
-          val timeMillis = (preciseMacroTimer.nanos - nanos0) / 1000000
+          val timeNanos = (preciseMacroTimer.nanos - nanos0)
           val callSitePos = desugared.pos
           // Those that are not present failed to expand
           macroInfos.get(callSitePos).foreach { found =>
-            val updatedInfo = found.copy(expansionMillis = timeMillis)
+            val updatedInfo = found.copy(expansionNanos = timeNanos)
             macroInfos(callSitePos) = updatedInfo
           }
         }
