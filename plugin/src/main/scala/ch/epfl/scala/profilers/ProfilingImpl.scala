@@ -125,6 +125,11 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
           super.onFailure(expanded)
         }
 
+        override def onDelayed(expanded: Tree) = {
+          Statistics.incCounter(ProfilingStatistics.delayedMacros)
+          super.onDelayed(expanded)
+        }
+
         override def onSuccess(expanded: Tree) = {
           val callSitePos = expandee.pos
           val printedExpandee = showRaw(expandee)
@@ -154,7 +159,9 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
 
 object ProfilingStatistics {
   import scala.reflect.internal.util.Statistics
+  import scala.reflect.internal.TypesStats.typerNanos
   // Define here so that it can be accessed from the outside if necessary.
-  final val preciseMacroTimer = Statistics.newTimer("precise time in macroExpand")
+  final val preciseMacroTimer = Statistics.newSubTimer("precise time in macroExpand", typerNanos)
   final val failedMacros = Statistics.newCounter("failed macros")
+  final val delayedMacros = Statistics.newCounter("delayed macros")
 }
