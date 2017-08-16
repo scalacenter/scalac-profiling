@@ -167,14 +167,14 @@ imports them in all the use sites.
 - [x] Compilation time per file (*this is provided by `-Ystatistics`*)
   - [x] Total
   - [x] Broken down by phase
-- [ ] Times per macro (*this is provided by the macro plugin*)
-  - [ ] Per file
-  - [ ] Per macro
-    - [ ] Invocations
-    - [ ] Total time
+- [x] Times per macro (*this is provided by the macro plugin*)
+  - [x] Per file
+  - [x] Per macro
+    - [x] Invocations
+    - [x] Total time
 - [ ] Implicit search details (time and number)
   - [ ] By type
-  - [ ] By invocation
+  - [x] By invocation (only number for now)
   - [ ] By file
 - [ ] User time, kernel time, wall clock, I/O time
 - [ ] Time for flagged features (for certain features – e.g. optimisation)
