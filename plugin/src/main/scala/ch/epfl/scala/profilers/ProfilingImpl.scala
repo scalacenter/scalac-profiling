@@ -99,9 +99,15 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
           */
         override def apply(desugared: Tree): Tree = {
           val shouldTrack = Statistics.canEnable && !alreadyTracking
-          val start = if (shouldTrack) Statistics.startTimer(preciseMacroTimer) else null
+          val start = if (shouldTrack) {
+            alreadyTracking = true
+            Statistics.startTimer(preciseMacroTimer)
+          } else null
           try super.apply(desugared)
-          finally if (shouldTrack) updateExpansionTime(desugared, start) else ()
+          finally if (shouldTrack) {
+            alreadyTracking = false
+            updateExpansionTime(desugared, start)
+          } else ()
         }
 
         def updateExpansionTime(desugared: Tree, start: Statistics.TimerSnapshot): Unit = {
