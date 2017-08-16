@@ -111,7 +111,8 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
 
         def updateExpansionTime(desugared: Tree, start: Statistics.TimerSnapshot): Unit = {
           Statistics.stopTimer(preciseMacroTimer, start)
-          val timeMillis = preciseMacroTimer.nanos / 1000000
+          val (nanos0, _) = start
+          val timeMillis = (preciseMacroTimer.nanos - nanos0) / 1000000
           val callSitePos = desugared.pos
           // Those that are not present failed to expand
           macroInfos.get(callSitePos).foreach { found =>
