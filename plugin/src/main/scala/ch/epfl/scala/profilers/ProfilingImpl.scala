@@ -162,6 +162,6 @@ object ProfilingStatistics {
   import scala.reflect.internal.TypesStats.typerNanos
   // Define here so that it can be accessed from the outside if necessary.
   final val preciseMacroTimer = Statistics.newSubTimer("precise time in macroExpand", typerNanos)
-  final val failedMacros = Statistics.newCounter("failed macros")
-  final val delayedMacros = Statistics.newCounter("delayed macros")
+  final val failedMacros = Statistics.newCounter("failed macros", "typer")
+  final val delayedMacros = Statistics.newCounter("delayed macros", "typer")
 }
