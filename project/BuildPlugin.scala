@@ -237,7 +237,6 @@ object BuildImplementation {
         )
         val projectSettings = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
           Keys.scalaVersion := forkedScalaVersion,
-          Keys.scalaInstance := (Keys.scalaInstance in Test in PluginProject).value,
           Keys.scalacOptions ++= (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value,
           Keys.libraryDependencies ~= { previousDependencies =>
             // Assumes that all of these projects are on the same bincompat version (2.12.x)
