@@ -158,11 +158,16 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
 }
 
 object ProfilingStatistics {
-  import scala.tools.nsc.typechecker.MacrosStats
+  import scala.tools.nsc.typechecker.MacrosStats.macroExpandCount
   import scala.reflect.internal.util.Statistics
 
-  println("HAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA INITIALIZED")
+  /* Compiler plugins are classloaded in every run, meaning that the creation of these coutners will be
+   * duplicated and they will show up in the output of -Ystatistics. The following makes sure that the
+   * children of `macroExpandCount` are cleared in every run. We can safely do this because we know that
+   * the compiler does not register any subcounter of `macroExpandCount`. Otherwise this would delete it. */
+  macroExpandCount.children.clear()
+
   final val preciseMacroTimer = Statistics.newTimer("precise time in macroExpand")
-  final val failedMacros = Statistics.newSubCounter("  of which failed macros", MacrosStats.macroExpandCount)
-  final val delayedMacros = Statistics.newSubCounter("  of which delayed macros", MacrosStats.macroExpandCount)
+  final val failedMacros = Statistics.newSubCounter("  of which failed macros", macroExpandCount)
+  final val delayedMacros = Statistics.newSubCounter("  of which delayed macros", macroExpandCount)
 }
