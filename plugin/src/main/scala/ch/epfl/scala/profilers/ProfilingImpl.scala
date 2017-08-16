@@ -161,6 +161,7 @@ object ProfilingStatistics {
   import scala.tools.nsc.typechecker.MacrosStats
   import scala.reflect.internal.util.Statistics
 
+  println("HAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA INITIALIZED")
   final val preciseMacroTimer = Statistics.newTimer("precise time in macroExpand")
   final val failedMacros = Statistics.newSubCounter("  of which failed macros", MacrosStats.macroExpandCount)
   final val delayedMacros = Statistics.newSubCounter("  of which delayed macros", MacrosStats.macroExpandCount)
