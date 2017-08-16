@@ -36,7 +36,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
         private def info(msg: String): Unit =
           global.reporter.info(NoPosition, msg, true)
         private def info[T: pprint.TPrint](header: String, value: T): Unit = {
-          val tokens = pprint.tokenize(value).mkString
+          val tokens = pprint.tokenize(value, height = 10000).mkString
           info(s"$header:\n$tokens")
         }
 
