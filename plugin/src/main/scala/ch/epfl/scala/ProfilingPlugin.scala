@@ -10,6 +10,16 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   val description = "Adds instrumentation to keep an eye on Scalac performance."
   val components = List[PluginComponent](NewTypeComponent)
 
+  private final val LogCallSite = "log-macro-call-site"
+  case class PluginConfig(logCallSite: Boolean)
+  private final val config = PluginConfig(super.options.contains(LogCallSite))
+
+  private def pad20(option: String): String = option + (" " * (20 - option.length))
+  override def init(ops: List[String], e: (String) => Unit): Boolean = true
+  override val optionsHelp: Option[String] = Some(s"""
+       |-P:$name:${pad20(LogCallSite)} Logs macro information for every call-site.
+    """.stripMargin)
+
   // Make it not `lazy` and it will slay the compiler :)
   lazy val implementation = new ProfilingImpl(ProfilingPlugin.this.global)
   implementation.registerProfilers()
@@ -35,8 +45,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
           super.run()
 
           val macroProfiler = implementation.getMacroProfiler
-          // Don't show per call-site unless verbose is enabled for now
-          if (global.settings.verbose.value)
+          if (config.logCallSite)
             info("Macro data per call-site", macroProfiler.perCallSite)
           info("Macro data per file", macroProfiler.perFile)
           info("Macro data in total", macroProfiler.inTotal)

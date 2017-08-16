@@ -27,7 +27,7 @@ lazy val plugin = project
       // Enable debugging information when necessary
       val debuggingPluginOptions =
         if (!enablePerformanceDebugging.value) Nil
-        else List("-Ystatistics:typer")
+        else List("-Ystatistics:typer", "-P:scalac-profiling:log-macro-call-site")
         //else List("-Xlog-implicits", "-Ystatistics:typer")
       Seq(addPlugin, dummy) ++ debuggingPluginOptions
     },
