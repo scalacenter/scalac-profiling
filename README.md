@@ -94,8 +94,9 @@ compiler, which can be significant (e.g. in sbt).
 As a result, reproducibility must be achieved in the build tool itself. My goal
 is to provide an sbt plugin that:
 
-1. Reports whether the cpu load is too high and other things that may affect reproducibility; and
-1. Warms up the compiler by a configurable amount of iterations.
+1. Reports whether the cpu load is too high and other things that may affect reproducibility;
+1. Warms up the compiler by a configurable amount of iterations; and,
+1. Disables parallel builds if enabled to ensure reproducibility.
 
 ## Collected data
 
