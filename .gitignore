@@ -16,6 +16,8 @@ project/plugins/project/
 # Scala-IDE specific
 .scala_dependencies
 .worksheet
+.ensime_cache
+.ensime
 
 # Project specific
 .scalac-hash
