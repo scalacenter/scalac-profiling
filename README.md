@@ -76,11 +76,32 @@ We're collaborating with [Intellij](https://github.com/JetBrains/intellij-scala)
 some of the statistics within the IDE (e.g. macro invocations or implicit searches per line).
 We have some ideas to show this information as [heat map](https://en.wikipedia.org/wiki/Heat_map) in the future.
 
+### Reproducibility
+
+Getting reproducible numbers is important to reason about the code and
+identifying when a commit increases or decreases compile times with
+certainty.
+
+To do so, several conditions must be met: the compiler must be warmed up, the
+load in the running computer must be low, and the hardware must be tweaked to
+disable options that make executions non reproducible (like Turbo Boost).
+
+However, this warming up cannot be done in an isolated scenario as [Scalac's
+benchmarking](https://github.com/scala/compiler-benchmark) infrastructure
+does because it doesn't measure the overhead of the build tool calling the
+compiler, which can be significant (e.g. in sbt).
+
+As a result, reproducibility must be achieved in the build tool itself. My goal
+is to provide an sbt plugin that:
+
+1. Reports whether the cpu load is too high and other things that may affect reproducibility; and
+1. Warms up the compiler by a configurable amount of iterations.
+
 ## Collected data
 
-In the following secions, I elaborate on the collected data that we want to extract from the compiler as well as technical details for every section in the [original proposal](PROPOSAL.md).
-
-(This repository is **heavy work-in-progress**. Expect things to change.)
+In the following sections, I elaborate on the collected data that we want to
+extract from the compiler as well as technical details for every section in
+the [original proposal](PROPOSAL.md).
 
 ### Information about macros
 
