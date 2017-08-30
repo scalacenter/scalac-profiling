@@ -138,7 +138,7 @@ Per call-site, file and total:
 - [x] How many implicit search hits are?
 - [ ] What's the ratio of search failures/hits?
 
-### Ideas to be considered
+### Ideas to be considered (out of the scope of this project)
 
 #### Tell users how to organize their code to maximize implicit search hits
 
