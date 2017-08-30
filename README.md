@@ -23,7 +23,7 @@ The plan and the changes to the compiler plugin are explained in this README
 and the source code.
 
 The required changes to the compiler, [Scalac](http://github.com/scala/scala), are
-the following:
+the following *so far* (more to come):
 
 1. [Collect all statistics and optimize checks](https://github.com/scala/scala/pull/6034).
 1. [Initialize statistics per global](https://github.com/scala/scala/pull/6051).
