@@ -119,10 +119,10 @@ object BuildKeys {
 
   import sbt.complete.Parser
   import sbt.complete.DefaultParsers._
-  val CirceKeyword = "circe"
-  val MonocleKeyword = "monocle"
-  val IntegrationKeyword = "keyword"
-  val keywordsParser = (Space ~> ((CirceKeyword: Parser[String]) | MonocleKeyword | IntegrationKeyword)).+
+  val CirceKeyword = " circe"
+  val MonocleKeyword = " monocle"
+  val IntegrationKeyword = " integration"
+  val keywordsParser = ((CirceKeyword: Parser[String]) | MonocleKeyword | IntegrationKeyword).+
     .examples(CirceKeyword, MonocleKeyword, IntegrationKeyword)
   val keywordsSetting: Def.Initialize[sbt.State => Parser[Seq[String]]] =
     Def.setting((state: sbt.State) => keywordsParser)
