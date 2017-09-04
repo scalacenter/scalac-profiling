@@ -41,10 +41,10 @@ object BuildKeys {
 
   // Source dependencies from git are cached by sbt
   val Circe = RootProject(
-    uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"))
+    uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9"))
   val CirceTests = ProjectRef(Circe.build, "tests")
   val Monocle = RootProject(
-    uri("git://github.com/jvican/Monocle.git#713054c46728c1fe912d2a7bae0ec19470ecaab9"))
+    uri("git://github.com/jvican/Monocle.git#b5f58f33f6a2b7500b00dd0637654c01185f0c00"))
   val MonocleExample = ProjectRef(Monocle.build, "example")
   val MonocleTests = ProjectRef(Monocle.build, "testJVM")
   val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests)

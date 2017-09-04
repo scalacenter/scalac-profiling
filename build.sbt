@@ -2,6 +2,7 @@ lazy val root = project
   .in(file("."))
   .aggregate(plugin)
   .settings(Seq(
+    name := "profiling-root",
     publish := {},
     publishLocal := {}
   ))
