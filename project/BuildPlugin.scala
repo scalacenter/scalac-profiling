@@ -116,6 +116,16 @@ object BuildKeys {
 
   def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
     Seq(sbt.Compile, sbt.Test).flatMap(sbt.inConfig(_)(ss))
+
+  import sbt.complete.Parser
+  import sbt.complete.DefaultParsers._
+  val CirceKeyword = "circe"
+  val MonocleKeyword = "monocle"
+  val IntegrationKeyword = "keyword"
+  val keywordsParser = (Space ~> ((CirceKeyword: Parser[String]) | MonocleKeyword | IntegrationKeyword)).+
+    .examples(CirceKeyword, MonocleKeyword, IntegrationKeyword)
+  val keywordsSetting: Def.Initialize[sbt.State => Parser[Seq[String]]] =
+    Def.setting((state: sbt.State) => keywordsParser)
 }
 
 object BuildImplementation {

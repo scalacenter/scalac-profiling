@@ -56,12 +56,6 @@ lazy val scalac = project
   .in(file("compiler"))
   .dependsOn(Scalac)
 
-import sbt.complete.Parser
-import complete.DefaultParsers._
-val keywordsParser = (Space ~> (("circe": Parser[String]) | "monocle" | "integration")).+
-val keywordsSetting: Def.Initialize[State => Parser[Seq[String]]] =
-  Def.setting((state: State) => keywordsParser)
-
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
   .in(file("integrations"))
@@ -82,15 +76,15 @@ lazy val integrations = project
       val keywords = keywordsSetting.parsed
       val emptyAnalysis = Def.task(sbt.inc.Analysis.Empty)
       val CirceTask = Def.taskDyn {
-        if (keywords.contains("circe")) (compile in Test in CirceTests)
+        if (keywords.contains(CirceKeyword)) (compile in Test in CirceTests)
         else emptyAnalysis
       }
       val IntegrationTask = Def.taskDyn {
-        if (keywords.contains("integration")) (compile in Compile)
+        if (keywords.contains(IntegrationKeyword)) (compile in Compile)
         else emptyAnalysis
       }
       val MonocleTask = Def.taskDyn {
-        if (keywords.contains("monocle")) Def.sequential(
+        if (keywords.contains(MonocleKeyword)) Def.sequential(
           (compile in Test in MonocleTests),
           (compile in Test in MonocleExample)
         ) else emptyAnalysis
