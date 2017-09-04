@@ -44,7 +44,7 @@ object BuildKeys {
     uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9"))
   val CirceTests = ProjectRef(Circe.build, "tests")
   val Monocle = RootProject(
-    uri("git://github.com/jvican/Monocle.git#b5f58f33f6a2b7500b00dd0637654c01185f0c00"))
+    uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596"))
   val MonocleExample = ProjectRef(Monocle.build, "example")
   val MonocleTests = ProjectRef(Monocle.build, "testJVM")
   val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests)
