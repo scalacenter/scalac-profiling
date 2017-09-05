@@ -89,14 +89,8 @@ final class ProfilingImpl[G <: Global](override val global: G) extends Profiling
     private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
 
     import scala.tools.nsc.Mode
-
-    override def pluginsMacroExpand(
-        t: Typer,
-        expandee: Tree,
-        mode: Mode,
-        pt: Type
-    ): Option[Tree] = {
-      object expander extends analyzer.DefMacroExpander(t, expandee, mode, pt) {
+    override def pluginsMacroExpand(t: Typer, expandee: Tree, md: Mode, pt: Type): Option[Tree] = {
+      object expander extends analyzer.DefMacroExpander(t, expandee, md, pt) {
         private var alreadyTracking: Boolean = false
 
         /**

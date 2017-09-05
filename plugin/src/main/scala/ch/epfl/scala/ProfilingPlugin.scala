@@ -52,6 +52,10 @@ class ProfilingPlugin(val global: Global) extends Plugin {
           val expansions =
             macroProfiler.repeatedExpansions.map(kv => global.showCode(kv._1) -> kv._2)
           info("Macro repeated expansions", expansions)
+          import global.statistics.{implicitSearchesByType, implicitSearchesByPos}
+          val implicitSearchesByStrType = implicitSearchesByType.map(kv => kv._1.toString -> kv._2)
+          info("Implicit searches by type", implicitSearchesByStrType)
+          info("Implicit searches by position", implicitSearchesByPos)
         }
 
         override def apply(unit: global.CompilationUnit): Unit = {
