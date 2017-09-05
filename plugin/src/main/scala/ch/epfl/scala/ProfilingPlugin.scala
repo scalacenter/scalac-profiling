@@ -44,24 +44,25 @@ class ProfilingPlugin(val global: Global) extends Plugin {
           // Run first the phase across all compilation units
           super.run()
 
-          val macroProfiler = implementation.getMacroProfiler
-          if (config.logCallSite)
-            info("Macro data per call-site", macroProfiler.perCallSite)
-          info("Macro data per file", macroProfiler.perFile)
-          info("Macro data in total", macroProfiler.inTotal)
-          val expansions =
-            macroProfiler.repeatedExpansions.map(kv => global.showCode(kv._1) -> kv._2)
-          info("Macro repeated expansions", expansions)
-          import global.statistics.{implicitSearchesByType, implicitSearchesByPos}
-          val implicitSearchesByStrType = implicitSearchesByType.map(kv => kv._1.toString -> kv._2)
-          info("Implicit searches by type", implicitSearchesByStrType)
-          info("Implicit searches by position", implicitSearchesByPos)
+          global.exitingTyper {
+            val macroProfiler = implementation.getMacroProfiler
+            if (config.logCallSite)
+              info("Macro data per call-site", macroProfiler.perCallSite)
+            info("Macro data per file", macroProfiler.perFile)
+            info("Macro data in total", macroProfiler.inTotal)
+            val expansions =
+              macroProfiler.repeatedExpansions.map(kv => global.showCode(kv._1) -> kv._2)
+            info("Macro repeated expansions", expansions)
+            import global.statistics.{implicitSearchesByType, implicitSearchesByPos}
+            info(
+              "Implicit searches by type",
+              implicitSearchesByType.map(kv => kv._1.toString -> kv._2)
+            )
+            info("Implicit searches by position", implicitSearchesByPos)
+          }
         }
 
-        override def apply(unit: global.CompilationUnit): Unit = {
-          val traverser = new implementation.ProfilingTraverser
-          traverser.traverse(unit.body)
-        }
+        override def apply(unit: global.CompilationUnit): Unit = ()
       }
     }
   }
