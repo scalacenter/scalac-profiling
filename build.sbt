@@ -9,6 +9,7 @@ lazy val root = project
 
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
+  .dependsOn(Scalac)
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
@@ -50,11 +51,6 @@ lazy val plugin = project
       }.toList
     })
   )
-
-// Define dummy project to bring the scalac dependency
-lazy val scalac = project
-  .in(file("compiler"))
-  .dependsOn(Scalac)
 
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
