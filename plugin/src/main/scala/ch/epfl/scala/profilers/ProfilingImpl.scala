@@ -1,10 +1,11 @@
 package ch.epfl.scala.profilers
 
-import ch.epfl.scala.profilers.tools.Debugger
+import scala.tools.nsc.Global
+import ch.epfl.scala.profilers.tools.Logger
 
-final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
+final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G])
+    extends ProfilingStats {
   import global._
-  val debugger = new Debugger(global)
 
   def registerProfilers(): Unit = {
     // Register our profiling macro plugin
@@ -88,11 +89,8 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
     private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
 
     import scala.tools.nsc.Mode
-    import scala.reflect.internal.util.Statistics
-    import ProfilingStatistics.preciseMacroTimer
-
-    override def pluginsMacroExpand(t: Typer, expandee: Tree, mode: Mode, pt: Type): Option[Tree] = {
-      object expander extends analyzer.DefMacroExpander(t, expandee, mode, pt) {
+    override def pluginsMacroExpand(t: Typer, expandee: Tree, md: Mode, pt: Type): Option[Tree] = {
+      object expander extends analyzer.DefMacroExpander(t, expandee, md, pt) {
         private var alreadyTracking: Boolean = false
 
         /**
@@ -102,10 +100,10 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
           * in order to obtain the expansion time for every expanded tree.
           */
         override def apply(desugared: Tree): Tree = {
-          val shouldTrack = Statistics.canEnable && !alreadyTracking
+          val shouldTrack = statistics.canEnable && !alreadyTracking
           val start = if (shouldTrack) {
             alreadyTracking = true
-            Statistics.startTimer(preciseMacroTimer)
+            statistics.startTimer(preciseMacroTimer)
           } else null
           try super.apply(desugared)
           finally if (shouldTrack) {
@@ -114,8 +112,8 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
           } else ()
         }
 
-        def updateExpansionTime(desugared: Tree, start: Statistics.TimerSnapshot): Unit = {
-          Statistics.stopTimer(preciseMacroTimer, start)
+        def updateExpansionTime(desugared: Tree, start: statistics.TimerSnapshot): Unit = {
+          statistics.stopTimer(preciseMacroTimer, start)
           val (nanos0, _) = start
           val timeNanos = (preciseMacroTimer.nanos - nanos0)
           val callSitePos = desugared.pos
@@ -127,12 +125,12 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
         }
 
         override def onFailure(expanded: Tree) = {
-          Statistics.incCounter(ProfilingStatistics.failedMacros)
+          statistics.incCounter(failedMacros)
           super.onFailure(expanded)
         }
 
         override def onDelayed(expanded: Tree) = {
-          Statistics.incCounter(ProfilingStatistics.delayedMacros)
+          statistics.incCounter(delayedMacros)
           super.onDelayed(expanded)
         }
 
@@ -163,17 +161,12 @@ final class ProfilingImpl[G <: scala.tools.nsc.Global](val global: G) {
   }
 }
 
-object ProfilingStatistics {
-  import scala.tools.nsc.typechecker.MacrosStats.macroExpandCount
-  import scala.reflect.internal.util.Statistics
+trait ProfilingStats {
+  val global: Global
+  import global.statistics._
 
-  /* Compiler plugins are classloaded in every run, meaning that the creation of these coutners will be
-   * duplicated and they will show up in the output of -Ystatistics. The following makes sure that the
-   * children of `macroExpandCount` are cleared in every run. We can safely do this because we know that
-   * the compiler does not register any subcounter of `macroExpandCount`. Otherwise this would delete it. */
   macroExpandCount.children.clear()
-
-  final val preciseMacroTimer = Statistics.newTimer("precise time in macroExpand")
-  final val failedMacros = Statistics.newSubCounter("  of which failed macros", macroExpandCount)
-  final val delayedMacros = Statistics.newSubCounter("  of which delayed macros", macroExpandCount)
+  final val preciseMacroTimer = newTimer("precise time in macroExpand")
+  final val failedMacros = newSubCounter("  of which failed macros", macroExpandCount)
+  final val delayedMacros = newSubCounter("  of which delayed macros", macroExpandCount)
 }

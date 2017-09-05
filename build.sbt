@@ -2,6 +2,7 @@ lazy val root = project
   .in(file("."))
   .aggregate(plugin)
   .settings(Seq(
+    name := "profiling-root",
     publish := {},
     publishLocal := {}
   ))
@@ -70,5 +71,24 @@ lazy val integrations = project
         (compile in Test in MonocleTests),
         (compile in Test in MonocleExample)
       ).value
-    }
+    },
+    testOnly := Def.inputTaskDyn {
+      val keywords = keywordsSetting.parsed
+      val emptyAnalysis = Def.task(sbt.inc.Analysis.Empty)
+      val CirceTask = Def.taskDyn {
+        if (keywords.contains(CirceKeyword)) (compile in Test in CirceTests)
+        else emptyAnalysis
+      }
+      val IntegrationTask = Def.taskDyn {
+        if (keywords.contains(IntegrationKeyword)) (compile in Compile)
+        else emptyAnalysis
+      }
+      val MonocleTask = Def.taskDyn {
+        if (keywords.contains(MonocleKeyword)) Def.sequential(
+          (compile in Test in MonocleTests),
+          (compile in Test in MonocleExample)
+        ) else emptyAnalysis
+      }
+      Def.sequential(CirceTask, MonocleTask, IntegrationTask)
+    }.evaluated
   )

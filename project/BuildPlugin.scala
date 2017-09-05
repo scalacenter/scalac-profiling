@@ -41,10 +41,10 @@ object BuildKeys {
 
   // Source dependencies from git are cached by sbt
   val Circe = RootProject(
-    uri("git://github.com/circe/circe.git#96d419611c045e638ccf0b646e693d377ef95630"))
+    uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9"))
   val CirceTests = ProjectRef(Circe.build, "tests")
   val Monocle = RootProject(
-    uri("git://github.com/jvican/Monocle.git#713054c46728c1fe912d2a7bae0ec19470ecaab9"))
+    uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596"))
   val MonocleExample = ProjectRef(Monocle.build, "example")
   val MonocleTests = ProjectRef(Monocle.build, "testJVM")
   val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests)
@@ -116,6 +116,16 @@ object BuildKeys {
 
   def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
     Seq(sbt.Compile, sbt.Test).flatMap(sbt.inConfig(_)(ss))
+
+  import sbt.complete.Parser
+  import sbt.complete.DefaultParsers._
+  val CirceKeyword = " circe"
+  val MonocleKeyword = " monocle"
+  val IntegrationKeyword = " integration"
+  val keywordsParser = ((CirceKeyword: Parser[String]) | MonocleKeyword | IntegrationKeyword).+
+    .examples(CirceKeyword, MonocleKeyword, IntegrationKeyword)
+  val keywordsSetting: Def.Initialize[sbt.State => Parser[Seq[String]]] =
+    Def.setting((state: sbt.State) => keywordsParser)
 }
 
 object BuildImplementation {
