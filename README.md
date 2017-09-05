@@ -120,10 +120,10 @@ the [original proposal](PROPOSAL.md).
 Per call-site, file and total:
 
 - [x] How many macros are expanded?
-- [ ] How long do they take to run?
+- [x] How long do they take to run?
 - [x] How many tree nodes do macros create?
-- [ ] How many of these tree nodes are discarded?
 - [ ] What's the ratio of generated code/user-defined code?
+- [ ] How many of these tree nodes are discarded? (is this possible?)
 
 ### Information about implicit search
 
@@ -131,12 +131,12 @@ Getting hold of this information requires changes in mainstream scalac.
 
 Per call-site, file and total:
 
-- [ ] How many implicit searches are triggered by user-defined code?
-- [ ] How many implicit searches are triggered by macro code?
+- [x] How many implicit searches are triggered per position?
+- [x] How many implicit searches are triggered for a given type?
 - [ ] How long implicit searches take to run?
 - [x] How many implicit search failures are?
 - [x] How many implicit search hits are?
-- [ ] What's the ratio of search failures/hits?
+- [x] What's the ratio of search failures/hits?
 
 ### Ideas to be considered (out of the scope of this project)
 
@@ -205,14 +205,13 @@ imports them in all the use sites.
   - [x] Per macro
     - [x] Invocations
     - [x] Total time
-- [ ] Implicit search details (time and number)
-  - [ ] By type
+- [x] Implicit search details (time and number)
+  - [x] By type
   - [x] By invocation (only number for now)
   - [ ] By file
-- [ ] User time, kernel time, wall clock, I/O time
 - [ ] Time for flagged features (for certain features – e.g. optimisation)
   * Unknown at this point: how can we efficiently capture this information?
 - [ ] Time resolving types from classpath
-  - [ ] Total
-  - [ ] by jar
-- [ ] Imports – unused/wildcard timings?
+  - [x] Total
+  - [ ] by jar (**not possible**)
+- [ ] Imports – unused/wildcard timings? (**unnecessary**)
