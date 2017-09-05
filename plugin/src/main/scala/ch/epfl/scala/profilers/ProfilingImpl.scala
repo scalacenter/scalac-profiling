@@ -1,11 +1,11 @@
 package ch.epfl.scala.profilers
 
 import scala.tools.nsc.Global
-import ch.epfl.scala.profilers.tools.Debugger
+import ch.epfl.scala.profilers.tools.Logger
 
-final class ProfilingImpl[G <: Global](override val global: G) extends ProfilingStats {
+final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G])
+    extends ProfilingStats {
   import global._
-  val debugger = new Debugger(global)
 
   def registerProfilers(): Unit = {
     // Register our profiling macro plugin

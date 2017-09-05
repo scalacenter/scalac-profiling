@@ -1,6 +1,7 @@
 package ch.epfl.scala
 
 import ch.epfl.scala.profilers.ProfilingImpl
+import ch.epfl.scala.profilers.tools.Logger
 
 import scala.tools.nsc.{Global, Phase}
 import scala.tools.nsc.plugins.{Plugin, PluginComponent}
@@ -13,6 +14,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   private final val LogCallSite = "log-macro-call-site"
   case class PluginConfig(logCallSite: Boolean)
   private final val config = PluginConfig(super.options.contains(LogCallSite))
+  private final val logger = new Logger(global)
 
   private def pad20(option: String): String = option + (" " * (20 - option.length))
   override def init(ops: List[String], e: (String) => Unit): Boolean = true
@@ -21,7 +23,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     """.stripMargin)
 
   // Make it not `lazy` and it will slay the compiler :)
-  lazy val implementation = new ProfilingImpl(ProfilingPlugin.this.global)
+  lazy val implementation = new ProfilingImpl(ProfilingPlugin.this.global, logger)
   implementation.registerProfilers()
 
   private object NewTypeComponent extends PluginComponent {
@@ -30,39 +32,33 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     override val runsAfter: List[String] = List("jvm")
     override val runsBefore: List[String] = List("terminal")
 
-    import scala.reflect.internal.util.NoPosition
+    def reportStatistics(): Unit = {
+      // Make sure we get type information after typer to avoid crashing the compiler
+      global.exitingTyper {
+        val macroProfiler = implementation.getMacroProfiler
+        if (config.logCallSite)
+          logger.info("Macro data per call-site", macroProfiler.perCallSite)
+        logger.info("Macro data per file", macroProfiler.perFile)
+        logger.info("Macro data in total", macroProfiler.inTotal)
+        val expansions =
+          macroProfiler.repeatedExpansions.map(kv => global.showCode(kv._1) -> kv._2)
+        logger.info("Macro repeated expansions", expansions)
+        import global.statistics.{implicitSearchesByType, implicitSearchesByPos}
+        logger.info(
+          "Implicit searches by type",
+          implicitSearchesByType.map(kv => kv._1.toString -> kv._2)
+        )
+        logger.info("Implicit searches by position", implicitSearchesByPos)
+      }
+    }
+
     override def newPhase(prev: Phase): Phase = {
       new StdPhase(prev) {
-        private def info(msg: String): Unit =
-          global.reporter.info(NoPosition, msg, true)
-        private def info[T: pprint.TPrint](header: String, value: T): Unit = {
-          val tokens = pprint.tokenize(value, height = 10000).mkString
-          info(s"$header:\n$tokens")
-        }
-
-        override def run(): Unit = {
-          // Run first the phase across all compilation units
-          super.run()
-
-          global.exitingTyper {
-            val macroProfiler = implementation.getMacroProfiler
-            if (config.logCallSite)
-              info("Macro data per call-site", macroProfiler.perCallSite)
-            info("Macro data per file", macroProfiler.perFile)
-            info("Macro data in total", macroProfiler.inTotal)
-            val expansions =
-              macroProfiler.repeatedExpansions.map(kv => global.showCode(kv._1) -> kv._2)
-            info("Macro repeated expansions", expansions)
-            import global.statistics.{implicitSearchesByType, implicitSearchesByPos}
-            info(
-              "Implicit searches by type",
-              implicitSearchesByType.map(kv => kv._1.toString -> kv._2)
-            )
-            info("Implicit searches by position", implicitSearchesByPos)
-          }
-        }
-
         override def apply(unit: global.CompilationUnit): Unit = ()
+        override def run(): Unit = {
+          super.run()
+          reportStatistics()
+        }
       }
     }
   }
