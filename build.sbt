@@ -7,9 +7,18 @@ lazy val root = project
     publishLocal := {}
   ))
 
+lazy val profiledb = project
+  .in(file("profiledb"))
+  .settings(
+    // Specify scala version to allow third-party software to use this module
+    scalaVersion := "2.12.3",
+    PB.targets in Compile :=
+      Seq(scalapb.gen() -> (sourceManaged in Compile).value)
+  )
+
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
-  .dependsOn(Scalac)
+  .dependsOn(Scalac, profiledb)
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
