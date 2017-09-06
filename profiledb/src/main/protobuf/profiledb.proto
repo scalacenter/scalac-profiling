@@ -5,5 +5,55 @@
 **    ___/ / /__/ /_/ / / /_/ /  / /___/ /__/ / / / /_/ /__/ /        https://scala.epfl.ch       **
 **   /____/\___/\__,_/_/\__,_/   \____/\___/_/ /_/\__/\___/_/         (c) 2017-2018, LAMP/EPFL    **
 **                                                                                                **
-**                                                                                                **
 \*                                                                                                */
+
+syntax = "proto3";
+
+package ch.epfl.scala.profiledb;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+message Database {
+    repeated Run runs = 1;
+}
+
+message Run {
+    google.protobuf.Timestamp timestamp = 1;
+    repeated PhaseProfile phaseProfiles = 2;
+    repeated MacroProfile macroProfiles = 3;
+    repeated ImplicitSearchProfile implicitSearchProfiles = 4;
+}
+
+message PhaseProfile {
+    string name = 1;
+    repeated Timer timers = 2;
+    repeated Counter counters = 3;
+}
+
+message Timer {
+    string id = 1;
+    google.protobuf.Duration duration = 2;
+}
+
+message Counter {
+    string id = 1;
+    int64 ticks = 2;
+}
+
+message Position {
+    sint32 point = 1;
+}
+
+message MacroProfile {
+    Position position = 1;
+    int64 expandedMacros = 2;
+    int64 approximateSize = 3;
+    google.protobuf.Duration duration = 4;
+}
+
+message ImplicitSearchProfile {
+    Position position = 1;
+    int64 searches = 2;
+    google.protobuf.Duration duration = 3;
+}
