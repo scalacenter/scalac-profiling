@@ -9,25 +9,27 @@
 
 package ch.epfl.scala.profiledb
 
-import java.io.{File, FileInputStream, FileOutputStream}
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Path
 
 import ch.epfl.scala.profiledb.utils.{AbsolutePath, RelativePath}
-import ch.epfl.scala.profiledb.{profiledb => schema}
-import com.google.protobuf.{CodedInputStream, CodedOutputStream}
 
-import scala.util.Try
-
-object ProfileDb {
-  def read(path: ProfileDbPath): Try[schema.Database] = Try {
-    val inputStream = Files.newInputStream(path.target.underlying)
-    val reader = CodedInputStream.newInstance(inputStream)
-    schema.Database.parseFrom(reader)
+final class ProfileDbPath(classesDir: AbsolutePath, targetPath: RelativePath) {
+  def target: AbsolutePath = {
+    import ProfileDbPath.{Prefix, ProfileDbName, extension}
+    require(targetPath.underlying.startsWith(Prefix.underlying))
+    require(extension(targetPath.underlying) == ProfileDbName)
+    targetPath.toAbsolute(classesDir)
   }
+}
 
-  def write(database: schema.Database, path: ProfileDbPath): Try[Unit] = Try {
-    val outputStream = Files.newOutputStream(path.target.underlying)
-    val writer = CodedOutputStream.newInstance(outputStream)
-    database.writeTo(writer)
+object ProfileDbPath {
+  private[profiledb] final val ProfileDbName = "profiledb"
+  private[profiledb] final val Prefix = RelativePath("META-INF").resolve(s"$ProfileDbName")
+
+  def extension(path: Path): String = {
+    val filename = path.getFileName.toString
+    val idx = filename.lastIndexOf('.')
+    if (idx == -1) ""
+    else filename.substring(idx + 1)
   }
 }
