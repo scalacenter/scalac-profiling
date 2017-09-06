@@ -58,6 +58,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
           implicitSearchesByType.map(kv => kv._1.toString -> kv._2)
         )
         logger.info("Implicit searches by position", implicitSearchesByPos)
+        logger.debug("")
       }
     }
 

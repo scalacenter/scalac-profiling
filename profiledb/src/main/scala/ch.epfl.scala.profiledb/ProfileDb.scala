@@ -10,21 +10,28 @@
 package ch.epfl.scala.profiledb
 
 import java.io.{File, FileInputStream, FileOutputStream}
+import java.nio.file.{Files, Path, Paths}
 
+import ch.epfl.scala.profiledb.utils.{AbsolutePath, RelativePath}
 import ch.epfl.scala.profiledb.{profiledb => schema}
 import com.google.protobuf.{CodedInputStream, CodedOutputStream}
 
 import scala.util.Try
 
 object ProfileDb {
-  def read(file: File): Try[schema.Database] = Try {
-    val inputStream = new FileInputStream(file)
+  private final val Id = "profiledb"
+  private final val Extension = s".$Id"
+  private final val Prefix = RelativePath("META-INF").resolve(s"$Id")
+
+  def read(fromClassesDir: AbsolutePath): Try[schema.Database] = Try {
+    val target = Prefix.toAbsolute(fromClassesDir)
+    val inputStream = Files.newInputStream(target.underlying)
     val reader = CodedInputStream.newInstance(inputStream)
     schema.Database.parseFrom(reader)
   }
 
-  def write(database: schema.Database, file: File): Try[Unit] = Try {
-    val outputStream = new FileOutputStream(file)
+  def write(database: schema.Database, path: Path): Try[Unit] = Try {
+    val outputStream = Files.newOutputStream(path)
     val writer = CodedOutputStream.newInstance(outputStream)
     database.writeTo(writer)
   }
