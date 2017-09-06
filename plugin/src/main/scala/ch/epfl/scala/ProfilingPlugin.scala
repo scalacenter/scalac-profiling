@@ -12,6 +12,7 @@ package ch.epfl.scala
 import ch.epfl.scala.profilers.ProfilingImpl
 import ch.epfl.scala.profilers.tools.Logger
 
+import scala.reflect.internal.util.Statistics
 import scala.tools.nsc.{Global, Phase}
 import scala.tools.nsc.plugins.{Plugin, PluginComponent}
 
@@ -45,7 +46,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       global.showCode(expansion._1) -> expansion._2
 
     import global.statistics.{implicitSearchesByType, implicitSearchesByPos}
-    def reportStatistics(): Unit = {
+    private def reportStatistics(): Unit = {
       val macroProfiler = implementation.getMacroProfiler
       if (config.logCallSite)
         logger.info("Macro data per call-site", macroProfiler.perCallSite)
@@ -61,12 +62,62 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       logger.info("Implicit searches by type", stringifiedSearchCounter)
     }
 
+    import com.google.protobuf.duration.Duration
+    import com.google.protobuf.timestamp.Timestamp
+    import ch.epfl.scala.profiledb.{profiledb => schema}
+    private final val nanoScale: Int = 1000000000
+    private def toDatabase(statistics: Statistics): schema.Database = {
+      import statistics.{Timer, Counter, Quantity}
+      def toDuration(nanos: Long): Duration = {
+        val seconds: Long = nanos / nanoScale
+        val remainder: Int = (nanos % nanoScale).toInt
+        Duration(seconds = seconds, nanos = remainder)
+      }
+
+      def toSchemaTimer(scalacTimer: Timer): schema.Timer = {
+        val id = scalacTimer.prefix
+        val duration = toDuration(scalacTimer.nanos)
+        schema.Timer(id = id, duration = Some(duration))
+      }
+
+      def toSchemaCounter(scalacCounter: Counter): schema.Counter = {
+        val id = scalacCounter.prefix
+        val ticks: Long = scalacCounter.value
+        schema.Counter(id = id, ticks = ticks)
+      }
+
+      val allScalacPhases = global.phaseNames
+      val scalacQuantities = statistics.allQuantities.toList
+      val quantitiesPerPhase =
+        allScalacPhases.map(phase => phase -> scalacQuantities.filter(_.showAt(phase)))
+      val phaseProfiles = quantitiesPerPhase.map {
+        case (phaseName, phaseQuantities) =>
+          val timers = phaseQuantities.collect { case t: Timer => t }.map(toSchemaTimer)
+          val counters = phaseQuantities.collect { case c: Counter => c }.map(toSchemaCounter)
+          schema.PhaseProfile(name = phaseName, timers = timers, counters = counters)
+      }
+
+      val timestamp: Timestamp = {
+        val duration = toDuration(System.nanoTime())
+        Timestamp(seconds = duration.seconds, nanos = duration.nanos)
+      }
+
+      val runProfiles =
+        List(schema.RunProfile(timestamp = Some(timestamp), phaseProfiles = phaseProfiles))
+      schema.Database(
+        `type` = schema.ContentType.GLOBAL,
+        runProfiles = runProfiles,
+        compilationUnitProfiles = Nil
+      )
+    }
+
     override def newPhase(prev: Phase): Phase = {
       new StdPhase(prev) {
         override def apply(unit: global.CompilationUnit): Unit = ()
         override def run(): Unit = {
           super.run()
           reportStatistics()
+          logger.info("Database", toDatabase(global.statistics))
         }
       }
     }
