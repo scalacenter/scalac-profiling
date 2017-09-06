@@ -162,12 +162,6 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       Some(expander(expandee))
     }
   }
-
-  final class ProfilingTraverser extends Traverser {
-    override def traverse(tree: Tree): Unit = {
-      super.traverse(tree)
-    }
-  }
 }
 
 trait ProfilingStats {
