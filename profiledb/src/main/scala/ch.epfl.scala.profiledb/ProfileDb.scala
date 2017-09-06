@@ -9,10 +9,8 @@
 
 package ch.epfl.scala.profiledb
 
-import java.io.{File, FileInputStream, FileOutputStream}
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Files
 
-import ch.epfl.scala.profiledb.utils.{AbsolutePath, RelativePath}
 import ch.epfl.scala.profiledb.{profiledb => schema}
 import com.google.protobuf.{CodedInputStream, CodedOutputStream}
 
