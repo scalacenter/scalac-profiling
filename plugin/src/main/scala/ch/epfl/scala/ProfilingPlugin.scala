@@ -41,25 +41,24 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     override val runsAfter: List[String] = List("jvm")
     override val runsBefore: List[String] = List("terminal")
 
+    private def showExpansion(expansion: (global.Tree, Int)): (String, Int) =
+      global.showCode(expansion._1) -> expansion._2
+
+    import global.statistics.{implicitSearchesByType, implicitSearchesByPos}
     def reportStatistics(): Unit = {
+      val macroProfiler = implementation.getMacroProfiler
+      if (config.logCallSite)
+        logger.info("Macro data per call-site", macroProfiler.perCallSite)
+      logger.info("Macro data per file", macroProfiler.perFile)
+      logger.info("Macro data in total", macroProfiler.inTotal)
+      val expansions = macroProfiler.repeatedExpansions.map(showExpansion)
+      logger.info("Macro repeated expansions", expansions)
+      logger.info("Implicit searches by position", implicitSearchesByPos)
+
       // Make sure we get type information after typer to avoid crashing the compiler
-      global.exitingTyper {
-        val macroProfiler = implementation.getMacroProfiler
-        if (config.logCallSite)
-          logger.info("Macro data per call-site", macroProfiler.perCallSite)
-        logger.info("Macro data per file", macroProfiler.perFile)
-        logger.info("Macro data in total", macroProfiler.inTotal)
-        val expansions =
-          macroProfiler.repeatedExpansions.map(kv => global.showCode(kv._1) -> kv._2)
-        logger.info("Macro repeated expansions", expansions)
-        import global.statistics.{implicitSearchesByType, implicitSearchesByPos}
-        logger.info(
-          "Implicit searches by type",
-          implicitSearchesByType.map(kv => kv._1.toString -> kv._2)
-        )
-        logger.info("Implicit searches by position", implicitSearchesByPos)
-        logger.debug("")
-      }
+      val stringifiedSearchCounter =
+        global.exitingTyper(implicitSearchesByType.map(kv => kv._1.toString -> kv._2))
+      logger.info("Implicit searches by type", stringifiedSearchCounter)
     }
 
     override def newPhase(prev: Phase): Phase = {
