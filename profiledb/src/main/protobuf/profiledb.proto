@@ -14,15 +14,20 @@ package ch.epfl.scala.profiledb;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
-message Database {
-    repeated Run runs = 1;
+enum ContentType {
+    GLOBAL = 0;
+    PER_COMPILATION_UNIT = 1;
 }
 
-message Run {
+message Database {
+    ContentType type = 1;
+    repeated RunProfile runs = 2;
+    repeated CompilationUnitProfile compilationUnits = 3;
+}
+
+message RunProfile {
     google.protobuf.Timestamp timestamp = 1;
     repeated PhaseProfile phaseProfiles = 2;
-    repeated MacroProfile macroProfiles = 3;
-    repeated ImplicitSearchProfile implicitSearchProfiles = 4;
 }
 
 message PhaseProfile {
@@ -41,8 +46,10 @@ message Counter {
     int64 ticks = 2;
 }
 
-message Position {
-    sint32 point = 1;
+message CompilationUnitProfile {
+    google.protobuf.Timestamp timestamp = 1;
+    repeated MacroProfile macroProfiles = 2;
+    repeated ImplicitSearchProfile implicitSearchProfiles = 3;
 }
 
 message MacroProfile {
@@ -57,3 +64,8 @@ message ImplicitSearchProfile {
     int64 searches = 2;
     google.protobuf.Duration duration = 3;
 }
+
+message Position {
+    sint32 point = 1;
+}
+
