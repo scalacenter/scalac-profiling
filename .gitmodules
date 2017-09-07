@@ -2,3 +2,8 @@
 	path = scalac
 	url = git@github.com:scalacenter/scala.git
 	branch = stats-per-global+more-timers
+
+[submodule "metadoc"]
+  path = metadoc
+	url = git@github.com:scalacenter/metadoc.git
+	branch = scalac-profiling

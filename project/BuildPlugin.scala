@@ -39,6 +39,9 @@ object BuildKeys {
   final val ScalacReflect = ProjectRef(Scalac.build, "reflect")
   final val AllScalacProjects = List(ScalacCompiler, ScalacLibrary, ScalacReflect)
 
+  // Add metadoc fork for visual proof of concept
+  final val Metadoc = RootProject(file(s"$AbsolutePath/metadoc"))
+
   // Source dependencies from git are cached by sbt
   val Circe = RootProject(
     uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9"))
