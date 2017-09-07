@@ -43,10 +43,12 @@ object BuildKeys {
   val Circe = RootProject(
     uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9"))
   val CirceTests = ProjectRef(Circe.build, "tests")
+  val CirceBase = ProjectRef(Circe.build, "circe")
   val Monocle = RootProject(
     uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596"))
   val MonocleExample = ProjectRef(Monocle.build, "example")
   val MonocleTests = ProjectRef(Monocle.build, "testJVM")
+  val MonocleBase = ProjectRef(Monocle.build, "monocle")
   val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests)
 
   // Assumes that the previous scala version is the last bincompat version
@@ -249,7 +251,14 @@ object BuildImplementation {
         val projectSettings = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
           Keys.scalaVersion := forkedScalaVersion,
           Keys.scalacOptions ++= {
-            val workingDir = Keys.baseDirectory.value
+            val currentOrg = Keys.organization.value
+            val workingDir = {
+              // We have to do this because otherwise it resolves to the `ThisBuild` set up by cross projects
+              if (currentOrg == "io.circe") (Keys.baseDirectory in BuildKeys.CirceBase).value
+              else if (currentOrg == "com.github.julien-truffaut")
+                (Keys.baseDirectory in BuildKeys.MonocleBase).value
+              else Keys.baseDirectory.value
+            }
             val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
             val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
             sourceRoot +: pluginOpts
