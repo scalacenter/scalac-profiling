@@ -1,0 +1,75 @@
+/*                                                                                                *\
+**      _____            __         ______           __                                           **
+**     / ___/_________ _/ /___ _   / ____/__  ____  / /____  _____                                **
+**     \__ \/ ___/ __ `/ / __ `/  / /   / _ \/ __ \/ __/ _ \/ ___/    Scala Center                **
+**    ___/ / /__/ /_/ / / /_/ /  / /___/ /__/ / / / /_/ /__/ /        https://scala.epfl.ch       **
+**   /____/\___/\__,_/_/\__,_/   \____/\___/_/ /_/\__/\___/_/         (c) 2017-2018, LAMP/EPFL    **
+**                                                                                                **
+\*                                                                                                */
+
+syntax = "proto3";
+
+package ch.epfl.scala.profiledb;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+enum ContentType {
+    GLOBAL = 0;
+    PER_COMPILATION_UNIT = 1;
+}
+
+message Database {
+    ContentType type = 1;
+    repeated DatabaseEntry entries = 2;
+}
+
+message DatabaseEntry {
+    RunProfile runProfile = 1;
+    CompilationUnitProfile compilationUnitProfile = 2;
+}
+
+message RunProfile {
+    google.protobuf.Timestamp timestamp = 1;
+    repeated PhaseProfile phaseProfiles = 2;
+}
+
+message PhaseProfile {
+    string name = 1;
+    repeated Timer timers = 2;
+    repeated Counter counters = 3;
+}
+
+message Timer {
+    string id = 1;
+    google.protobuf.Duration duration = 2;
+}
+
+message Counter {
+    string id = 1;
+    int64 ticks = 2;
+}
+
+message CompilationUnitProfile {
+    google.protobuf.Timestamp timestamp = 1;
+    repeated MacroProfile macroProfiles = 2;
+    repeated ImplicitSearchProfile implicitSearchProfiles = 3;
+}
+
+message MacroProfile {
+    Position position = 1;
+    int64 expandedMacros = 2;
+    int64 approximateSize = 3;
+    google.protobuf.Duration duration = 4;
+}
+
+message ImplicitSearchProfile {
+    Position position = 1;
+    int64 searches = 2;
+    google.protobuf.Duration duration = 3;
+}
+
+message Position {
+    sint32 point = 1;
+}
+

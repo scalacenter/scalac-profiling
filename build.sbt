@@ -1,3 +1,12 @@
+/*                                                                                                *\
+**      _____            __         ______           __                                           **
+**     / ___/_________ _/ /___ _   / ____/__  ____  / /____  _____                                **
+**     \__ \/ ___/ __ `/ / __ `/  / /   / _ \/ __ \/ __/ _ \/ ___/    Scala Center                **
+**    ___/ / /__/ /_/ / / /_/ /  / /___/ /__/ / / / /_/ /__/ /        https://scala.epfl.ch       **
+**   /____/\___/\__,_/_/\__,_/   \____/\___/_/ /_/\__/\___/_/         (c) 2017-2018, LAMP/EPFL    **
+**                                                                                                **
+\*                                                                                                */
+
 lazy val root = project
   .in(file("."))
   .aggregate(plugin)
@@ -7,9 +16,20 @@ lazy val root = project
     publishLocal := {}
   ))
 
+import com.trueaccord.scalapb.compiler.Version.scalapbVersion
+lazy val profiledb = project
+  .in(file("profiledb"))
+  .settings(
+    // Specify scala version to allow third-party software to use this module
+    scalaVersion := "2.12.3",
+    libraryDependencies +=
+      "com.trueaccord.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
+    PB.targets in Compile := Seq(scalapb.gen() -> (sourceManaged in Compile).value)
+  )
+
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
-  .dependsOn(Scalac)
+  .dependsOn(Scalac, profiledb)
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
@@ -21,15 +41,17 @@ lazy val plugin = project
     // Make the tests to compile with the plugin
     optionsForSourceCompilerPlugin := {
       val jar = (Keys.`package` in Compile).value
+      val profileDbJar = (Keys.`package` in Compile in profiledb).value
+      val absoluteJars = List(jar, profileDbJar).map(_.getAbsolutePath)
       // Should we filter out all the scala artifacts?
       val pluginDeps = (managedClasspath in Compile).value.files.toList
-      val pluginAndDeps = (jar.getAbsolutePath :: pluginDeps).mkString(":")
+      val pluginAndDeps = (absoluteJars ++ pluginDeps).mkString(":")
       val addPlugin = "-Xplugin:" + pluginAndDeps
       val dummy = "-Jdummy=" + jar.lastModified
       // Enable debugging information when necessary
       val debuggingPluginOptions =
-        if (!enablePerformanceDebugging.value) Nil
-        else List("-Ystatistics", "-P:scalac-profiling:log-macro-call-site")
+        if (!enableStatistics.value) Nil
+        else List("-Ystatistics", "-P:scalac-profiling:show-profiles")
         //else List("-Xlog-implicits", "-Ystatistics:typer")
       Seq(addPlugin, dummy) ++ debuggingPluginOptions
     },

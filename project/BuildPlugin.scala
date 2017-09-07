@@ -18,7 +18,7 @@ object BuildPlugin extends AutoPlugin {
 object BuildKeys {
   import sbt.{settingKey, taskKey, richFile, file, uri, toGroupID}
   import sbt.{RootProject, ProjectRef, Setting, Compile, BuildRef, Reference}
-  final val enablePerformanceDebugging =
+  final val enableStatistics =
     settingKey[Boolean]("Enable performance debugging if true.")
   final val optionsForSourceCompilerPlugin =
     taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
@@ -66,7 +66,8 @@ object BuildKeys {
     val compiledClassesDir = targetDir / s"scala-$scalaBinVersion/classes"
     val testClassesDir = targetDir / s"scala-$scalaBinVersion/test-classes"
     val libraryJar = Keys.scalaInstance.value.libraryJar.getAbsolutePath
-    val classpath = s"$compiledClassesDir:$testClassesDir:$libraryJar"
+    val deps = (Keys.libraryDependencies in Compile).value.mkString(":")
+    val classpath = s"$compiledClassesDir:$testClassesDir:$libraryJar:$deps"
     val resourceDir = (Keys.resourceManaged in Compile).value
     val toolboxTestClasspath = resourceDir / "toolbox.classpath"
     sbt.IO.write(toolboxTestClasspath, classpath)
@@ -247,7 +248,13 @@ object BuildImplementation {
         )
         val projectSettings = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
           Keys.scalaVersion := forkedScalaVersion,
-          Keys.scalacOptions ++= (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value,
+          Keys.scalacOptions ++= {
+            val projectBuild = Keys.thisProjectRef.value.build
+            val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
+            val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
+            val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
+            sourceRoot +: pluginOpts
+          },
           Keys.libraryDependencies ~= { previousDependencies =>
             // Assumes that all of these projects are on the same bincompat version (2.12.x)
             val validScalaVersion = BuildKeys.PreviousScalaVersion.value
@@ -288,7 +295,7 @@ object BuildImplementation {
     Keys.scalaVersion := BuildKeys.ScalacVersion.value,
     Keys.crossScalaVersions := ScalaVersions ++ List(BuildKeys.ScalacVersion.value),
     Keys.triggeredMessage := Watched.clearWhenTriggered,
-    BuildKeys.enablePerformanceDebugging := sys.env.get("CI").isDefined,
+    BuildKeys.enableStatistics := sys.env.get("CI").isDefined,
     BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value
   ) ++ publishSettings ++ commandAliases
 
