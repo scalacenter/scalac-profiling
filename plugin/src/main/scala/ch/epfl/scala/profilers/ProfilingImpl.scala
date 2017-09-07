@@ -40,7 +40,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   }
 
   object MacroInfo {
-    private[ProfilingImpl] final val Empty = MacroInfo(0, 0, 0L)
+    final val Empty = MacroInfo(0, 0, 0L)
     def aggregate(infos: Iterator[MacroInfo]): MacroInfo = {
       infos.foldLeft(MacroInfo.Empty)(_ + _)
     }
@@ -63,7 +63,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     }
   }
 
-  def getMacroProfiler: MacroProfiler = {
+  lazy val getMacroProfiler: MacroProfiler = {
     import ProfilingMacroPlugin.{macroInfos, repeatedTrees}
     val perCallSite = macroInfos.toMap
     val perFile = groupPerFile(perCallSite)(MacroInfo.Empty, _ + _)
@@ -84,7 +84,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   }
 
   object ImplicitInfo {
-    private[ProfilingImpl] val Empty = ImplicitInfo(0)
+    final val Empty = ImplicitInfo(0)
     def aggregate(infos: Iterator[ImplicitInfo]): ImplicitInfo = infos.fold(Empty)(_ + _)
   }
 
@@ -98,7 +98,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       inTotal: ImplicitInfo
   )
 
-  def getImplicitProfiler: ImplicitProfiler = {
+  lazy val getImplicitProfiler: ImplicitProfiler = {
     import global.statistics.{implicitSearchesByPos, implicitSearchesByType}
     val perCallSite = implicitSearchesByPos.toMap.mapValues(ImplicitInfo.apply)
     val perFile = groupPerFile[ImplicitInfo](perCallSite)(ImplicitInfo.Empty, _ + _)

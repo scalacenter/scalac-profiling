@@ -21,8 +21,12 @@ enum ContentType {
 
 message Database {
     ContentType type = 1;
-    repeated RunProfile runProfiles = 2;
-    repeated CompilationUnitProfile compilationUnitProfiles = 3;
+    repeated DatabaseEntry entries = 2;
+}
+
+message DatabaseEntry {
+    RunProfile runProfile = 1;
+    CompilationUnitProfile compilationUnitProfile = 2;
 }
 
 message RunProfile {

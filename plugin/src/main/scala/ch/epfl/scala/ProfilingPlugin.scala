@@ -9,12 +9,20 @@
 
 package ch.epfl.scala
 
+import java.nio.file.Files
+
+import ch.epfl.scala.profiledb.{ProfileDb, ProfileDbPath}
+import ch.epfl.scala.profiledb.utils.{AbsolutePath, RelativePath}
 import ch.epfl.scala.profilers.ProfilingImpl
 import ch.epfl.scala.profilers.tools.Logger
 
 import scala.reflect.internal.util.Statistics
+import scala.reflect.io.Path
+import scala.tools.nsc.io.AbstractFile
 import scala.tools.nsc.{Global, Phase}
 import scala.tools.nsc.plugins.{Plugin, PluginComponent}
+import scala.tools.nsc.util.SourceFile
+import scala.util.Try
 
 class ProfilingPlugin(val global: Global) extends Plugin {
   val name = "scalac-profiling"
@@ -66,14 +74,20 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     import com.google.protobuf.timestamp.Timestamp
     import ch.epfl.scala.profiledb.{profiledb => schema}
     private final val nanoScale: Int = 1000000000
-    private def toDatabase(statistics: Statistics): schema.Database = {
-      import statistics.{Timer, Counter, Quantity}
-      def toDuration(nanos: Long): Duration = {
-        val seconds: Long = nanos / nanoScale
-        val remainder: Int = (nanos % nanoScale).toInt
-        Duration(seconds = seconds, nanos = remainder)
-      }
 
+    private def toDuration(nanos: Long): Duration = {
+      val seconds: Long = nanos / nanoScale
+      val remainder: Int = (nanos % nanoScale).toInt
+      Duration(seconds = seconds, nanos = remainder)
+    }
+
+    private def getCurrentTimestamp: Timestamp = {
+      val duration = toDuration(System.nanoTime())
+      Timestamp(seconds = duration.seconds, nanos = duration.nanos)
+    }
+
+    private def toGlobalDatabase(statistics: Statistics): schema.Database = {
+      import statistics.{Timer, Counter, Quantity}
       def toSchemaTimer(scalacTimer: Timer): schema.Timer = {
         val id = scalacTimer.prefix
         val duration = toDuration(scalacTimer.nanos)
@@ -97,27 +111,125 @@ class ProfilingPlugin(val global: Global) extends Plugin {
           schema.PhaseProfile(name = phaseName, timers = timers, counters = counters)
       }
 
-      val timestamp: Timestamp = {
-        val duration = toDuration(System.nanoTime())
-        Timestamp(seconds = duration.seconds, nanos = duration.nanos)
-      }
-
-      val runProfiles =
-        List(schema.RunProfile(timestamp = Some(timestamp), phaseProfiles = phaseProfiles))
+      val timestamp = Some(getCurrentTimestamp)
+      val runProfile = Some(schema.RunProfile(timestamp = timestamp, phaseProfiles = phaseProfiles))
+      val entry = schema.DatabaseEntry(runProfile = runProfile, compilationUnitProfile = None)
       schema.Database(
         `type` = schema.ContentType.GLOBAL,
-        runProfiles = runProfiles,
-        compilationUnitProfiles = Nil
+        entries = List(entry)
       )
     }
 
+    private def getOutputDirFor(absFile: AbstractFile): Path = Path {
+      val outputPath = global.settings.outputDirs.outputDirFor(absFile).path
+      if (outputPath.isEmpty) "." else outputPath
+    }
+
+    private def dbPathFor(sourceFile: SourceFile): Option[ProfileDbPath] = {
+      val absoluteSourceFile = AbsolutePath(sourceFile.file.path)
+      val targetPath = absoluteSourceFile.toRelative(AbsolutePath.workingDirectory)
+      if (targetPath.syntax.endsWith(".scala")) {
+        val outputDir = getOutputDirFor(sourceFile.file)
+        val absoluteOutput = AbsolutePath(getOutputDirFor(sourceFile.file).jfile)
+        val dbTargetPath = ProfileDbPath.toProfileDbPath(targetPath)
+        Some(ProfileDbPath(absoluteOutput, dbTargetPath))
+      } else None
+    }
+
+    private final val EmptyDuration = Duration.defaultInstance
+    private def profileDbEntryFor(sourceFile: SourceFile): schema.DatabaseEntry = {
+      import scala.reflect.internal.util.Position
+      import implementation.{MacroInfo, ImplicitInfo}
+
+      def perFile[V](ps: Map[Position, V]): Map[Position, V] =
+        ps.collect { case t @ (pos, _) if pos.source == sourceFile => t }
+
+      def toPos(pos: Position): schema.Position = schema.Position(point = pos.point)
+      def toMacroProfile(pos: Position, info: MacroInfo): schema.MacroProfile = {
+        val currentPos = Some(toPos(pos))
+        val expandedMacros = info.expandedMacros.toLong
+        val approximateSize = info.expandedNodes
+        val duration = Some(toDuration(info.expansionNanos))
+        schema.MacroProfile(
+          position = currentPos,
+          expandedMacros = expandedMacros,
+          approximateSize = approximateSize,
+          duration = duration
+        )
+      }
+
+      def toImplicitProfile(pos: Position, info: ImplicitInfo): schema.ImplicitSearchProfile = {
+        val currentPos = Some(toPos(pos))
+        val searches = info.count.toLong
+        val duration = Some(EmptyDuration)
+        schema.ImplicitSearchProfile(
+          position = currentPos,
+          searches = searches,
+          duration = duration
+        )
+      }
+
+      val macroProfiles = perFile(implementation.getMacroProfiler.perCallSite)
+        .map { case (pos, info) => toMacroProfile(pos, info) }
+      val implicitSearchProfiles = perFile(implementation.getImplicitProfiler.perCallSite)
+        .map { case (pos, info) => toImplicitProfile(pos, info) }
+
+      val now = Some(getCurrentTimestamp)
+      val compilationUnitProfile = Some(
+        schema.CompilationUnitProfile(
+          timestamp = now,
+          macroProfiles = macroProfiles.toList,
+          implicitSearchProfiles = implicitSearchProfiles.toList
+        )
+      )
+      schema.DatabaseEntry(compilationUnitProfile = compilationUnitProfile)
+    }
+
+    def writeDatabase(db: schema.Database, path: ProfileDbPath): Try[schema.Database] = {
+      if (Files.exists(path.target.underlying)) {
+        ProfileDb.read(path).flatMap { oldDb =>
+          val oldDbType = oldDb.`type`
+          val newDbType = db.`type`
+          if (oldDbType.isGlobal && newDbType.isGlobal)
+            Try(oldDb.addAllEntries(db.entries))
+          else if (oldDbType.isPerCompilationUnit && newDbType.isPerCompilationUnit)
+            Try(oldDb.addAllEntries(db.entries))
+          else Try(sys.error(s"Db type mismatch: $newDbType != $oldDbType"))
+        }
+      } else ProfileDb.write(db, path).map(_ => db)
+    }
+
+    def globalOutputDir = AbsolutePath(
+      new java.io.File(
+        global.settings.outputDirs.getSingleOutput
+          .map(_.file.getAbsolutePath)
+          .getOrElse(global.settings.d.value)
+      )
+    )
+
+    private final val PerCompilationUnit = schema.ContentType.PER_COMPILATION_UNIT
     override def newPhase(prev: Phase): Phase = {
       new StdPhase(prev) {
-        override def apply(unit: global.CompilationUnit): Unit = ()
+        override def apply(unit: global.CompilationUnit): Unit = {
+          val currentSourceFile = unit.source
+          val compilationUnitEntry = profileDbEntryFor(currentSourceFile)
+          dbPathFor(currentSourceFile) match {
+            case Some(profileDbPath) =>
+              val freshDatabase =
+                schema.Database(`type` = PerCompilationUnit, entries = List(compilationUnitEntry))
+              writeDatabase(freshDatabase, profileDbPath).failed
+                .foreach(t => global.globalError(s"I/O profiledb error: ${t.getMessage}"))
+            case None => global.globalError(s"Could not write profiledb for $currentSourceFile.")
+          }
+        }
+
         override def run(): Unit = {
           super.run()
           reportStatistics()
-          logger.info("Database", toDatabase(global.statistics))
+          val globalDatabase = toGlobalDatabase(global.statistics)
+          val globalRelativePath = ProfileDbPath.GlobalProfileDbRelativePath
+          val globalProfileDbPath = ProfileDbPath(globalOutputDir, globalRelativePath)
+          writeDatabase(globalDatabase, globalProfileDbPath)
         }
       }
     }
