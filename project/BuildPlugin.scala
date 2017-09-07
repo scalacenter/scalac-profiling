@@ -248,7 +248,12 @@ object BuildImplementation {
         )
         val projectSettings = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
           Keys.scalaVersion := forkedScalaVersion,
-          Keys.scalacOptions ++= (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value,
+          Keys.scalacOptions ++= {
+            val workingDir = Keys.baseDirectory.value
+            val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
+            val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
+            sourceRoot +: pluginOpts
+          },
           Keys.libraryDependencies ~= { previousDependencies =>
             // Assumes that all of these projects are on the same bincompat version (2.12.x)
             val validScalaVersion = BuildKeys.PreviousScalaVersion.value

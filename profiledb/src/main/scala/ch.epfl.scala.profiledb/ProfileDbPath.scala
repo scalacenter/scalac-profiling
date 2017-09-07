@@ -9,8 +9,6 @@
 
 package ch.epfl.scala.profiledb
 
-import java.nio.file.{Files, Path}
-
 import ch.epfl.scala.profiledb.utils.{AbsolutePath, RelativePath}
 
 final class ProfileDbPath private (outputDir: AbsolutePath, targetPath: RelativePath) {
@@ -18,14 +16,6 @@ final class ProfileDbPath private (outputDir: AbsolutePath, targetPath: Relative
     require(ProfileDbPath.hasDbExtension(targetPath))
     require(targetPath.underlying.startsWith(ProfileDbPath.Prefix.underlying))
     targetPath.toAbsolute(outputDir)
-  }
-
-  def createDirs: Unit = {
-    val nioPath = targetPath.underlying
-    val parent = nioPath.getParent()
-    if (!Files.exists(nioPath)) {
-      Files.createDirectories(nioPath.getParent())
-    }
   }
 }
 

@@ -23,6 +23,7 @@ import scala.tools.nsc.{Global, Phase}
 import scala.tools.nsc.plugins.{Plugin, PluginComponent}
 import scala.tools.nsc.util.SourceFile
 import scala.util.Try
+import scala.util.matching.Regex
 
 class ProfilingPlugin(val global: Global) extends Plugin {
   val name = "scalac-profiling"
@@ -30,13 +31,28 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   val components = List[PluginComponent](NewTypeComponent)
 
   private final val ShowProfiles = "show-profiles"
-  case class PluginConfig(showProfiles: Boolean)
-  private final val config = PluginConfig(super.options.contains(ShowProfiles))
+  private final val SourceRoot = "sourceroot"
+  private final val SourceRootRegex = s"sourceroot:(.*)".r
+  case class PluginConfig(showProfiles: Boolean, sourceRoot: Option[AbsolutePath])
+
+  def findOption(name: String, pattern: Regex): Option[String] = {
+    super.options.find(_.startsWith(name)).flatMap {
+      case pattern(matched) => Some(matched)
+      case _ => None
+    }
+  }
+
+  private final val config = PluginConfig(
+    super.options.contains(ShowProfiles),
+    findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply)
+  )
+
   private final val logger = new Logger(global)
 
   private def pad20(option: String): String = option + (" " * (20 - option.length))
   override def init(ops: List[String], e: (String) => Unit): Boolean = true
   override val optionsHelp: Option[String] = Some(s"""
+       |-P:$name:${pad20(SourceRoot)} Sets the source root for this project.
        |-P:$name:${pad20(ShowProfiles)} Logs profile information for every call-site.
     """.stripMargin)
 
@@ -124,9 +140,10 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       if (outputPath.isEmpty) "." else outputPath
     }
 
+    private final def sourceRoot = config.sourceRoot.getOrElse(AbsolutePath.workingDirectory)
     private def dbPathFor(sourceFile: SourceFile): Option[ProfileDbPath] = {
       val absoluteSourceFile = AbsolutePath(sourceFile.file.path)
-      val targetPath = absoluteSourceFile.toRelative(AbsolutePath.workingDirectory)
+      val targetPath = absoluteSourceFile.toRelative(sourceRoot)
       if (targetPath.syntax.endsWith(".scala")) {
         val outputDir = getOutputDirFor(sourceFile.file)
         val absoluteOutput = AbsolutePath(getOutputDirFor(sourceFile.file).jfile)
@@ -211,10 +228,10 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       new StdPhase(prev) {
         override def apply(unit: global.CompilationUnit): Unit = {
           val currentSourceFile = unit.source
-          logger.info(s"Creating compilation unit for ${currentSourceFile.file.path}")
           val compilationUnitEntry = profileDbEntryFor(currentSourceFile)
           dbPathFor(currentSourceFile) match {
             case Some(profileDbPath) =>
+              logger.info(s"Creating compilation unit for ${profileDbPath.target}")
               val freshDatabase =
                 schema.Database(`type` = PerCompilationUnit, entries = List(compilationUnitEntry))
               writeDatabase(freshDatabase, profileDbPath).failed
