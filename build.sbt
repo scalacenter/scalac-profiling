@@ -50,7 +50,7 @@ lazy val plugin = project
       val dummy = "-Jdummy=" + jar.lastModified
       // Enable debugging information when necessary
       val debuggingPluginOptions =
-        if (!enablePerformanceDebugging.value) Nil
+        if (!enableStatistics.value) Nil
         else List("-Ystatistics", "-P:scalac-profiling:log-macro-call-site")
         //else List("-Xlog-implicits", "-Ystatistics:typer")
       Seq(addPlugin, dummy) ++ debuggingPluginOptions
