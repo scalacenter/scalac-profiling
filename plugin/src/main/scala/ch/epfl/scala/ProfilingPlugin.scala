@@ -29,15 +29,15 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   val description = "Adds instrumentation to keep an eye on Scalac performance."
   val components = List[PluginComponent](NewTypeComponent)
 
-  private final val LogCallSite = "log-macro-call-site"
-  case class PluginConfig(logCallSite: Boolean)
-  private final val config = PluginConfig(super.options.contains(LogCallSite))
+  private final val ShowProfiles = "show-profiles"
+  case class PluginConfig(showProfiles: Boolean)
+  private final val config = PluginConfig(super.options.contains(ShowProfiles))
   private final val logger = new Logger(global)
 
   private def pad20(option: String): String = option + (" " * (20 - option.length))
   override def init(ops: List[String], e: (String) => Unit): Boolean = true
   override val optionsHelp: Option[String] = Some(s"""
-       |-P:$name:${pad20(LogCallSite)} Logs macro information for every call-site.
+       |-P:$name:${pad20(ShowProfiles)} Logs profile information for every call-site.
     """.stripMargin)
 
   // Make it not `lazy` and it will slay the compiler :)
@@ -54,16 +54,15 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       global.showCode(expansion._1) -> expansion._2
 
     import global.statistics.{implicitSearchesByType, implicitSearchesByPos}
-    private def reportStatistics(): Unit = {
+    private def reportStatistics(): Unit = if (config.showProfiles) {
       val macroProfiler = implementation.getMacroProfiler
-      if (config.logCallSite)
-        logger.info("Macro data per call-site", macroProfiler.perCallSite)
+      logger.info("Macro data per call-site", macroProfiler.perCallSite)
       logger.info("Macro data per file", macroProfiler.perFile)
       logger.info("Macro data in total", macroProfiler.inTotal)
       val expansions = macroProfiler.repeatedExpansions.map(showExpansion)
       logger.info("Macro repeated expansions", expansions)
-      logger.info("Implicit searches by position", implicitSearchesByPos)
 
+      logger.info("Implicit searches by position", implicitSearchesByPos)
       // Make sure we get type information after typer to avoid crashing the compiler
       val stringifiedSearchCounter =
         global.exitingTyper(implicitSearchesByType.map(kv => kv._1.toString -> kv._2))
