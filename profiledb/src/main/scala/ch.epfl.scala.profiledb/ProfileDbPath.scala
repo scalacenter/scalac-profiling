@@ -13,17 +13,26 @@ import java.nio.file.{Files, Path}
 
 import ch.epfl.scala.profiledb.utils.{AbsolutePath, RelativePath}
 
-final case class ProfileDbPath(outputDir: AbsolutePath, targetPath: RelativePath) {
+final class ProfileDbPath private (outputDir: AbsolutePath, targetPath: RelativePath) {
   lazy val target: AbsolutePath = {
     require(ProfileDbPath.hasDbExtension(targetPath))
     require(targetPath.underlying.startsWith(ProfileDbPath.Prefix.underlying))
-    val result = targetPath.toAbsolute(outputDir)
-    Files.createDirectories(result.underlying.getParent())
-    result
+    targetPath.toAbsolute(outputDir)
+  }
+
+  def createDirs: Unit = {
+    val nioPath = targetPath.underlying
+    val parent = nioPath.getParent()
+    if (!Files.exists(nioPath)) {
+      Files.createDirectories(nioPath.getParent())
+    }
   }
 }
 
 object ProfileDbPath {
+  def apply(outputDir: AbsolutePath, targetPath: RelativePath): ProfileDbPath =
+    new ProfileDbPath(outputDir, targetPath)
+
   private[profiledb] final val ProfileDbName = "profiledb"
   private[profiledb] final val ProfileDbExtension = s".$ProfileDbName"
   private[profiledb] final val Prefix = RelativePath("META-INF").resolve(s"$ProfileDbName")

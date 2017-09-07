@@ -23,9 +23,14 @@ object ProfileDb {
     schema.Database.parseFrom(reader)
   }
 
-  def write(database: schema.Database, path: ProfileDbPath): Try[Unit] = Try {
-    val outputStream = Files.newOutputStream(path.target.underlying)
+  def write(database: schema.Database, path: ProfileDbPath): Try[schema.Database] = Try {
+    val targetPath = path.target.underlying
+    if (!Files.exists(targetPath))
+      Files.createDirectories(targetPath.getParent())
+    val outputStream = Files.newOutputStream(targetPath)
     val writer = CodedOutputStream.newInstance(outputStream)
     database.writeTo(writer)
+    writer.flush()
+    database
   }
 }

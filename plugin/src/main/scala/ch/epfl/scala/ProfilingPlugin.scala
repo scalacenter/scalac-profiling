@@ -81,7 +81,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       Duration(seconds = seconds, nanos = remainder)
     }
 
-    private def getCurrentTimestamp: Timestamp = {
+    private lazy val getCurrentTimestamp: Timestamp = {
       val duration = toDuration(System.nanoTime())
       Timestamp(seconds = duration.seconds, nanos = duration.nanos)
     }
@@ -190,16 +190,16 @@ class ProfilingPlugin(val global: Global) extends Plugin {
         ProfileDb.read(path).flatMap { oldDb =>
           val oldDbType = oldDb.`type`
           val newDbType = db.`type`
-          if (oldDbType.isGlobal && newDbType.isGlobal)
-            Try(oldDb.addAllEntries(db.entries))
-          else if (oldDbType.isPerCompilationUnit && newDbType.isPerCompilationUnit)
-            Try(oldDb.addAllEntries(db.entries))
-          else Try(sys.error(s"Db type mismatch: $newDbType != $oldDbType"))
+          if (oldDbType.isGlobal && newDbType.isGlobal ||
+            (oldDbType.isPerCompilationUnit && newDbType.isPerCompilationUnit)) {
+            val updatedDb = oldDb.addAllEntries(db.entries)
+            ProfileDb.write(updatedDb, path)
+          } else Try(sys.error(s"Db type mismatch: $newDbType != $oldDbType"))
         }
-      } else ProfileDb.write(db, path).map(_ => db)
+      } else ProfileDb.write(db, path)
     }
 
-    def globalOutputDir = AbsolutePath(
+    lazy val globalOutputDir = AbsolutePath(
       new java.io.File(
         global.settings.outputDirs.getSingleOutput
           .map(_.file.getAbsolutePath)
@@ -212,6 +212,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       new StdPhase(prev) {
         override def apply(unit: global.CompilationUnit): Unit = {
           val currentSourceFile = unit.source
+          logger.info(s"Creating compilation unit for ${currentSourceFile.file.path}")
           val compilationUnitEntry = profileDbEntryFor(currentSourceFile)
           dbPathFor(currentSourceFile) match {
             case Some(profileDbPath) =>
