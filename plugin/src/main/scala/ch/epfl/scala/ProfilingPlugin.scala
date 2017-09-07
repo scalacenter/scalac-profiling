@@ -82,7 +82,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
 
       def toSchemaCounter(scalacCounter: Counter): schema.Counter = {
         val id = scalacCounter.prefix
-        val ticks: Long = scalacCounter.value
+        val ticks = scalacCounter.value.toLong
         schema.Counter(id = id, ticks = ticks)
       }
 

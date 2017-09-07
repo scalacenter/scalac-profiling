@@ -54,25 +54,57 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       repeatedExpansions: Map[Tree, Int]
   )
 
-  def getMacroProfiler: MacroProfiler = {
-    def toMillis(macroInfo: MacroInfo): MacroInfo = {
-      import java.util.concurrent.TimeUnit.NANOSECONDS
-      macroInfo.copy(expansionNanos = NANOSECONDS.toMillis(macroInfo.expansionNanos))
+  def toMillis(nanos: Long): Long =
+    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(nanos)
+
+  def groupPerFile[V](kvs: Map[Position, V])(empty: V, aggregate: (V, V) => V): Map[SourceFile, V] = {
+    kvs.groupBy(_._1.source).mapValues {
+      case posInfos: Map[Position, V] => posInfos.valuesIterator.fold(empty)(aggregate)
     }
+  }
+
+  def getMacroProfiler: MacroProfiler = {
     import ProfilingMacroPlugin.{macroInfos, repeatedTrees}
     val perCallSite = macroInfos.toMap
-    val perFile = perCallSite.groupBy(_._1.source).map {
-      case (file, posInfos) =>
-        val onlyInfos = posInfos.iterator.map(_._2)
-        file -> toMillis(MacroInfo.aggregate(onlyInfos))
-    }
-    val inTotal = MacroInfo.aggregate(perFile.iterator.map(_._2))
-    val repeated = repeatedTrees.valuesIterator
+    val perFile = groupPerFile(perCallSite)(MacroInfo.Empty, _ + _)
+      .mapValues(i => i.copy(expansionNanos = toMillis(i.expansionNanos)))
+    val inTotal = MacroInfo.aggregate(perFile.valuesIterator)
+    val repeated = repeatedTrees.toMap.valuesIterator
       .filter(_.count > 1)
       .map(v => v.original -> v.count)
       .toMap
     // perFile and inTotal are already converted to millis
-    MacroProfiler(perCallSite.mapValues(toMillis), perFile, inTotal, repeated)
+    val callSiteNanos = perCallSite
+      .mapValues(i => i.copy(expansionNanos = toMillis(i.expansionNanos)))
+    MacroProfiler(callSiteNanos, perFile, inTotal, repeated)
+  }
+
+  case class ImplicitInfo(count: Int) {
+    def +(other: ImplicitInfo): ImplicitInfo = ImplicitInfo(count + other.count)
+  }
+
+  object ImplicitInfo {
+    private[ProfilingImpl] val Empty = ImplicitInfo(0)
+    def aggregate(infos: Iterator[ImplicitInfo]): ImplicitInfo = infos.fold(Empty)(_ + _)
+  }
+
+  implicit def fromStatistics(tpe: statistics.global.Type): global.Type =
+    tpe.asInstanceOf[global.Type]
+
+  case class ImplicitProfiler(
+      perCallSite: Map[Position, ImplicitInfo],
+      perFile: Map[SourceFile, ImplicitInfo],
+      perType: Map[Type, ImplicitInfo],
+      inTotal: ImplicitInfo
+  )
+
+  def getImplicitProfiler: ImplicitProfiler = {
+    import global.statistics.{implicitSearchesByPos, implicitSearchesByType}
+    val perCallSite = implicitSearchesByPos.toMap.mapValues(ImplicitInfo.apply)
+    val perFile = groupPerFile[ImplicitInfo](perCallSite)(ImplicitInfo.Empty, _ + _)
+    val perType = implicitSearchesByType.toMap.mapValues(ImplicitInfo.apply)
+    val inTotal = ImplicitInfo.aggregate(perFile.valuesIterator)
+    ImplicitProfiler(perCallSite, perFile, perType, inTotal)
   }
 
   import global.analyzer.MacroPlugin
