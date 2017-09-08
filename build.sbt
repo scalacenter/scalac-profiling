@@ -29,7 +29,7 @@ lazy val profiledb = project
 
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
-  .dependsOn(Scalac, Metadoc, profiledb)
+  .dependsOn(Scalac, profiledb)
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
