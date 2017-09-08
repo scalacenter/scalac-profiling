@@ -39,6 +39,9 @@ object BuildKeys {
   final val ScalacReflect = ProjectRef(Scalac.build, "reflect")
   final val AllScalacProjects = List(ScalacCompiler, ScalacLibrary, ScalacReflect)
 
+  final val VscodeScala = RootProject(file(s"$AbsolutePath/vscode-scala"))
+  final val VscodeImplementation = ProjectRef(VscodeScala.build, "ensime-lsp")
+
   // Source dependencies from git are cached by sbt
   val Circe = RootProject(
     uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9"))

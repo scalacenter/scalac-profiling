@@ -77,19 +77,19 @@ lazy val plugin = project
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
   .in(file("integrations"))
-  .dependsOn(Circe, Monocle)
+  .dependsOn(Circe, Monocle, VscodeScala)
   .settings(
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
-    test := {
-      Def.sequential(
+    compile in Compile :=
+      (compile in Compile) .dependsOn(compile in Compile in VscodeImplementation).value,
+    test := Def.sequential(
         (showScalaInstances in ThisBuild),
         (compile in Compile),
         (compile in Test in CirceTests),
         (compile in Test in MonocleTests),
         (compile in Test in MonocleExample)
-      ).value
-    },
+    ).value,
     testOnly := Def.inputTaskDyn {
       val keywords = keywordsSetting.parsed
       val emptyAnalysis = Def.task(sbt.inc.Analysis.Empty)

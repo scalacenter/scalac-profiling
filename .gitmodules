@@ -5,5 +5,5 @@
 
 [submodule "vscode-scala"]
 	path = vscode-scala
-	url = git@github.com:scalacenter/dragos-vscode-scala.git
-	branch = master
+	url = git@github.com:scalacenter/vscode-scala-profiledb.git
+	branch = scalac-profiling
