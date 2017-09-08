@@ -41,7 +41,6 @@ object BuildKeys {
 
   // Add metadoc fork for visual proof of concept
   final val Metadoc = RootProject(file(s"$AbsolutePath/metadoc"))
-  final val MetadocExample = ProjectRef(Metadoc.build, "example")
 
   // Source dependencies from git are cached by sbt
   val Circe = RootProject(
@@ -51,7 +50,7 @@ object BuildKeys {
     uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596"))
   val MonocleExample = ProjectRef(Monocle.build, "example")
   val MonocleTests = ProjectRef(Monocle.build, "testJVM")
-  val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests, MetadocExample)
+  val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests)
 
   // Assumes that the previous scala version is the last bincompat version
   final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
@@ -253,8 +252,6 @@ object BuildImplementation {
         val projectSettings = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
           Keys.scalaVersion := forkedScalaVersion,
           Keys.scalacOptions ++= {
-            // Workingdir is not `user.dir` nor `baseDirectory in ThisBuild` nor `baseDirectory in projectRef`
-            // We get the working dir from the local base since we are using source dependencies
             val projectBuild = Keys.thisProjectRef.value.build
             val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
             val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
