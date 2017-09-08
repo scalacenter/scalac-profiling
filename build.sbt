@@ -29,7 +29,7 @@ lazy val profiledb = project
 
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
-  .dependsOn(Scalac, profiledb)
+  .dependsOn(Scalac, Metadoc, profiledb)
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
@@ -77,7 +77,7 @@ lazy val plugin = project
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
   .in(file("integrations"))
-  .dependsOn(Circe, Monocle, Metadoc)
+  .dependsOn(Circe, Monocle)
   .settings(
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
@@ -87,8 +87,7 @@ lazy val integrations = project
         (compile in Compile),
         (compile in Test in CirceTests),
         (compile in Test in MonocleTests),
-        (compile in Test in MonocleExample),
-        (compile in Compile in MetadocExample)
+        (compile in Test in MonocleExample)
       ).value
     },
     testOnly := Def.inputTaskDyn {
@@ -108,11 +107,6 @@ lazy val integrations = project
           (compile in Test in MonocleExample)
         ) else emptyAnalysis
       }
-      val MetadocTask = Def.taskDyn {
-        if (keywords.contains(MetadocKeyword)) (compile in Compile in MetadocExample)
-        else emptyAnalysis
-      }
-
-      Def.sequential(CirceTask, MonocleTask, IntegrationTask, MetadocTask)
+      Def.sequential(CirceTask, MonocleTask, IntegrationTask)
     }.evaluated
   )

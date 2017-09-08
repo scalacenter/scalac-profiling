@@ -45,12 +45,10 @@ object BuildKeys {
 
   // Source dependencies from git are cached by sbt
   val Circe = RootProject(
-    uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9")
-  )
+    uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9"))
   val CirceTests = ProjectRef(Circe.build, "tests")
   val Monocle = RootProject(
-    uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596")
-  )
+    uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596"))
   val MonocleExample = ProjectRef(Monocle.build, "example")
   val MonocleTests = ProjectRef(Monocle.build, "testJVM")
   val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests, MetadocExample)
@@ -124,20 +122,14 @@ object BuildKeys {
   def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
     Seq(sbt.Compile, sbt.Test).flatMap(sbt.inConfig(_)(ss))
 
-  import sbt.complete.{Parser => P}
+  import sbt.complete.Parser
   import sbt.complete.DefaultParsers._
   val CirceKeyword = " circe"
   val MonocleKeyword = " monocle"
   val IntegrationKeyword = " integration"
-  val MetadocKeyword = " metadoc"
-  val keywordsParser =
-    ((CirceKeyword: P[String]) | MonocleKeyword | IntegrationKeyword | MetadocKeyword).+.examples(
-      CirceKeyword,
-      MonocleKeyword,
-      IntegrationKeyword,
-      MetadocKeyword
-    )
-  val keywordsSetting: Def.Initialize[sbt.State => P[Seq[String]]] =
+  val keywordsParser = ((CirceKeyword: Parser[String]) | MonocleKeyword | IntegrationKeyword).+
+    .examples(CirceKeyword, MonocleKeyword, IntegrationKeyword)
+  val keywordsSetting: Def.Initialize[sbt.State => Parser[Seq[String]]] =
     Def.setting((state: sbt.State) => keywordsParser)
 }
 
@@ -164,8 +156,7 @@ object BuildImplementation {
     Keys.publishMavenStyle := true,
     Keys.startYear := Some(2017),
     Keys.scmInfo := Some(
-      ScmInfo(ThisRepo, "scm:git:git@github.com:scalacenter/sbt-release-early.git")
-    ),
+      ScmInfo(ThisRepo, "scm:git:git@github.com:scalacenter/sbt-release-early.git")),
     Keys.developers := List(GitHubDev("jvican", "Jorge Vicente Cantero", "jorge@vican.me")),
     // Necessary to publish for our Drone CI -- specific to this repo setup.
     PgpKeys.pgpPublicRing := file("/drone/.gnupg/pubring.asc"),
@@ -209,8 +200,8 @@ object BuildImplementation {
       // If sha cannot be fetched, always force publishing of fork.
       val currentHash = repository.headCommitSha.getOrElse(UnknownHash)
       if (!repository.hasUncommittedChanges &&
-        scalacHashFile.exists() &&
-        currentHash == IO.read(scalacHashFile)) {
+          scalacHashFile.exists() &&
+          currentHash == IO.read(scalacHashFile)) {
         state
       } else {
         val logger = Keys.sLog.value
@@ -279,8 +270,7 @@ object BuildImplementation {
         // NOTE: This is done because sbt does not handle session settings correctly. Should be reported upstream.
         val currentSession = sbt.Project.session(state)
         val currentProject = currentSession.current
-        val currentSessionSettings =
-          currentSession.append.get(currentProject).toList.flatten.map(_._1)
+        val currentSessionSettings = currentSession.append.get(currentProject).toList.flatten.map(_._1)
         val allSessionSettings = currentSessionSettings ++ currentSession.rawAppend
         extracted.append(globalSettings ++ projectSettings ++ allSessionSettings, hijackedState)
       }
@@ -334,7 +324,7 @@ object BuildImplementation {
       .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacReflect, state0))
       .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacCompiler, state0))
     publishing match {
-      case None => sys.error(s"Key for publishing is not defined?")
+      case None                       => sys.error(s"Key for publishing is not defined?")
       case Some((newState, Value(v))) => newState
       case Some((newState, Inc(inc))) =>
         sys.error(s"Got error when publishing the Scala fork: $inc")
