@@ -6,4 +6,4 @@
 [submodule "vscode-scala"]
 	path = vscode-scala
 	url = git@github.com:scalacenter/vscode-scala-profiledb.git
-	branch = scalac-profiling
+	branch = profiledb-integration

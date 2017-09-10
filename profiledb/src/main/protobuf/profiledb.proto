@@ -25,12 +25,12 @@ message Database {
 }
 
 message DatabaseEntry {
-    RunProfile runProfile = 1;
-    CompilationUnitProfile compilationUnitProfile = 2;
+    google.protobuf.Timestamp timestamp = 1;
+    RunProfile runProfile = 2;
+    CompilationUnitProfile compilationUnitProfile = 3;
 }
 
 message RunProfile {
-    google.protobuf.Timestamp timestamp = 1;
     repeated PhaseProfile phaseProfiles = 2;
 }
 
@@ -51,9 +51,8 @@ message Counter {
 }
 
 message CompilationUnitProfile {
-    google.protobuf.Timestamp timestamp = 1;
-    repeated MacroProfile macroProfiles = 2;
-    repeated ImplicitSearchProfile implicitSearchProfiles = 3;
+    repeated MacroProfile macroProfiles = 1;
+    repeated ImplicitSearchProfile implicitSearchProfiles = 2;
 }
 
 message MacroProfile {
@@ -71,5 +70,7 @@ message ImplicitSearchProfile {
 
 message Position {
     sint32 point = 1;
+    sint32 line = 2;
+    sint32 column = 3;
 }
 

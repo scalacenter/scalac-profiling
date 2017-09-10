@@ -127,8 +127,12 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       }
 
       val timestamp = Some(getCurrentTimestamp)
-      val runProfile = Some(schema.RunProfile(timestamp = timestamp, phaseProfiles = phaseProfiles))
-      val entry = schema.DatabaseEntry(runProfile = runProfile, compilationUnitProfile = None)
+      val runProfile = Some(schema.RunProfile(phaseProfiles = phaseProfiles))
+      val entry = schema.DatabaseEntry(
+        timestamp = timestamp,
+        runProfile = runProfile,
+        compilationUnitProfile = None
+      )
       schema.Database(
         `type` = schema.ContentType.GLOBAL,
         entries = List(entry)
@@ -160,7 +164,13 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       def perFile[V](ps: Map[Position, V]): Map[Position, V] =
         ps.collect { case t @ (pos, _) if pos.source == sourceFile => t }
 
-      def toPos(pos: Position): schema.Position = schema.Position(point = pos.point)
+      def toPos(pos: Position): schema.Position = {
+        val point = pos.point
+        val line = pos.line
+        val column = pos.column
+        schema.Position(point = point, line = line, column = column)
+      }
+
       def toMacroProfile(pos: Position, info: MacroInfo): schema.MacroProfile = {
         val currentPos = Some(toPos(pos))
         val expandedMacros = info.expandedMacros.toLong
@@ -190,15 +200,14 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       val implicitSearchProfiles = perFile(implementation.getImplicitProfiler.perCallSite)
         .map { case (pos, info) => toImplicitProfile(pos, info) }
 
-      val now = Some(getCurrentTimestamp)
+      val timestamp = Some(getCurrentTimestamp)
       val compilationUnitProfile = Some(
         schema.CompilationUnitProfile(
-          timestamp = now,
           macroProfiles = macroProfiles.toList,
           implicitSearchProfiles = implicitSearchProfiles.toList
         )
       )
-      schema.DatabaseEntry(compilationUnitProfile = compilationUnitProfile)
+      schema.DatabaseEntry(timestamp = timestamp, compilationUnitProfile = compilationUnitProfile)
     }
 
     def writeDatabase(db: schema.Database, path: ProfileDbPath): Try[schema.Database] = {

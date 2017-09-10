@@ -22,6 +22,7 @@ lazy val profiledb = project
   .settings(
     // Specify scala version to allow third-party software to use this module
     scalaVersion := "2.12.3",
+    crossScalaVersions := List(scalaVersion.value, "2.11.11"),
     libraryDependencies +=
       "com.trueaccord.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
     PB.targets in Compile := Seq(scalapb.gen() -> (sourceManaged in Compile).value)
@@ -74,15 +75,26 @@ lazy val plugin = project
     })
   )
 
+lazy val pullInVscode = project
+  .in(file(".hidden"))
+  .dependsOn(VscodeScala)
+
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
   .in(file("integrations"))
-  .dependsOn(Circe, Monocle, VscodeScala)
+  .dependsOn(Circe, Monocle)
   .settings(
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
     compile in Compile :=
-      (compile in Compile) .dependsOn(compile in Compile in VscodeImplementation).value,
+      (compile in Compile).dependsOn(compile in Compile in VscodeImplementation).value,
+    libraryDependencies in VscodeImplementation += {
+      val thisOrg = (organization in ThisBuild).value
+      val profiledbName = (name in profiledb).value
+      val currentVersion = (version in profiledb).value
+      val vscodeScalaVersion = (scalaBinaryVersion in VscodeImplementation).value
+      thisOrg % s"${profiledbName}_$vscodeScalaVersion" % currentVersion
+    },
     test := Def.sequential(
         (showScalaInstances in ThisBuild),
         (compile in Compile),
@@ -110,3 +122,24 @@ lazy val integrations = project
       Def.sequential(CirceTask, MonocleTask, IntegrationTask)
     }.evaluated
   )
+
+commands += Command.command("warnUser"){ state =>
+  state.log.warn("For the rest of the build to work, remember to 'reload'.")
+  state
+}
+
+commands += Command.command("compileVscodeIntegration"){ state =>
+  val currentVersion = (scalaVersion in profiledb).value
+  val scalaV = (scalaVersion in VscodeImplementation).value
+  val publishProfileDb = s"${(name in profiledb).value}/publishLocal"
+  val compileVscode = s"${Reference.display(VscodeImplementation)}/compile"
+  val action =
+    if (currentVersion != scalaV) s"++$scalaV ;$publishProfileDb; $compileVscode"
+    else s";$publishProfileDb; $compileVscode"
+  action :: "warnUser" :: state
+}
+
+commands += Command.command("publishVscodeIntegration"){ state =>
+  val publishVscode = s"${Reference.display(VscodeImplementation)}/publishLocal"
+  "compileVscodeIntegration" :: s"$publishVscode" :: "warnUser" :: state
+}
