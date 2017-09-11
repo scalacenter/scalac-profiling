@@ -17,16 +17,14 @@ This repository holds the compiler plugin and a fork of mainstream scalac
 that will be eventually be merged upstream. This work is prompted by [Morgan
 Stanley's proposal](PROPOSAL.md) and was approved in our last advisory board.
 
-## Status
-
-The plan and the changes to the compiler plugin are explained in this README
-and the source code.
+## Scalac status
 
 The required changes to the compiler, [Scalac](http://github.com/scala/scala), are
-the following *so far* (more to come):
+the following:
 
 1. [Collect all statistics and optimize checks](https://github.com/scala/scala/pull/6034).
 1. [Initialize statistics per global](https://github.com/scala/scala/pull/6051).
+1. [Add extra timers and counters](https://github.com/scala/scala/pull/6067).
 
 ## Information about the setup
 
