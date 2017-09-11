@@ -75,9 +75,19 @@ lazy val plugin = project
     })
   )
 
+// Has to be in independent project because uses different Scala version
 lazy val pullInVscode = project
   .in(file(".hidden"))
   .dependsOn(VscodeScala)
+  .settings(
+    libraryDependencies in VscodeImplementation += {
+      val thisOrg = (organization in ThisBuild).value
+      val profiledbName = (name in profiledb).value
+      val currentVersion = (version in profiledb).value
+      val vscodeScalaVersion = (scalaBinaryVersion in VscodeImplementation).value
+      thisOrg % s"${profiledbName}_$vscodeScalaVersion" % currentVersion
+    }
+  )
 
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
@@ -86,15 +96,6 @@ lazy val integrations = project
   .settings(
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
-    compile in Compile :=
-      (compile in Compile).dependsOn(compile in Compile in VscodeImplementation).value,
-    libraryDependencies in VscodeImplementation += {
-      val thisOrg = (organization in ThisBuild).value
-      val profiledbName = (name in profiledb).value
-      val currentVersion = (version in profiledb).value
-      val vscodeScalaVersion = (scalaBinaryVersion in VscodeImplementation).value
-      thisOrg % s"${profiledbName}_$vscodeScalaVersion" % currentVersion
-    },
     test := Def.sequential(
         (showScalaInstances in ThisBuild),
         (compile in Compile),
