@@ -28,7 +28,7 @@ object BuildKeys {
   final val scalacVersionSuffix = sbt.SettingKey[String]("baseVersionSuffix")
 
   // Use absolute paths so that references work even though the `ThisBuild` changes
-  final val AbsolutePath = file(".").getAbsolutePath
+  final val AbsolutePath = file(".").getCanonicalFile.getAbsolutePath
   final val HomeBuild = BuildRef(RootProject(file(AbsolutePath)).build)
 
   // Source dependency is a submodule that we modify

@@ -75,18 +75,33 @@ lazy val plugin = project
     })
   )
 
-// Has to be in independent project because uses different Scala version
-lazy val pullInVscode = project
-  .in(file(".hidden"))
-  .dependsOn(VscodeScala)
+
+// Trick to copy profiledb with Scala 2.11.11 so that vscode can depend on it
+lazy val profiledb211 = profiledb
+  .copy(id = "profiledb-211")
   .settings(
-    libraryDependencies in VscodeImplementation += {
-      val thisOrg = (organization in ThisBuild).value
-      val profiledbName = (name in profiledb).value
-      val currentVersion = (version in profiledb).value
-      val vscodeScalaVersion = (scalaBinaryVersion in VscodeImplementation).value
-      thisOrg % s"${profiledbName}_$vscodeScalaVersion" % currentVersion
-    }
+    scalaVersion := (scalaVersion in VscodeImplementation).value,
+    target := (baseDirectory in profiledb).value./("target_211"),
+    publishArtifact in (Compile, packageDoc) := false
+  )
+
+// Has to be in independent project because uses different Scala version
+lazy val vscodeIntegration = project
+  .in(file(".hidden"))
+  .dependsOn(VscodeImplementation, profiledb211)
+  .settings(
+    scalaVersion := (scalaVersion in VscodeImplementation).value,
+    libraryDependencies in VscodeImplementation += (projectID in profiledb211).value,
+    update := update.dependsOn(publishLocal in profiledb211).value,
+    publish := (publish in VscodeImplementation).value,
+    publishLocal := (publishLocal in VscodeImplementation).value
+  )
+
+lazy val profilingSbtPlugin = project
+  .in(file("sbt-plugin"))
+  .settings(
+    sbtPlugin := true,
+    crossSbtVersions := List("0.13.16", "1.0.0")
   )
 
 // Source dependencies are specified in `project/BuildPlugin.scala`
@@ -123,24 +138,3 @@ lazy val integrations = project
       Def.sequential(CirceTask, MonocleTask, IntegrationTask)
     }.evaluated
   )
-
-commands += Command.command("warnUser"){ state =>
-  state.log.warn("For the rest of the build to work, remember to 'reload'.")
-  state
-}
-
-commands += Command.command("compileVscodeIntegration"){ state =>
-  val currentVersion = (scalaVersion in profiledb).value
-  val scalaV = (scalaVersion in VscodeImplementation).value
-  val publishProfileDb = s"${(name in profiledb).value}/publishLocal"
-  val compileVscode = s"${Reference.display(VscodeImplementation)}/compile"
-  val action =
-    if (currentVersion != scalaV) s"++$scalaV ;$publishProfileDb; $compileVscode"
-    else s";$publishProfileDb; $compileVscode"
-  action :: "warnUser" :: state
-}
-
-commands += Command.command("publishVscodeIntegration"){ state =>
-  val publishVscode = s"${Reference.display(VscodeImplementation)}/publishLocal"
-  "compileVscodeIntegration" :: s"$publishVscode" :: "warnUser" :: state
-}
