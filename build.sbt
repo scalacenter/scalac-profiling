@@ -81,9 +81,14 @@ lazy val profiledb211 = profiledb
   .copy(id = "profiledb-211")
   .settings(
     scalaVersion := (scalaVersion in VscodeImplementation).value,
+    // Redefining target so that sbt doesn't clash at runtime
+    // This makes sense, but we should get a more sensible error message.
     target := (baseDirectory in profiledb).value./("target_211"),
     publishArtifact in (Compile, packageDoc) := false
   )
+
+// This is the task to publish the vscode integration
+val publishExtension = taskKey[Unit]("The task to publish the vscode extension.")
 
 // Has to be in independent project because uses different Scala version
 lazy val vscodeIntegration = project
@@ -92,9 +97,15 @@ lazy val vscodeIntegration = project
   .settings(
     scalaVersion := (scalaVersion in VscodeImplementation).value,
     libraryDependencies in VscodeImplementation += (projectID in profiledb211).value,
+    // Sbt bug: doing this for VscodeImplementation just doesn't work.
     update := update.dependsOn(publishLocal in profiledb211).value,
-    publish := (publish in VscodeImplementation).value,
-    publishLocal := (publishLocal in VscodeImplementation).value
+    publish := (publish in VscodeImplementation).dependsOn(publish in profiledb211).value,
+    publishLocal :=
+      (publishLocal in VscodeImplementation).dependsOn(publishLocal in profiledb211).value,
+    publishExtension := (Def.task {
+      val scalaExtensionDir = (baseDirectory in VscodeScala).value./("scala")
+      sys.process.Process(Seq("vsce", "package"), scalaExtensionDir).!!
+    }).dependsOn(publishLocal).value
   )
 
 lazy val profilingSbtPlugin = project

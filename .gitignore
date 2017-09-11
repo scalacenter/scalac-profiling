@@ -8,6 +8,7 @@
 .idea
 dist/*
 target/
+target_211/
 lib_managed/
 src_managed/
 project/boot/
