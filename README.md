@@ -60,6 +60,10 @@ compiler plugin and a forked scalac).
    All changes are expected to be ported upstream.
 1. [A compiler plugin](plugin/) to get information from the macro infrastructure independently
    of the used Scalac version.
+1. [Profiledb readers and writers](profiledb/) to allow IDEs and editors to read and write profiledb's.
+1. [A proof-of-concept vscode integration](vscode-scala/) that displays the data collected from
+   the profiledb.
+1. [An sbt plugin for reproducibility](sbt-plugin/) that warms up the compiler before profiling.
 
 The work is split into two parts so that Scala developers that are stuck in previous Scala
 versions can use the compiler plugin to get some profiling information about macros.
