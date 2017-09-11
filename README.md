@@ -146,11 +146,19 @@ Per call-site, file and total:
 
 These are the requirements that the proposal lays out.
 
+Note that in some cases, this plugin provides more information than the requested by the
+original proposal.
+
 #### What the proposal wants
 
-- [x] Compilation time per file (*this is provided by `-Ystatistics`*)
-  - [x] Total
-  - [x] Broken down by phase
+- [x] Compilation time totally (*this is provided by `-Ystatistics`*)
+- [ ] Compilation time per file (*this is provided by `-Ystatistics`*)
+  - [ ] Total
+  - [ ] Broken down by phase<br>
+  **Note**: As of now, the collection of this data has been delayed because it is unknown how it can be
+  properly profiled. Because of pecularities of the typechecker, that jumps from compilation units
+  to compilation units depending on symbol initialization, collecting this data is difficult and it
+  still has to be assessed whether it's possible.
 - [x] Times per macro (*this is provided by the macro plugin*)
   - [x] Per file
   - [x] Per macro
