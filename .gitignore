@@ -22,3 +22,5 @@ project/plugins/project/
 
 # Project specific
 .scalac-hash
+.hidden
+.profiledb_211
