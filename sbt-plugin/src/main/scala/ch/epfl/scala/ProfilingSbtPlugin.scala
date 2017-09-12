@@ -9,6 +9,7 @@
 
 package ch.epfl.scala
 
+import sbt.ch.epfl.scala.SbtTaskTimer
 import sbt.{AutoPlugin, Def, Keys, PluginTrigger, Plugins}
 
 object ProfilingSbtPlugin extends AutoPlugin {
@@ -26,7 +27,7 @@ object ProfilingSbtPlugin extends AutoPlugin {
 object BuildKeys
 
 object ProfilingPluginImplementation {
-  val globalSettings: Seq[Def.Setting[_]] = Nil
+  val globalSettings: Seq[Def.Setting[_]] = List(SbtTaskTimer.createSetting)
   val projectSettings: Seq[Def.Setting[_]] = Nil
   val buildSettings: Seq[Def.Setting[_]] = Nil
 }

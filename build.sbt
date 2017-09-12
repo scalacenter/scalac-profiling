@@ -112,6 +112,7 @@ lazy val profilingSbtPlugin = project
   .in(file("sbt-plugin"))
   .settings(
     sbtPlugin := true,
+    sbtVersion := "0.13.16",
     crossSbtVersions := List("0.13.16", "1.0.0")
   )
 
