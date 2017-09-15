@@ -10,59 +10,54 @@
 package sbt.ch.epfl.scala
 
 import java.lang.{Long => BoxedLong}
-import sbt.{ExecuteProgress, Result, Task}
+import java.util.concurrent.ConcurrentHashMap
+import sbt.{ExecuteProgress, Result, Task, ScopedKey, Logger, Def}
 
-private[sbt] class SbtTaskTimer(taskToTime: Task[_]) extends ExecuteProgress[Task] {
+class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], logger: Logger)
+    extends ExecuteProgress[Task] {
+
   override type S = Unit
-  import java.util.concurrent.ConcurrentHashMap
-  val pending = new ConcurrentHashMap[Task[_], BoxedLong]()
-  val timers = new ConcurrentHashMap[Task[_], BoxedLong]()
+  private val pending = new ConcurrentHashMap[ScopedKey[_], BoxedLong]()
 
-  override def initial: Unit = {
-    timers.clear()
-    pending.clear()
-  }
+  override def initial: Unit = {}
 
-  override def workStarting(task: Task[_]): Unit = {
-    if (task != taskToTime) ()
-    else pending.put(task, System.nanoTime())
-  }
+  private def getKey(task: Task[_]): Option[ScopedKey[_]] = task.info.get(Def.taskDefinitionKey)
 
-  override def workFinished[T](task: Task[T], result: Either[Task[T], Result[T]]): Unit = {
-    if (task != taskToTime) ()
-    else {
-      pending.get(task) match {
-        case startTime: BoxedLong =>
-          pending.remove(task)
-          val duration = System.nanoTime() - startTime
-          timers.get(task) match {
-            // We aggregate running time for those tasks that we target
-            case currentDuration: BoxedLong => timers.put(task, currentDuration + duration)
-            case null => timers.put(task, duration)
-          }
-        case null =>
-          System.err.println(s"Error: ${task.info} finished, but its start wasn't recorded")
-      }
-    }
-  }
-
-  def allCompleted(state: Unit, results: sbt.RMap[sbt.Task, sbt.Result]): Unit = ()
-  def completed[T](state: Unit, task: sbt.Task[T], result: sbt.Result[T]): Unit = ()
-  def ready(state: Unit, task: sbt.Task[_]): Unit = ()
-  def registered(
+  override def registered(
       state: Unit,
       task: sbt.Task[_],
       allDeps: Iterable[sbt.Task[_]],
       pendingDeps: Iterable[sbt.Task[_]]
-  ): Unit = ()
-
-}
-
-object SbtTaskTimer {
-  import sbt.{Setting, Compile}
-  def createSetting: Setting[_] = {
-    import sbt.Keys
-    Keys.executeProgress :=
-      (_ => new Keys.TaskProgress(new SbtTaskTimer((Keys.compile in Compile).taskValue)))
+  ): Unit = {
+    getKey(task) match {
+      case Some(key) => pending.put(key, System.currentTimeMillis())
+      case None => ()
+    }
   }
+
+  override def workFinished[T](task: Task[T], result: Either[Task[T], Result[T]]): Unit = {
+    def finishTiming(key: ScopedKey[_]): Unit = {
+      pending.get(key) match {
+        case startTime: BoxedLong =>
+          pending.remove(key)
+          val duration = System.currentTimeMillis() - startTime
+          println(s"Adding $duration duration for $key")
+          timers.get(key) match {
+            // We aggregate running time for those tasks that we target
+            case currentDuration: BoxedLong => timers.put(key, currentDuration + duration)
+            case null => timers.put(key, duration)
+          }
+        case null => logger.warn(s"${task.info} finished, but its start wasn't recorded")
+      }
+    }
+
+    getKey(task) match {
+      case Some(key) => finishTiming(key)
+      case None => () // Ignore tasks that do not have key information
+    }
+  }
+  def workStarting(task: Task[_]): Unit = ()
+  def allCompleted(state: Unit, results: sbt.RMap[sbt.Task, sbt.Result]): Unit = ()
+  def completed[T](state: Unit, task: sbt.Task[T], result: sbt.Result[T]): Unit = ()
+  def ready(state: Unit, task: sbt.Task[_]): Unit = ()
 }
