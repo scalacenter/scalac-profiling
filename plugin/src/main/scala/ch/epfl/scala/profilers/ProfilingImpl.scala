@@ -88,9 +88,6 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     def aggregate(infos: Iterator[ImplicitInfo]): ImplicitInfo = infos.fold(Empty)(_ + _)
   }
 
-  implicit def fromStatistics(tpe: statistics.global.Type): global.Type =
-    tpe.asInstanceOf[global.Type]
-
   case class ImplicitProfiler(
       perCallSite: Map[Position, ImplicitInfo],
       perFile: Map[SourceFile, ImplicitInfo],
@@ -99,7 +96,6 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   )
 
   lazy val getImplicitProfiler: ImplicitProfiler = {
-    import global.statistics.{implicitSearchesByPos, implicitSearchesByType}
     val perCallSite = implicitSearchesByPos.toMap.mapValues(ImplicitInfo.apply)
     val perFile = groupPerFile[ImplicitInfo](perCallSite)(ImplicitInfo.Empty, _ + _)
     val perType = implicitSearchesByType.toMap.mapValues(ImplicitInfo.apply)
@@ -141,7 +137,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
           * in order to obtain the expansion time for every expanded tree.
           */
         override def apply(desugared: Tree): Tree = {
-          val shouldTrack = statistics.canEnable && !alreadyTracking
+          val shouldTrack = statistics.enabled && !alreadyTracking
           val start = if (shouldTrack) {
             alreadyTracking = true
             statistics.startTimer(preciseMacroTimer)
@@ -204,4 +200,8 @@ trait ProfilingStats {
   final val preciseMacroTimer = newTimer("precise time in macroExpand")
   final val failedMacros = newSubCounter("  of which failed macros", macroExpandCount)
   final val delayedMacros = newSubCounter("  of which delayed macros", macroExpandCount)
+
+  import scala.reflect.internal.util.Position
+  final val implicitSearchesByType = global.perRunCaches.newMap[global.Type, Int]()
+  final val implicitSearchesByPos = global.perRunCaches.newMap[Position, Int]()
 }

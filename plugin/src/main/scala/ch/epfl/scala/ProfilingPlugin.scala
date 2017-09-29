@@ -69,7 +69,6 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     private def showExpansion(expansion: (global.Tree, Int)): (String, Int) =
       global.showCode(expansion._1) -> expansion._2
 
-    import global.statistics.{implicitSearchesByType, implicitSearchesByPos}
     private def reportStatistics(): Unit = if (config.showProfiles) {
       val macroProfiler = implementation.getMacroProfiler
       logger.info("Macro data per call-site", macroProfiler.perCallSite)
@@ -78,6 +77,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       val expansions = macroProfiler.repeatedExpansions.map(showExpansion)
       logger.info("Macro repeated expansions", expansions)
 
+      import implementation.{implicitSearchesByPos, implicitSearchesByType}
       logger.info("Implicit searches by position", implicitSearchesByPos)
       // Make sure we get type information after typer to avoid crashing the compiler
       val stringifiedSearchCounter =
