@@ -12,6 +12,8 @@ package ch.epfl.scala.profilers
 import scala.tools.nsc.Global
 import ch.epfl.scala.profilers.tools.Logger
 
+import scala.reflect.internal.util.StatisticsStatics
+
 final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G])
     extends ProfilingStats {
   import global._
@@ -19,6 +21,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   def registerProfilers(): Unit = {
     // Register our profiling macro plugin
     analyzer.addMacroPlugin(ProfilingMacroPlugin)
+    analyzer.addAnalyzerPlugin(ProfilingAnalyzerPlugin)
   }
 
   /**
@@ -103,7 +106,18 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     ImplicitProfiler(perCallSite, perFile, perType, inTotal)
   }
 
-  import global.analyzer.MacroPlugin
+  object ProfilingAnalyzerPlugin extends global.analyzer.AnalyzerPlugin {
+    override def pluginsNotifyImplicitSearch(search: global.analyzer.ImplicitSearch): Unit = {
+      if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
+        val targetType = search.pt
+        val targetPos = search.pos
+        val typeCounter = implicitSearchesByType.getOrElse(targetType, 0)
+        implicitSearchesByType.update(targetType, typeCounter + 1)
+        val posCounter = implicitSearchesByPos.getOrElse(targetPos, 0)
+        implicitSearchesByPos.update(targetPos, posCounter + 1)
+      }
+    }
+  }
 
   /**
     * The profiling macro plugin instruments the macro interface to check
@@ -114,7 +128,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     * It would be useful in the future to report on the amount of expanded
     * trees that are and are not discarded.
     */
-  object ProfilingMacroPlugin extends MacroPlugin {
+  object ProfilingMacroPlugin extends global.analyzer.MacroPlugin {
     type Typer = analyzer.Typer
     private def guessTreeSize(tree: Tree): Int =
       1 + tree.children.map(guessTreeSize).sum

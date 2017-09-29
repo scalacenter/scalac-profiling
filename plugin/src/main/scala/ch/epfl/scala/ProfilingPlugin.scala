@@ -12,7 +12,7 @@ package ch.epfl.scala
 import java.nio.file.Files
 
 import ch.epfl.scala.profiledb.{ProfileDb, ProfileDbPath}
-import ch.epfl.scala.profiledb.utils.{AbsolutePath, RelativePath}
+import ch.epfl.scala.profiledb.utils.AbsolutePath
 import ch.epfl.scala.profilers.ProfilingImpl
 import ch.epfl.scala.profilers.tools.Logger
 
@@ -21,7 +21,7 @@ import scala.reflect.io.Path
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.nsc.{Global, Phase}
 import scala.tools.nsc.plugins.{Plugin, PluginComponent}
-import scala.tools.nsc.util.SourceFile
+import scala.reflect.internal.util.SourceFile
 import scala.util.Try
 import scala.util.matching.Regex
 
@@ -102,7 +102,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     }
 
     private def toGlobalDatabase(statistics: Statistics): schema.Database = {
-      import statistics.{Timer, Counter, Quantity}
+      import statistics.{Timer, Counter}
       def toSchemaTimer(scalacTimer: Timer): schema.Timer = {
         val id = scalacTimer.prefix
         val duration = toDuration(scalacTimer.nanos)
@@ -150,7 +150,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       val targetPath = absoluteSourceFile.toRelative(sourceRoot)
       if (targetPath.syntax.endsWith(".scala")) {
         val outputDir = getOutputDirFor(sourceFile.file)
-        val absoluteOutput = AbsolutePath(getOutputDirFor(sourceFile.file).jfile)
+        val absoluteOutput = AbsolutePath(outputDir.jfile)
         val dbTargetPath = ProfileDbPath.toProfileDbPath(targetPath)
         Some(ProfileDbPath(absoluteOutput, dbTargetPath))
       } else None
@@ -174,7 +174,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       def toMacroProfile(pos: Position, info: MacroInfo): schema.MacroProfile = {
         val currentPos = Some(toPos(pos))
         val expandedMacros = info.expandedMacros.toLong
-        val approximateSize = info.expandedNodes
+        val approximateSize = info.expandedNodes.toLong
         val duration = Some(toDuration(info.expansionNanos))
         schema.MacroProfile(
           position = currentPos,
