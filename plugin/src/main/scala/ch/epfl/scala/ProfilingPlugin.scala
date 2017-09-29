@@ -115,7 +115,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
         schema.Counter(id = id, ticks = ticks)
       }
 
-      val allScalacPhases = global.phaseNames
+      val allScalacPhases = global.phaseDescriptors.map(_.phaseName)
       val scalacQuantities = statistics.allQuantities.toList
       val quantitiesPerPhase =
         allScalacPhases.map(phase => phase -> scalacQuantities.filter(_.showAt(phase)))
