@@ -41,7 +41,6 @@ class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], logger: L
         case startTime: BoxedLong =>
           pending.remove(key)
           val duration = System.currentTimeMillis() - startTime
-          println(s"Adding $duration duration for $key")
           timers.get(key) match {
             // We aggregate running time for those tasks that we target
             case currentDuration: BoxedLong => timers.put(key, currentDuration + duration)
