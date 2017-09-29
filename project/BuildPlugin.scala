@@ -288,7 +288,8 @@ object BuildImplementation {
 
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
     Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
-    Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value)
+    Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value),
+    Keys.onLoadMessage := Header.intro
   )
 
   final val commandAliases: Seq[Def.Setting[sbt.State => sbt.State]] = {
@@ -336,4 +337,19 @@ object BuildImplementation {
         sys.error(s"Got error when publishing the Scala fork: $inc")
     }
   }
+}
+
+object Header {
+  val intro: String =
+    """      _____            __         ______           __
+      |     / ___/_________ _/ /___ _   / ____/__  ____  / /____  _____
+      |     \__ \/ ___/ __ `/ / __ `/  / /   / _ \/ __ \/ __/ _ \/ ___/
+      |    ___/ / /__/ /_/ / / /_/ /  / /___/ /__/ / / / /_/ /__/ /
+      |   /____/\___/\__,_/_/\__,_/   \____/\___/_/ /_/\__/\___/_/
+      |
+      |   ***********************************************************
+      |   ***       Welcome to the build of scalac-profiling      ***
+      |   *** An effort funded by the Scala Center Advisory Board ***
+      |   ***********************************************************
+    """.stripMargin
 }
