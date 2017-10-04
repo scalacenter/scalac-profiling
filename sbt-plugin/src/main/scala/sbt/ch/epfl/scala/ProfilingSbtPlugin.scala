@@ -130,6 +130,8 @@ object ProfilingPluginImplementation {
 
         // I know... but sbt needs it. Otherwise SOE.
         System.gc()
+        System.runFinalization()
+        System.gc()
 
         // Let's update the timing for the compile task with the knowledge of the task timer!
         currentDurationMs = timingsForKeys.get(compileTaskKey.scopedKey) match {
