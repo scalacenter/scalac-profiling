@@ -33,21 +33,26 @@ object BuildKeys {
 
 object ProfilingPluginImplementation {
   import java.lang.{Long => BoxedLong}
-  import sbt.{Compile, ConsoleLogger, Project, Compiler, Task, ScopedKey}
+  import sbt.{Compile, ConsoleLogger, Project, Compiler, Task, ScopedKey, Tags}
+  import sbt.compiler.AnalyzingCompiler
+
   private val logger = ConsoleLogger.apply()
-  private val timingsForCompilers = new ConcurrentHashMap[Compiler.Compilers, BoxedLong]()
+  private val timingsForCompilers = new ConcurrentHashMap[AnalyzingCompiler, BoxedLong]()
   private val timingsForKeys = new ConcurrentHashMap[ScopedKey[_], BoxedLong]()
+  private val WarmupTag = Tags.Tag("Warmup")
 
   val globalSettings: Seq[Def.Setting[_]] = List(
     Keys.commands += BuildDefaults.profilingWarmupCommand,
     BuildKeys.profilingWarmupDuration := BuildDefaults.profilingWarmupDuration.value,
+    Keys.concurrentRestrictions += Tags.limit(WarmupTag, 1),
     Keys.executeProgress :=
       (_ => new Keys.TaskProgress(new SbtTaskTimer(timingsForKeys, Keys.sLog.value)))
   )
 
   val buildSettings: Seq[Def.Setting[_]] = Nil
   val projectSettings: Seq[Def.Setting[_]] = List(
-    BuildKeys.profilingWarmupCompiler := BuildDefaults.profilingWarmupCompiler.value
+    BuildKeys.profilingWarmupCompiler :=
+      BuildDefaults.profilingWarmupCompiler.tag(WarmupTag).value
   )
 
   object BuildDefaults {
@@ -82,16 +87,32 @@ object ProfilingPluginImplementation {
 
     val profilingWarmupDuration: Def.Initialize[Int] = Def.setting(60)
 
-    private def getWarmupTime(currentCompiler: Compiler.Compilers): Long = {
+    private def getWarmupTime(currentCompiler: AnalyzingCompiler): Long = {
       val time = timingsForCompilers.get(currentCompiler)
       TimeUnit.MILLISECONDS.toSeconds(if (time == null) 0 else time.toLong)
     }
 
-    import sbt.Scope
+    import sbt.{Scope, IO, Path}
+
+    /**
+      * This command defines the warming up behaviour.
+      *
+      * After incessant attempts to get it working within tasks by only limiting ourselves
+      * to the task API, this task has proven itself impossible because sbt does not allow
+      * recursiveness at the task level. Any tried workaround (using task proxies et al) has
+      * miserably failed.
+      *
+      * As a result, we have no other choice than delegating to the Command API and using
+      * the state directly, implementing a traditional while loop that takes care of warming
+      * the compiler up.
+      *
+      * This command is private and SHOULD NOT be invoked directly. Use `profilingWarmupCompiler`.
+      */
     val profilingWarmupCommand: Command = Command.command("warmupCompileFor") { (st0: State) =>
       val logger = st0.log
       val extracted = Project.extract(st0)
-      val (st1, compilerInstance) = extracted.runTask(Keys.compilers, st0)
+      val (st1, compilers) = extracted.runTask(Keys.compilers in extracted.currentRef, st0)
+      val compilerInstance = compilers.scalac
 
       val warmupDurationMs = extracted.get(BuildKeys.profilingWarmupDuration) * 1000
       var currentDurationMs = getWarmupTime(compilerInstance)
@@ -99,13 +120,14 @@ object ProfilingPluginImplementation {
       var lastState = st1
       while (currentDurationMs < warmupDurationMs) {
         logger.warn(s"Warming up compiler ($currentDurationMs out of $warmupDurationMs)ms...")
-        // Compile and clean so that incremental compilation doesn't kick in.
+        // Compile and clean class files so that incremental compilation doesn't kick in.
         val compileScope = Scope.GlobalScope.in(Compile).in(extracted.currentRef)
         val compileKeyRef = Keys.compile.in(compileScope)
         val compileTaskKey = extracted.get(compileKeyRef).info.get(Def.taskDefinitionKey).get
         val (afterCompile, _) = extracted.runTask(compileKeyRef, lastState)
-        val (afterClean, _) = extracted.runTask(Keys.clean.in(compileScope), afterCompile)
-        lastState = afterClean
+        val classDirectory = extracted.get(Keys.classDirectory.in(compileScope))
+        IO.delete(Path.allSubpaths(classDirectory).toIterator.map(_._1).toIterable)
+        lastState = afterCompile
 
         // I know... but sbt needs it. Otherwise SOE.
         System.gc()
@@ -113,7 +135,7 @@ object ProfilingPluginImplementation {
         // Let's update the timing for the compile task with the knowledge of the task timer!
         currentDurationMs = timingsForKeys.get(compileTaskKey.scopedKey) match {
           case executionTime: java.lang.Long =>
-            logger.info(s"Registering warmup compile time for ${compileTaskKey.scopedKey}")
+            logger.debug(s"Registering warmup compile time for ${compileTaskKey.scopedKey}")
             timingsForCompilers.put(compilerInstance, executionTime)
             executionTime
           case null => sys.error("Abort: compile key was not measured. Report this error.")
