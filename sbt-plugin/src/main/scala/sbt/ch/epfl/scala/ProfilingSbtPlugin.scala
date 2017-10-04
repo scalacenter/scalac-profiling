@@ -59,8 +59,6 @@ object ProfilingPluginImplementation {
     import sbt.{Command, State}
     import sbt.complete.Parser
 
-    private val GlobalStringRepr = "◊global"
-    private val ThisStringRepr = "◊this"
     val profilingWarmupCompiler: Def.Initialize[Task[Unit]] = Def.task {
       // Meh, we don't care about the resulting state, we'll throw it away.
       def runCommandAndRemaining(command: String): State => State = { st: State =>
@@ -126,6 +124,7 @@ object ProfilingPluginImplementation {
         val compileTaskKey = extracted.get(compileKeyRef).info.get(Def.taskDefinitionKey).get
         val (afterCompile, _) = extracted.runTask(compileKeyRef, lastState)
         val classDirectory = extracted.get(Keys.classDirectory.in(compileScope))
+        logger.info(s"Removing class files in ${classDirectory.getAbsolutePath}")
         IO.delete(Path.allSubpaths(classDirectory).toIterator.map(_._1).toIterable)
         lastState = afterCompile
 
