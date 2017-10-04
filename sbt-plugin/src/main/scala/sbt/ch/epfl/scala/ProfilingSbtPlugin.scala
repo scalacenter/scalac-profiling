@@ -122,7 +122,7 @@ object ProfilingPluginImplementation {
         val compileScope = Scope.GlobalScope.in(Compile).in(extracted.currentRef)
         val compileKeyRef = Keys.compile.in(compileScope)
         val compileTaskKey = extracted.get(compileKeyRef).info.get(Def.taskDefinitionKey).get
-        val (afterCompile, _) = extracted.runTask(compileKeyRef, lastState)
+        val (afterCompile, _) = extracted.runTask(compileKeyRef, st1)
         val classDirectory = extracted.get(Keys.classDirectory.in(compileScope))
         logger.info(s"Removing class files in ${classDirectory.getAbsolutePath}")
         IO.delete(Path.allSubpaths(classDirectory).toIterator.map(_._1).toIterable)
