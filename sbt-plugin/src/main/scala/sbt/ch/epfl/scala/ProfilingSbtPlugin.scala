@@ -128,11 +128,6 @@ object ProfilingPluginImplementation {
         IO.delete(Path.allSubpaths(classDirectory).toIterator.map(_._1).toIterable)
         lastState = afterCompile
 
-        // I know... but sbt needs it. Otherwise SOE.
-        System.gc()
-        System.runFinalization()
-        System.gc()
-
         // Let's update the timing for the compile task with the knowledge of the task timer!
         currentDurationMs = timingsForKeys.get(compileTaskKey.scopedKey) match {
           case executionTime: java.lang.Long =>
