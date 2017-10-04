@@ -34,10 +34,9 @@ object BuildKeys {
 object ProfilingPluginImplementation {
   import java.lang.{Long => BoxedLong}
   import sbt.{Compile, ConsoleLogger, Project, Compiler, Task, ScopedKey, Tags}
-  import sbt.compiler.AnalyzingCompiler
 
   private val logger = ConsoleLogger.apply()
-  private val timingsForCompilers = new ConcurrentHashMap[AnalyzingCompiler, BoxedLong]()
+  private val timingsForCompilers = new ConcurrentHashMap[ClassLoader, BoxedLong]()
   private val timingsForKeys = new ConcurrentHashMap[ScopedKey[_], BoxedLong]()
   private val WarmupTag = Tags.Tag("Warmup")
 
@@ -52,7 +51,7 @@ object ProfilingPluginImplementation {
   val buildSettings: Seq[Def.Setting[_]] = Nil
   val projectSettings: Seq[Def.Setting[_]] = List(
     BuildKeys.profilingWarmupCompiler :=
-      BuildDefaults.profilingWarmupCompiler.tag(WarmupTag).value
+      BuildDefaults.profilingWarmupCompiler.tag(WarmupTag, Tags.Compile).value
   )
 
   object BuildDefaults {
@@ -85,9 +84,9 @@ object ProfilingPluginImplementation {
 
     val profilingWarmupDuration: Def.Initialize[Int] = Def.setting(60)
 
-    private def getWarmupTime(currentCompiler: AnalyzingCompiler): Long = {
-      val time = timingsForCompilers.get(currentCompiler)
-      TimeUnit.MILLISECONDS.toSeconds(if (time == null) 0 else time.toLong)
+    private def getWarmupTime(compilerLoader: ClassLoader): Long = {
+      val time = timingsForCompilers.get(compilerLoader)
+      if (time == null) 0 else time.toLong
     }
 
     import sbt.{Scope, IO, Path}
@@ -110,35 +109,43 @@ object ProfilingPluginImplementation {
       val logger = st0.log
       val extracted = Project.extract(st0)
       val (st1, compilers) = extracted.runTask(Keys.compilers in extracted.currentRef, st0)
-      val compilerInstance = compilers.scalac
+      val compilerLoader = compilers.scalac.scalaInstance.loader()
 
       val warmupDurationMs = extracted.get(BuildKeys.profilingWarmupDuration) * 1000
-      var currentDurationMs = getWarmupTime(compilerInstance)
+      var currentDurationMs = getWarmupTime(compilerLoader)
+      val compileScope = Scope.GlobalScope.in(Compile).in(extracted.currentRef)
+      val classDirectory = extracted.get(Keys.classDirectory.in(compileScope))
+      val compileKeyRef = Keys.compile.in(compileScope)
+
+      def deleteClassFiles(): Unit = {
+        logger.info(s"Removing class files in ${classDirectory.getAbsolutePath}")
+        IO.delete(Path.allSubpaths(classDirectory).toIterator.map(_._1).toIterable)
+      }
 
       var lastState = st1
       while (currentDurationMs < warmupDurationMs) {
+        // Clean class files so that incremental compilation doesn't kick in and then compile.
+        deleteClassFiles()
+
         logger.warn(s"Warming up compiler ($currentDurationMs out of $warmupDurationMs)ms...")
-        // Compile and clean class files so that incremental compilation doesn't kick in.
-        val compileScope = Scope.GlobalScope.in(Compile).in(extracted.currentRef)
-        val compileKeyRef = Keys.compile.in(compileScope)
         val compileTaskKey = extracted.get(compileKeyRef).info.get(Def.taskDefinitionKey).get
         val (afterCompile, _) = extracted.runTask(compileKeyRef, st1)
-        val classDirectory = extracted.get(Keys.classDirectory.in(compileScope))
-        logger.info(s"Removing class files in ${classDirectory.getAbsolutePath}")
-        IO.delete(Path.allSubpaths(classDirectory).toIterator.map(_._1).toIterable)
         lastState = afterCompile
 
         // Let's update the timing for the compile task with the knowledge of the task timer!
-        currentDurationMs = timingsForKeys.get(compileTaskKey.scopedKey) match {
+        val key = compileTaskKey.scopedKey
+        currentDurationMs = timingsForKeys.get(key) match {
           case executionTime: java.lang.Long =>
-            logger.debug(s"Registering warmup compile time for ${compileTaskKey.scopedKey}")
-            timingsForCompilers.put(compilerInstance, executionTime)
-            executionTime
+            logger.info(s"Registering $executionTime compile time for $key")
+            println(s"Result for loader $compilerLoader")
+            timingsForCompilers.put(compilerLoader, executionTime)
+            executionTime.toLong
           case null => sys.error("Abort: compile key was not measured. Report this error.")
         }
       }
 
       logger.success(s"The compiler has been warmed up for ${warmupDurationMs}ms.")
+      deleteClassFiles()
       lastState
     }
   }
