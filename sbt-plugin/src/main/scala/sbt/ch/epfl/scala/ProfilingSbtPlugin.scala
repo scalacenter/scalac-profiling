@@ -11,7 +11,7 @@ package sbt.ch.epfl.scala
 
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
-import sbt.{AutoPlugin, Def, Keys, PluginTrigger, TaskKey}
+import sbt.{AutoPlugin, Def, Keys, PluginTrigger}
 
 object ProfilingSbtPlugin extends AutoPlugin {
   override def trigger: PluginTrigger = allRequirements
@@ -29,118 +29,99 @@ object BuildKeys {
   import sbt.{settingKey, taskKey}
   val profilingWarmupDuration = settingKey[Int]("The duration of the compiler warmup in seconds.")
   val profilingWarmupCompiler = taskKey[Unit]("Warms up the compiler for a given period of time.")
-  val profilingWarmupCompilerProxy = taskKey[Unit]("Proxy")
 }
 
 object ProfilingPluginImplementation {
   import java.lang.{Long => BoxedLong}
-  import sbt.{Compile, Test, ConsoleLogger, ThisBuild, Project, Compiler, Task, ScopedKey}
+  import sbt.{Compile, ConsoleLogger, Project, Compiler, Task, ScopedKey}
   private val logger = ConsoleLogger.apply()
   private val timingsForCompilers = new ConcurrentHashMap[Compiler.Compilers, BoxedLong]()
   private val timingsForKeys = new ConcurrentHashMap[ScopedKey[_], BoxedLong]()
 
-  def inCompileAndTest(ss: Def.Setting[_]*): Seq[Def.Setting[_]] =
-    Seq(Compile, Test).flatMap(sbt.inConfig(_)(ss))
-
-  def timeCompileExecution(
-      compileKey: ScopedKey[_],
-      currentCompiler: Compiler.Compilers
-  ): Def.Initialize[Task[Unit]] = Def.task {
-    val logger = Keys.streams.value.log
-    timingsForKeys.get(compileKey) match {
-      case executionTime: java.lang.Long =>
-        logger.debug(s"Registering warmup compile time for ${compileKey.scopedKey}")
-        timingsForCompilers.put(currentCompiler, executionTime)
-      case null => logger.error(s"No timer found for task ${compileKey.scopedKey}")
-    }
-  }
-
-  // Again, required to sidestep buggy dynamic sbt analysis
-  private[this] val StableDef = Def
-
   val globalSettings: Seq[Def.Setting[_]] = List(
-    Keys.executeProgress := (
-        _ => new Keys.TaskProgress(new SbtTaskTimer(timingsForKeys, Keys.sLog.value))
-    )
+    Keys.commands += BuildDefaults.profilingWarmupCommand,
+    BuildKeys.profilingWarmupDuration := BuildDefaults.profilingWarmupDuration.value,
+    Keys.executeProgress :=
+      (_ => new Keys.TaskProgress(new SbtTaskTimer(timingsForKeys, Keys.sLog.value)))
   )
-
-  def getWarmupTime(currentCompiler: Compiler.Compilers): Long = {
-    val time = timingsForCompilers.get(currentCompiler)
-    TimeUnit.MILLISECONDS.toSeconds(if (time == null) 0 else time.toLong)
-  }
 
   val buildSettings: Seq[Def.Setting[_]] = Nil
   val projectSettings: Seq[Def.Setting[_]] = List(
-    BuildKeys.profilingWarmupCompilerProxy in Compile := Def.taskDyn {
-      Def.task {
-        println("HA WE're hjere malksdflksajfd")
-        (BuildKeys.profilingWarmupCompiler in Compile).value
-      }
-    }.value,
-/*    BuildKeys.profilingWarmupCompiler in Compile := Def.taskDyn[Unit] {
-      println("HAHAHAHAAH")
-      val logger = Keys.streams.value.log
-      val currentCompiler = Keys.compilers.value
-      val warmupDuration = BuildKeys.profilingWarmupDuration.value.toLong
-      val currentExecutionTime = getWarmupTime(currentCompiler)
-      println("HUHU")
-
-      if (currentExecutionTime == 0)
-        logger.info(s"Warming up compiler ($currentExecutionTime out of $warmupDuration)...")
-
-      val scopedKey: sbt.ScopedKey[_] = Keys.resolvedScoped.value
-      val compileKey = Keys.compile in scopedKey.scope
-      val cleanKey = Keys.clean in scopedKey.scope
-      val timeExecution = timeCompileExecution(compileKey, currentCompiler)
-
-      val currentDuration = getWarmupTime(currentCompiler)
-      println(s"current duration $currentDuration")
-      if (currentDuration < warmupDuration) {
-        val toRun: Def.Initialize[Task[Unit]] = Def.task {
-          if (currentDuration != 0)
-            logger.info(s"Warming up compiler ($currentDuration out of $warmupDuration)...")
-          StableDef.sequential(compileKey, timeExecution, cleanKey, BuildKeys.profilingWarmupCompilerProxy in Compile).value
-          compileKey.&&()
-        }
-        toRun
-      } else StableDef.task(logger.success(s"The compiler is warmed up (${warmupDuration}s)."))
-    }.value,*/
-    BuildKeys.profilingWarmupCompiler := BuildDefaults.profilingWarmupExperiment.value,
-    BuildKeys.profilingWarmupDuration := BuildDefaults.profilingWarmupDuration.value
+    BuildKeys.profilingWarmupCompiler := BuildDefaults.profilingWarmupCompiler.value
   )
 
   object BuildDefaults {
-    import sbt.{Command, Help, State, AttributeKey}
-    import sbt.std.TaskExtra
-    import sbt.std.InitializeInstance
-    val profilingWarmupExperiment: Def.Initialize[Task[Unit]] = {
-      (Keys.streams, Keys.compilers, BuildKeys.profilingWarmupDuration, Keys.resolvedScoped).flatMap {
-        case (streams, compilersKey, warmupDuration, scopedKey) =>
-          val logger = streams.log
-          val currentScope = scopedKey.scope
-          val currentExecutionTime = getWarmupTime(compilersKey)
-          logger.info(s"Warming up compiler ($currentExecutionTime out of $warmupDuration)...")
+    import sbt.{Command, State}
+    import sbt.complete.Parser
 
-          val compileKey = Keys.compile in currentScope
-          val compileTask = compileKey.toTask
-          val cleanTask = Keys.clean in currentScope
-          val timeExecution = timeCompileExecution(compileKey, compilersKey)
-          val currentDuration = getWarmupTime(compilersKey)
-
-          if (currentDuration < warmupDuration) {
-/*            compileKey.toTask.flatMap { case _ =>
-              timingsForKeys.get(compileKey) match {
-                case executionTime: java.lang.Long =>
-                  logger.debug(s"Registering warmup compile time for ${compileKey.scopedKey}")
-                  timingsForCompilers.put(compilersKey, executionTime)
-                  Def.pure[Task[Unit]](() => TaskExtra.task(()))
-                case null =>
-                  Def.pure[Task[Unit]](() => TaskExtra.task(logger.error(s"No timer found for task ${compileKey.scopedKey}")))
-              }
-            }*/
-          } else TaskExtra.task(logger.success(s"The compiler is warmed up (${warmupDuration}s)."))
+    private val GlobalStringRepr = "◊global"
+    private val ThisStringRepr = "◊this"
+    val profilingWarmupCompiler: Def.Initialize[Task[Unit]] = Def.task {
+      // Meh, we don't care about the resulting state, we'll throw it away.
+      def runCommandAndRemaining(command: String): State => State = { st: State =>
+        @annotation.tailrec
+        def runCommand(command: String, state: State): State = {
+          val nextState = Parser.parse(command, state.combinedParser) match {
+            case Right(cmd) => cmd()
+            case Left(msg) => sys.error(s"Invalid programmatic input:\n$msg")
+          }
+          nextState.remainingCommands.toList match {
+            case Nil => nextState
+            case head :: tail => runCommand(head, nextState.copy(remainingCommands = tail))
+          }
+        }
+        runCommand(command, st.copy(remainingCommands = Nil))
+          .copy(remainingCommands = st.remainingCommands)
       }
+
+      // The fact that we cannot call `name` on a recently created Command is pretty ugly.
+      val commandName = profilingWarmupCommand.asInstanceOf[sbt.SimpleCommand].name
+      runCommandAndRemaining(commandName)(Keys.state.value)
+      ()
     }
+
     val profilingWarmupDuration: Def.Initialize[Int] = Def.setting(60)
+
+    private def getWarmupTime(currentCompiler: Compiler.Compilers): Long = {
+      val time = timingsForCompilers.get(currentCompiler)
+      TimeUnit.MILLISECONDS.toSeconds(if (time == null) 0 else time.toLong)
+    }
+
+    import sbt.Scope
+    val profilingWarmupCommand: Command = Command.command("warmupCompileFor") { (st0: State) =>
+      val logger = st0.log
+      val extracted = Project.extract(st0)
+      val (st1, compilerInstance) = extracted.runTask(Keys.compilers, st0)
+
+      val warmupDurationMs = extracted.get(BuildKeys.profilingWarmupDuration) * 1000
+      var currentDurationMs = getWarmupTime(compilerInstance)
+
+      var lastState = st1
+      while (currentDurationMs < warmupDurationMs) {
+        logger.warn(s"Warming up compiler ($currentDurationMs out of $warmupDurationMs)ms...")
+        // Compile and clean so that incremental compilation doesn't kick in.
+        val compileScope = Scope.GlobalScope.in(Compile).in(extracted.currentRef)
+        val compileKeyRef = Keys.compile.in(compileScope)
+        val compileTaskKey = extracted.get(compileKeyRef).info.get(Def.taskDefinitionKey).get
+        val (afterCompile, _) = extracted.runTask(compileKeyRef, lastState)
+        val (afterClean, _) = extracted.runTask(Keys.clean.in(compileScope), afterCompile)
+        lastState = afterClean
+
+        // I know... but sbt needs it. Otherwise SOE.
+        System.gc()
+
+        // Let's update the timing for the compile task with the knowledge of the task timer!
+        currentDurationMs = timingsForKeys.get(compileTaskKey.scopedKey) match {
+          case executionTime: java.lang.Long =>
+            logger.info(s"Registering warmup compile time for ${compileTaskKey.scopedKey}")
+            timingsForCompilers.put(compilerInstance, executionTime)
+            executionTime
+          case null => sys.error("Abort: compile key was not measured. Report this error.")
+        }
+      }
+
+      logger.success(s"The compiler has been warmed up for ${warmupDurationMs}ms.")
+      lastState
+    }
   }
 }

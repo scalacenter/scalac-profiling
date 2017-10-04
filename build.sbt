@@ -117,7 +117,7 @@ lazy val profilingSbtPlugin = project
     scalaVersion := "2.10.6",
     crossSbtVersions := List("0.13.16", "1.0.0"),
     ScriptedPlugin.scriptedSettings,
-    scriptedLaunchOpts ++= Seq("-Xmx1024M", s"-Dplugin.version=${version.value}"),
+    scriptedLaunchOpts ++= Seq("-Xmx1528M", s"-Dplugin.version=${version.value}"),
     scriptedBufferLog := false
   )
 

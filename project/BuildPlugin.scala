@@ -309,7 +309,8 @@ object BuildImplementation {
     Keys.crossScalaVersions := ScalaVersions ++ List(BuildKeys.ScalacVersion.value),
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := sys.env.get("CI").isDefined,
-    BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value
+    BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value,
+    Keys.publishArtifact in Compile in Keys.packageDoc := false
   ) ++ publishSettings ++ commandAliases
 
   final val projectSettings: Seq[Def.Setting[_]] = Seq(
