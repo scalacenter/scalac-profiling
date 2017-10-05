@@ -29,22 +29,21 @@ class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], logger: L
   type Tasks = Iterable[sbt.Task[_]]
   override def registered(state: Unit, task: Task[_], allDeps: Tasks, pendingDeps: Tasks): Unit = {
     getKey(task) match {
-      case Some(key) => pending.put(mkUniformRepr(key), System.currentTimeMillis())
+      case Some(key) => pending.put(key, System.currentTimeMillis())
       case None => ()
     }
   }
 
   override def workFinished[T](task: Task[T], result: Either[Task[T], Result[T]]): Unit = {
     def finishTiming(scopedKey: ScopedKey[_]): Unit = {
-      val key = mkUniformRepr(scopedKey)
-      pending.get(key) match {
+      pending.get(scopedKey) match {
         case startTime: BoxedLong =>
-          pending.remove(key)
+          pending.remove(scopedKey)
           val duration = System.currentTimeMillis() - startTime
-          timers.get(key) match {
+          timers.get(scopedKey) match {
             // We aggregate running time for those tasks that we target
-            case currentDuration: BoxedLong => timers.put(key, currentDuration + duration)
-            case null => timers.put(key, duration)
+            case currentDuration: BoxedLong => timers.put(scopedKey, currentDuration + duration)
+            case null => timers.put(scopedKey, duration)
           }
         case null => logger.debug(s"${task.info} finished, but its start wasn't recorded")
       }

@@ -26,9 +26,10 @@ object ProfilingSbtPlugin extends AutoPlugin {
 }
 
 object BuildKeys {
-  import sbt.{settingKey, taskKey}
+  import sbt.{settingKey, taskKey, AttributeKey, ProjectRef}
   val profilingWarmupDuration = settingKey[Int]("The duration of the compiler warmup in seconds.")
   val profilingWarmupCompiler = taskKey[Unit]("Warms up the compiler for a given period of time.")
+  private[sbt] val currentProject = AttributeKey[ProjectRef]("thisProjectRef")
 }
 
 object ProfilingPluginImplementation {
@@ -78,7 +79,8 @@ object ProfilingPluginImplementation {
 
       // The fact that we cannot call `name` on a recently created Command is pretty ugly.
       val commandName = profilingWarmupCommand.asInstanceOf[sbt.SimpleCommand].name
-      runCommandAndRemaining(commandName)(Keys.state.value)
+      val tweakedState = Keys.state.value.put(BuildKeys.currentProject, Keys.thisProjectRef.value)
+      runCommandAndRemaining(commandName)(tweakedState)
       ()
     }
 
@@ -107,15 +109,22 @@ object ProfilingPluginImplementation {
       */
     val profilingWarmupCommand: Command = Command.command("warmupCompileFor") { (st0: State) =>
       val logger = st0.log
+
+      // We do this because sbt does not correctly report `thisProjectRef` here, neither via
+      // the extracted state nor the access to the build structure with `get(Keys.thisProjectRef)`.
+      val currentProject = st0
+        .get(BuildKeys.currentProject)
+        .getOrElse(sys.error("The caller task did not pass the project ref in the state."))
+
       val extracted = Project.extract(st0)
       val (st1, compilers) = extracted.runTask(Keys.compilers in extracted.currentRef, st0)
       val compilerLoader = compilers.scalac.scalaInstance.loader()
 
       val warmupDurationMs = extracted.get(BuildKeys.profilingWarmupDuration) * 1000
       var currentDurationMs = getWarmupTime(compilerLoader)
-      val compileScope = Scope.GlobalScope.in(Compile).in(extracted.currentRef)
-      val classDirectory = extracted.get(Keys.classDirectory.in(compileScope))
-      val compileKeyRef = Keys.compile.in(compileScope)
+      val scope = Scope.ThisScope.in(Compile).in(currentProject)
+      val classDirectory = extracted.get(Keys.classDirectory.in(scope))
+      val compileKeyRef = Keys.compile.in(scope)
 
       def deleteClassFiles(): Unit = {
         logger.info(s"Removing class files in ${classDirectory.getAbsolutePath}")
@@ -128,6 +137,7 @@ object ProfilingPluginImplementation {
         deleteClassFiles()
 
         logger.warn(s"Warming up compiler ($currentDurationMs out of $warmupDurationMs)ms...")
+        // We get the scope from `taskDefinitionKey` to be the same than the timer uses.
         val compileTaskKey = extracted.get(compileKeyRef).info.get(Def.taskDefinitionKey).get
         val (afterCompile, _) = extracted.runTask(compileKeyRef, st1)
         lastState = afterCompile
