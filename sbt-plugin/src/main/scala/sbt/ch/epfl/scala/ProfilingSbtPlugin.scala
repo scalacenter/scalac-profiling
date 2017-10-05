@@ -9,7 +9,7 @@
 
 package sbt.ch.epfl.scala
 
-import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
+import java.util.concurrent.ConcurrentHashMap
 
 import sbt.{AutoPlugin, Def, Keys, PluginTrigger}
 
@@ -34,7 +34,7 @@ object BuildKeys {
 
 object ProfilingPluginImplementation {
   import java.lang.{Long => BoxedLong}
-  import sbt.{Compile, ConsoleLogger, Project, Compiler, Task, ScopedKey, Tags}
+  import sbt.{Compile, ConsoleLogger, Project, Task, ScopedKey, Tags}
 
   private val logger = ConsoleLogger.apply()
   private val timingsForCompilers = new ConcurrentHashMap[ClassLoader, BoxedLong]()
