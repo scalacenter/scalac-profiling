@@ -132,10 +132,10 @@ object ProfilingPluginImplementation {
       }
 
       var lastState = st1
-      while (currentDurationMs < warmupDurationMs) {
-        // Clean class files so that incremental compilation doesn't kick in and then compile.
+      if (currentDurationMs < warmupDurationMs)
         deleteClassFiles()
 
+      while (currentDurationMs < warmupDurationMs) {
         logger.warn(s"Warming up compiler ($currentDurationMs out of $warmupDurationMs)ms...")
         // We get the scope from `taskDefinitionKey` to be the same than the timer uses.
         val compileTaskKey = extracted.get(compileKeyRef).info.get(Def.taskDefinitionKey).get
@@ -152,10 +152,12 @@ object ProfilingPluginImplementation {
             executionTime.toLong
           case null => sys.error("Abort: compile key was not measured. Report this error.")
         }
+
+        // Clean class files so that incremental compilation doesn't kick in and then compile.
+        deleteClassFiles()
       }
 
       logger.success(s"The compiler has been warmed up for ${warmupDurationMs}ms.")
-      deleteClassFiles()
       lastState
     }
   }
