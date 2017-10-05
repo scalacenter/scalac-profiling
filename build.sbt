@@ -130,6 +130,8 @@ lazy val integrations = project
       (optionsForSourceCompilerPlugin in plugin).value,
     test := Def.sequential(
         (showScalaInstances in ThisBuild),
+        // Warmup on compile is enough -- classloader is the same for all
+        (profilingWarmupCompiler in Compile),
         (compile in Compile),
         (compile in Test in CirceTests),
         (compile in Test in MonocleTests),

@@ -7,7 +7,8 @@ lazy val root = project
     addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.9.3"),
     addSbtPlugin("ch.epfl.scala" % "sbt-release-early" % "1.1.0"),
     addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.11"),
-    // addSbtPlugin("ch.epfl.scala" % "sbt-profiling" % "8cbd55b0+20171004-1555"),
+    unmanagedSourceDirectories in Compile +=
+      baseDirectory.value.getParentFile /  "sbt-plugin" / "src" / "main" / "scala",
     libraryDependencies += "com.trueaccord.scalapb" %% "compilerplugin" % "0.6.2",
     libraryDependencies += "org.scala-sbt" % "scripted-plugin" % sbtVersion.value
   )
