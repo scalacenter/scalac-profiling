@@ -146,8 +146,7 @@ object ProfilingPluginImplementation {
         val key = compileTaskKey.scopedKey
         currentDurationMs = timingsForKeys.get(key) match {
           case executionTime: java.lang.Long =>
-            logger.info(s"Registering $executionTime compile time for $key")
-            println(s"Result for loader $compilerLoader")
+            logger.debug(s"Registering $executionTime compile time for $key")
             timingsForCompilers.put(compilerLoader, executionTime)
             executionTime.toLong
           case null => sys.error("Abort: compile key was not measured. Report this error.")
