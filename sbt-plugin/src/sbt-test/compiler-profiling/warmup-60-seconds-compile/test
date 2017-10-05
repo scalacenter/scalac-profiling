@@ -1,0 +1,3 @@
+> profilingWarmupCompiler
+> set checkCompilerIsWarmedUp in Compile := true
+> profilingWarmupCompiler

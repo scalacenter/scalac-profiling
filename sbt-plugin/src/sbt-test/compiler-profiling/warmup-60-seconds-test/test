@@ -1,0 +1,3 @@
+> test:profilingWarmupCompiler
+> set checkCompilerIsWarmedUp in Test := true
+> test:profilingWarmupCompiler
