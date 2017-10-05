@@ -17,18 +17,17 @@ class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], logger: L
     extends ExecuteProgress[Task] {
 
   override type S = Unit
-  private val pending = new ConcurrentHashMap[ScopedKey[_], BoxedLong]()
-
   override def initial: Unit = {}
 
-  private def getKey(task: Task[_]): Option[ScopedKey[_]] = task.info.get(Def.taskDefinitionKey)
+  private def getKey(task: Task[_]): Option[ScopedKey[_]] =
+    task.info.get(Def.taskDefinitionKey)
 
-  override def registered(
-      state: Unit,
-      task: sbt.Task[_],
-      allDeps: Iterable[sbt.Task[_]],
-      pendingDeps: Iterable[sbt.Task[_]]
-  ): Unit = {
+  private val pending = new ConcurrentHashMap[ScopedKey[_], BoxedLong]()
+  def mkUniformRepr(scopedKey: ScopedKey[_]): ScopedKey[_] = scopedKey
+
+  import sbt.Task
+  type Tasks = Iterable[sbt.Task[_]]
+  override def registered(state: Unit, task: Task[_], allDeps: Tasks, pendingDeps: Tasks): Unit = {
     getKey(task) match {
       case Some(key) => pending.put(key, System.currentTimeMillis())
       case None => ()
@@ -36,18 +35,17 @@ class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], logger: L
   }
 
   override def workFinished[T](task: Task[T], result: Either[Task[T], Result[T]]): Unit = {
-    def finishTiming(key: ScopedKey[_]): Unit = {
-      pending.get(key) match {
+    def finishTiming(scopedKey: ScopedKey[_]): Unit = {
+      pending.get(scopedKey) match {
         case startTime: BoxedLong =>
-          pending.remove(key)
+          pending.remove(scopedKey)
           val duration = System.currentTimeMillis() - startTime
-          println(s"Adding $duration duration for $key")
-          timers.get(key) match {
+          timers.get(scopedKey) match {
             // We aggregate running time for those tasks that we target
-            case currentDuration: BoxedLong => timers.put(key, currentDuration + duration)
-            case null => timers.put(key, duration)
+            case currentDuration: BoxedLong => timers.put(scopedKey, currentDuration + duration)
+            case null => timers.put(scopedKey, duration)
           }
-        case null => logger.warn(s"${task.info} finished, but its start wasn't recorded")
+        case null => logger.debug(s"${task.info} finished, but its start wasn't recorded")
       }
     }
 
@@ -56,8 +54,9 @@ class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], logger: L
       case None => () // Ignore tasks that do not have key information
     }
   }
+
   def workStarting(task: Task[_]): Unit = ()
-  def allCompleted(state: Unit, results: sbt.RMap[sbt.Task, sbt.Result]): Unit = ()
-  def completed[T](state: Unit, task: sbt.Task[T], result: sbt.Result[T]): Unit = ()
-  def ready(state: Unit, task: sbt.Task[_]): Unit = ()
+  def allCompleted(state: Unit, results: sbt.RMap[Task, sbt.Result]): Unit = ()
+  def completed[T](state: Unit, task: Task[T], result: sbt.Result[T]): Unit = ()
+  def ready(state: Unit, task: Task[_]): Unit = ()
 }

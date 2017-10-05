@@ -1,1 +1,1 @@
-addSbtPlugin("ch.epfl.scala" % "sbt-compiler-profiling" % sys.props.apply("plugin.version"))
+addSbtPlugin("ch.epfl.scala" % "sbt-profiling" % sys.props.apply("plugin.version"))

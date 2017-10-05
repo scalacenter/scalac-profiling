@@ -1,2 +1,3 @@
-> inspect profilingWarmupCompiler
+> profilingWarmupCompiler
+> set every checkCompilerIsWarmedUp in Global := true
 > profilingWarmupCompiler
