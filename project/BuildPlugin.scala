@@ -151,22 +151,18 @@ object BuildImplementation {
   def GitHubDev(handle: String, fullName: String, email: String) =
     Developer(handle, fullName, email, url(s"https://github.com/$handle"))
 
-  import com.typesafe.sbt.SbtPgp.{autoImport => PgpKeys}
+  import com.typesafe.sbt.SbtPgp.autoImport.PgpKeys
   import ch.epfl.scala.sbt.release.ReleaseEarlyPlugin.{autoImport => ReleaseEarlyKeys}
 
   private final val ThisRepo = GitHub("scalacenter", "scalac-profiling")
   final val publishSettings: Seq[Def.Setting[_]] = Seq(
-    // Global settings to set up repository-related settings
-    Keys.licenses := Seq("BSD" -> url("http://opensource.org/licenses/BSD-3-Clause")),
-    Keys.publishArtifact in Test := false,
-    Keys.homepage := Some(ThisRepo),
+    Keys.startYear := Some(2017),
     Keys.autoAPIMappings := true,
     Keys.publishMavenStyle := true,
-    Keys.startYear := Some(2017),
-    Keys.scmInfo := Some(
-      ScmInfo(ThisRepo, "scm:git:git@github.com:scalacenter/sbt-release-early.git")),
+    Keys.homepage := Some(ThisRepo),
+    Keys.publishArtifact in Test := false,
+    Keys.licenses := Seq("BSD" -> url("http://opensource.org/licenses/BSD-3-Clause")),
     Keys.developers := List(GitHubDev("jvican", "Jorge Vicente Cantero", "jorge@vican.me")),
-    // Necessary to publish for our Drone CI -- specific to this repo setup.
     PgpKeys.pgpPublicRing := file("/drone/.gnupg/pubring.asc"),
     PgpKeys.pgpSecretRing := file("/drone/.gnupg/secring.asc"),
     ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.SonatypePublisher
@@ -314,7 +310,10 @@ object BuildImplementation {
   ) ++ publishSettings ++ commandAliases
 
   final val projectSettings: Seq[Def.Setting[_]] = Seq(
-    Keys.scalacOptions in Compile := reasonableCompileOptions
+    Keys.scalacOptions in Compile := reasonableCompileOptions,
+    // Necessary because the scalac version has to be always SNAPSHOT to avoid caching issues
+    // Scope here is wrong -- we put it here temporarily until this is fixed upstream
+    ReleaseEarlyKeys.releaseEarlyBypassSnapshotCheck := true
   ) ++ scalacSettings
 
   final val reasonableCompileOptions = (

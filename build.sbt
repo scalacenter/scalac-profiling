@@ -9,7 +9,6 @@
 
 lazy val root = project
   .in(file("."))
-  .aggregate(plugin)
   .settings(Seq(
     name := "profiling-root",
     publish := {},
@@ -73,6 +72,7 @@ lazy val plugin = project
         case (2, y) if y >= 12 => new File(scalaSource.value.getPath + "-2.12")
       }.toList
     }),
+    packageBin in Compile := (assembly in Compile).value,
     test in assembly := {},
     assemblyOption in assembly :=
       (assemblyOption in assembly).value

@@ -28,6 +28,21 @@ pipeline:
       - git log | head -n 20
       - sbt clean "plugin/test" "integrations/test" "profilingSbtPlugin/scripted"
 
+  publish:
+    image: scalacenter/scala-publish:1.3
+    volumes:
+      - /scalacenter:/keys
+    when:
+      event: [ push, tag, deployment ]
+      status: success
+    environment:
+      - DRONE_DIR=/drone
+    commands:
+      - git log | head -n 20
+      - /usr/local/bin/setup_keys.sh
+      - /usr/local/bin/store_credentials.sh
+      - sbt "profiledb/releaseEarly" "plugin/releaseEarly" "profilingSbtPlugin/releaseEarly"
+
   sftp_cache:
     image: plugins/sftp-cache
     rebuild: true
