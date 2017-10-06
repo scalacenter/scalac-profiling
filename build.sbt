@@ -72,7 +72,11 @@ lazy val plugin = project
         case (2, y) if y == 11 => new File(scalaSource.value.getPath + "-2.11")
         case (2, y) if y >= 12 => new File(scalaSource.value.getPath + "-2.12")
       }.toList
-    })
+    }),
+    test in assembly := {},
+    assemblyOption in assembly :=
+      (assemblyOption in assembly).value
+        .copy(includeScala = false, includeDependency = true)
   )
 
 
