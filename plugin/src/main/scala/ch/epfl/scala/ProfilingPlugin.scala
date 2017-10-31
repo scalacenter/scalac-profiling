@@ -62,7 +62,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
 
   private object NewTypeComponent extends PluginComponent {
     override val global: implementation.global.type = implementation.global
-    override val phaseName: String = "compile-newtype"
+    override val phaseName: String = "scalacenter-profiling"
     override val runsAfter: List[String] = List("jvm")
     override val runsBefore: List[String] = List("terminal")
 
