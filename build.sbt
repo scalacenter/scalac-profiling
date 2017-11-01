@@ -128,7 +128,7 @@ lazy val profilingSbtPlugin = project
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
   .in(file("integrations"))
-  .dependsOn(Circe, Monocle)
+  .dependsOn(Circe, Monocle, Scalatest)
   .settings(
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
@@ -139,7 +139,8 @@ lazy val integrations = project
         (compile in Compile),
         (compile in Test in CirceTests),
         (compile in Test in MonocleTests),
-        (compile in Test in MonocleExample)
+        (compile in Test in MonocleExample),
+        (compile in Compile in ScalatestCore)
     ).value,
     testOnly := Def.inputTaskDyn {
       val keywords = keywordsSetting.parsed
@@ -158,6 +159,11 @@ lazy val integrations = project
           (compile in Test in MonocleExample)
         ) else emptyAnalysis
       }
-      Def.sequential(CirceTask, MonocleTask, IntegrationTask)
+      val ScalatestTask = Def.taskDyn {
+        if (keywords.contains(ScalatestKeyword)) Def.sequential(
+          (compile in Compile in ScalatestCore)
+        ) else emptyAnalysis
+      }
+      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask)
     }.evaluated
   )
