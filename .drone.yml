@@ -1,3 +1,8 @@
+matrix:
+  SBT_RUN:
+    - sbt "plugin/test" "profilingSbtPlugin/scripted"
+    - sbt "integrations/test"
+
 clone:
   git:
     image: plugins/git
@@ -23,24 +28,13 @@ pipeline:
       - /drone/.sbt/0.13/staging
       - /drone/.sbt/1.0/staging
 
-  base-build:
+  build:
     image: scalaplatform/scala:2.0
-    group: build
     when:
       branch: master
     commands:
       - git log | head -n 20
-      - sbt "plugin/test" "profilingSbtPlugin/scripted"
-      - ./bin/clean-cache.sh
-
-  integration-build:
-    image: scalaplatform/scala:2.0
-    group: build
-    when:
-      branch: master
-    commands:
-      - git log | head -n 20
-      - sbt "integrations/test"
+      - $SBT_RUN
       - ./bin/clean-cache.sh
 
   rebuild_cache:
