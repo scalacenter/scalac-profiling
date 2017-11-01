@@ -78,10 +78,11 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       logger.info("Macro repeated expansions", expansions)
 
       import implementation.{implicitSearchesByPos, implicitSearchesByType}
-      logger.info("Implicit searches by position", implicitSearchesByPos)
-      // Make sure we get type information after typer to avoid crashing the compiler
+      logger.info("Implicit searches by position", implicitSearchesByPos.toList.sortBy(_._2))
+      val sortedImplicitSearches = implicitSearchesByType.toList.sortBy(_._2)
+      // Make sure to stringify types right after typer to avoid compiler crashes
       val stringifiedSearchCounter =
-        global.exitingTyper(implicitSearchesByType.map(kv => kv._1.toString -> kv._2))
+        global.exitingTyper(sortedImplicitSearches.map(kv => kv._1.toString -> kv._2))
       logger.info("Implicit searches by type", stringifiedSearchCounter)
     }
 
@@ -196,9 +197,9 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       }
 
       val macroProfiles = perFile(implementation.getMacroProfiler.perCallSite)
-        .map { case (pos, info) => toMacroProfile(pos, info) }
+        .map { case (pos: Position, info: MacroInfo) => toMacroProfile(pos, info) }
       val implicitSearchProfiles = perFile(implementation.getImplicitProfiler.perCallSite)
-        .map { case (pos, info) => toImplicitProfile(pos, info) }
+        .map { case (pos: Position, info: ImplicitInfo) => toImplicitProfile(pos, info) }
 
       val timestamp = Some(getCurrentTimestamp)
       val compilationUnitProfile = Some(

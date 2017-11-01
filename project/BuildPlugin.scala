@@ -54,13 +54,22 @@ object BuildKeys {
 
   // Source dependencies from git are cached by sbt
   val Circe = RootProject(
-    uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9"))
-  val CirceTests = ProjectRef(Circe.build, "tests")
+    uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9")
+  )
   val Monocle = RootProject(
-    uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596"))
+    uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596")
+  )
+  val Scalatest = RootProject(
+    uri("git://github.com/jvican/scalatest.git#2bc97995612c467e4248a33b2ad0025c003a0fcb")
+  )
+
+  val CirceTests = ProjectRef(Circe.build, "tests")
   val MonocleExample = ProjectRef(Monocle.build, "example")
   val MonocleTests = ProjectRef(Monocle.build, "testJVM")
-  val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests)
+  val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
+  val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")
+  val AllIntegrationProjects =
+    List(CirceTests, MonocleExample, MonocleTests, ScalatestCore, ScalatestTests)
 
   // Assumes that the previous scala version is the last bincompat version
   final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
@@ -88,17 +97,9 @@ object BuildKeys {
   }
 
   /**
-    * So you may want to ask, why is the code below this comment required?
-    *
-    * HA! Good question. Breathe and take your time.
-    *
     * Sbt does not like overrides of setting values that happen in ThisBuild,
     * nor in other project settings like integrations'. No. Sbt is exigent and
     * always asks you to give your best.
-    *
-    * So, as I'm a busy developer that does not have the time to debug, find a
-    * reproduction to this insidious bug and report it upstream, I force the
-    * settings overrides via this cute hook in `onLoad`.
     *
     * Why so much code for such a simple idea? Well, `Project.extract` does force
     * the execution and initialization of settings, so as `onLoad` is a setting
@@ -113,7 +114,7 @@ object BuildKeys {
     * sbt-cross-project), it does not work. On top of this, this wouldn't happen
     * if monocle defined the scala versions at the build level (it instead does it
     * at the project level, which is bad practice). So, finding a repro for this
-    * is going to be fun. Escape while you can.
+    * is going to be fun.
     */
   final val hijacked = sbt.AttributeKey[Boolean]("The hijacked sexy option.")
 
@@ -134,10 +135,13 @@ object BuildKeys {
   import sbt.complete.Parser
   import sbt.complete.DefaultParsers._
   val CirceKeyword = " circe"
+  val CirceParser: Parser[String] = CirceKeyword
   val MonocleKeyword = " monocle"
   val IntegrationKeyword = " integration"
-  val keywordsParser = ((CirceKeyword: Parser[String]) | MonocleKeyword | IntegrationKeyword).+
-    .examples(CirceKeyword, MonocleKeyword, IntegrationKeyword)
+  val ScalatestKeyword = " scalatest"
+  val AllKeywords = List(CirceKeyword, MonocleKeyword, IntegrationKeyword, ScalatestKeyword)
+  val AllParsers = CirceParser | MonocleKeyword | IntegrationKeyword | ScalatestKeyword
+  private val keywordsParser = AllParsers.+.examples(AllKeywords: _*)
   val keywordsSetting: Def.Initialize[sbt.State => Parser[Seq[String]]] =
     Def.setting((state: sbt.State) => keywordsParser)
 }
@@ -205,8 +209,8 @@ object BuildImplementation {
       // If sha cannot be fetched, always force publishing of fork.
       val currentHash = repository.headCommitSha.getOrElse(UnknownHash)
       if (!repository.hasUncommittedChanges &&
-          scalacHashFile.exists() &&
-          currentHash == IO.read(scalacHashFile)) {
+        scalacHashFile.exists() &&
+        currentHash == IO.read(scalacHashFile)) {
         state
       } else {
         val logger = Keys.sLog.value
@@ -276,7 +280,8 @@ object BuildImplementation {
         // NOTE: This is done because sbt does not handle session settings correctly. Should be reported upstream.
         val currentSession = sbt.Project.session(state)
         val currentProject = currentSession.current
-        val currentSessionSettings = currentSession.append.get(currentProject).toList.flatten.map(_._1)
+        val currentSessionSettings =
+          currentSession.append.get(currentProject).toList.flatten.map(_._1)
         val allSessionSettings = currentSessionSettings ++ currentSession.rawAppend
         extracted.append(globalSettings ++ projectSettings ++ allSessionSettings, hijackedState)
       }
@@ -339,7 +344,7 @@ object BuildImplementation {
       .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacReflect, state0))
       .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacCompiler, state0))
     publishing match {
-      case None                       => sys.error(s"Key for publishing is not defined?")
+      case None => sys.error(s"Key for publishing is not defined?")
       case Some((newState, Value(v))) => newState
       case Some((newState, Inc(inc))) =>
         sys.error(s"Got error when publishing the Scala fork: $inc")

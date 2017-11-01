@@ -44,6 +44,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
 
   object MacroInfo {
     final val Empty = MacroInfo(0, 0, 0L)
+    implicit val macroInfoOrdering: Ordering[MacroInfo] = Ordering.by(_.expansionNanos)
     def aggregate(infos: Iterator[MacroInfo]): MacroInfo = {
       infos.foldLeft(MacroInfo.Empty)(_ + _)
     }
@@ -60,7 +61,9 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   def toMillis(nanos: Long): Long =
     java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(nanos)
 
-  def groupPerFile[V](kvs: Map[Position, V])(empty: V, aggregate: (V, V) => V): Map[SourceFile, V] = {
+  def groupPerFile[V](
+      kvs: Map[Position, V]
+  )(empty: V, aggregate: (V, V) => V): Map[SourceFile, V] = {
     kvs.groupBy(_._1.source).mapValues {
       case posInfos: Map[Position, V] => posInfos.valuesIterator.fold(empty)(aggregate)
     }
@@ -89,6 +92,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   object ImplicitInfo {
     final val Empty = ImplicitInfo(0)
     def aggregate(infos: Iterator[ImplicitInfo]): ImplicitInfo = infos.fold(Empty)(_ + _)
+    implicit val infoOrdering: Ordering[ImplicitInfo] = Ordering.by(_.count)
   }
 
   case class ImplicitProfiler(
