@@ -34,7 +34,10 @@ pipeline:
       branch: master
     commands:
       - git log | head -n 20
-      - sbt exit
+      - ${SBT_RUN}
+      - ls
+      - ls ./bin
+      - ./bin/clean-cache.sh
 
   rebuild_cache:
     image: appleboy/drone-sftp-cache
