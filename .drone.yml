@@ -21,13 +21,19 @@ pipeline:
     volumes:
       - /tmp/cache:/cache
 
-  build:
+  base-build:
     image: scalaplatform/scala:2.0
-    when:
-      branch: master # Avoids running CI twice for push + pull-request.
+    group: build
     commands:
       - git log | head -n 20
-      - sbt clean "plugin/test" "integrations/test" "profilingSbtPlugin/scripted"
+      - sbt "plugin/test" "profilingSbtPlugin/scripted"
+
+  integration-build:
+    image: scalaplatform/scala:2.0
+    group: build
+    commands:
+      - git log | head -n 20
+      - sbt "integrations/test"
 
   rebuild-cache:
     image: drillster/drone-volume-cache
