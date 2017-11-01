@@ -19,7 +19,6 @@ pipeline:
       - /drone/.ivy2/cache
       - /drone/.coursier/cache
       - /drone/.sbt/boot
-      - /drone/.sbt/launchers
       - /drone/.sbt/preloaded
       - /drone/.sbt/0.13/staging
       - /drone/.sbt/1.0/staging
@@ -52,7 +51,6 @@ pipeline:
       - /drone/.ivy2/cache
       - /drone/.coursier/cache
       - /drone/.sbt/boot
-      - /drone/.sbt/launchers
       - /drone/.sbt/preloaded
       - /drone/.sbt/0.13/staging
       - /drone/.sbt/1.0/staging
