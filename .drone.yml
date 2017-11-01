@@ -11,15 +11,14 @@ clone:
       sbt-plugin/src/sbt-test/external-projects/circe: https://github.com/jvican/circe.git
 
 pipeline:
-  restore-cache:
-    image: drillster/drone-volume-cache
+  restore_cache:
+    image: appleboy/drone-sftp-cache
+    secrets: [ sftp_cache_username, sftp_cache_private_key, sftp_cache_server, sftp_cache_path ]
     restore: true
     mount:
       - /drone/.ivy2/cache
       - /drone/.coursier/cache
       - /drone/.sbt
-    volumes:
-      - /tmp/cache:/cache
 
   base-build:
     image: scalaplatform/scala:2.0
@@ -39,12 +38,11 @@ pipeline:
       - git log | head -n 20
       - sbt "integrations/test"
 
-  rebuild-cache:
-    image: drillster/drone-volume-cache
+  rebuild_cache:
+    image: appleboy/drone-sftp-cache
+    secrets: [ sftp_cache_username, sftp_cache_private_key, sftp_cache_server, sftp_cache_path ]
     rebuild: true
     mount:
       - /drone/.ivy2/cache
       - /drone/.coursier/cache
       - /drone/.sbt
-    volumes:
-      - /tmp/cache:/cache
