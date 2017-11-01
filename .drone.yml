@@ -34,9 +34,7 @@ pipeline:
       branch: master
     commands:
       - git log | head -n 20
-      - ${SBT_RUN}
-      - ls
-      - ls ./bin
+      - sbt exit
       - ./bin/clean-cache.sh
 
   rebuild_cache:
