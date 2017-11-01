@@ -9,7 +9,6 @@
 
 lazy val root = project
   .in(file("."))
-  .aggregate(plugin)
   .settings(Seq(
     name := "profiling-root",
     publish := {},
@@ -72,7 +71,12 @@ lazy val plugin = project
         case (2, y) if y == 11 => new File(scalaSource.value.getPath + "-2.11")
         case (2, y) if y >= 12 => new File(scalaSource.value.getPath + "-2.12")
       }.toList
-    })
+    }),
+    packageBin in Compile := (assembly in Compile).value,
+    test in assembly := {},
+    assemblyOption in assembly :=
+      (assemblyOption in assembly).value
+        .copy(includeScala = false, includeDependency = true)
   )
 
 
@@ -130,6 +134,8 @@ lazy val integrations = project
       (optionsForSourceCompilerPlugin in plugin).value,
     test := Def.sequential(
         (showScalaInstances in ThisBuild),
+        // Warmup on compile is enough -- classloader is the same for all
+        (profilingWarmupCompiler in Compile),
         (compile in Compile),
         (compile in Test in CirceTests),
         (compile in Test in MonocleTests),
