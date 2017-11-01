@@ -24,6 +24,8 @@ pipeline:
   base-build:
     image: scalaplatform/scala:2.0
     group: build
+    when:
+      branch: master
     commands:
       - git log | head -n 20
       - sbt "plugin/test" "profilingSbtPlugin/scripted"
@@ -31,6 +33,8 @@ pipeline:
   integration-build:
     image: scalaplatform/scala:2.0
     group: build
+    when:
+      branch: master
     commands:
       - git log | head -n 20
       - sbt "integrations/test"
