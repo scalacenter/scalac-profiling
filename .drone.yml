@@ -1,5 +1,5 @@
-pipeline:
-  clone:
+clone:
+  git:
     image: plugins/git
     tags: true
     recursive: true
@@ -10,47 +10,31 @@ pipeline:
       vscode-scala: https://github.com/scalacenter/vscode-scala-profiledb.git
       sbt-plugin/src/sbt-test/external-projects/circe: https://github.com/jvican/circe.git
 
-  sftp_cache:
-    image: plugins/sftp-cache
+pipeline:
+  restore-cache:
+    image: drillster/drone-volume-cache
     restore: true
-    ignore_branch: true
-    when:
-      event: [ push, pull_request, tag, deployment ]
     mount:
-      - /drone/.ivy2
-      - /drone/.coursier
+      - /drone/.ivy2/cache
+      - /drone/.coursier/cache
       - /drone/.sbt
-      - /drone/.git
+    volumes:
+      - /tmp/cache:/cache
 
   build:
-    image: scalacenter/scala:1.3
+    image: scalaplatform/scala:2.0
+    when:
+      branch: master # Avoids running CI twice for push + pull-request.
     commands:
       - git log | head -n 20
       - sbt clean "plugin/test" "integrations/test" "profilingSbtPlugin/scripted"
 
-  publish:
-    image: scalacenter/scala-publish:1.3
-    volumes:
-      - /scalacenter:/keys
-    when:
-      event: [ push, tag, deployment ]
-      status: success
-    environment:
-      - DRONE_DIR=/drone
-    commands:
-      - git log | head -n 20
-      - /usr/local/bin/setup_keys.sh
-      - /usr/local/bin/store_credentials.sh
-      - sbt "profiledb/releaseEarly" "plugin/releaseEarly" "profilingSbtPlugin/releaseEarly"
-
-  sftp_cache:
-    image: plugins/sftp-cache
+  rebuild-cache:
+    image: drillster/drone-volume-cache
     rebuild: true
-    when:
-      status: [ success, failure ]
-      event: [ push, pull_request, tag, deployment ]
     mount:
-      - /drone/.ivy2
-      - /drone/.coursier
+      - /drone/.ivy2/cache
+      - /drone/.coursier/cache
       - /drone/.sbt
-      - /drone/.git
+    volumes:
+      - /tmp/cache:/cache
