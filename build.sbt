@@ -196,3 +196,7 @@ lazy val integrations = project
       Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask, BetterFilesTask)
     }.evaluated
   )
+
+// Another hack? Projects' settings evaluation is presumably done via alphabetical sorting
+val zzzzzzzzzzzzzzzzzzzzzzzz = project
+  .settings(overridingProjectSettings)

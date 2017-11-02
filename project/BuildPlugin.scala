@@ -170,6 +170,8 @@ object BuildKeys {
   private val keywordsParser = AllParsers.+.examples(AllKeywords: _*)
   val keywordsSetting: Def.Initialize[sbt.State => Parser[Seq[String]]] =
     Def.setting((state: sbt.State) => keywordsParser)
+
+  final val overridingProjectSettings = BuildImplementation.overridingProjectSettings
 }
 
 object BuildImplementation {
@@ -331,6 +333,13 @@ object BuildImplementation {
       if (!BuildKeys.useScalacFork.value) hijackScalaVersions.value
       else publishForkScalac.value andThen hijackScalaVersions.value
     }
+  }
+
+  final val overridingProjectSettings: Seq[Def.Setting[_]] = {
+    BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
+      Keys.ivyLoggingLevel in Keys.update := sbt.UpdateLogging.Quiet,
+      Keys.logLevel in Keys.update := sbt.Level.Warn
+    )
   }
 
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
