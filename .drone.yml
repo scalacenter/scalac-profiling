@@ -32,6 +32,8 @@ pipeline:
     image: scalaplatform/scala:2.0
     when:
       branch: master
+    environment:
+      - COURSIER_CACHE=/drone/.coursier/cache
     commands:
       - git log | head -n 20
       - ${SBT_RUN}
