@@ -69,11 +69,11 @@ object BuildKeys {
   val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
   val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")
   val AllIntegrationProjects =
-    List(CirceTests, MonocleExample, MonocleTests, ScalatestCore, ScalatestTests)
+    List(CirceTests, MonocleExample, MonocleTests, ScalatestCore, ScalatestTests, ScalacCompiler)
 
   // Assumes that the previous scala version is the last bincompat version
   final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
-  final val PreviousScalaVersion = Keys.scalaVersion in BuildKeys.ScalacCompiler
+  final val ScalacScalaVersion = Keys.scalaVersion in BuildKeys.ScalacCompiler
 
   final val testDependencies = List(
     "junit" % "junit" % "4.12" % "test",
@@ -126,21 +126,33 @@ object BuildKeys {
   def inProjectRefs(refs: Seq[Reference])(ss: Setting[_]*): Seq[Setting[_]] =
     refs.flatMap(inProject(_)(ss))
 
-  def inScalacProjects(ss: Setting[_]*): Seq[Setting[_]] =
+  private[build] def inScalacProjects(ss: Setting[_]*): Seq[Setting[_]] =
     inProjectRefs(AllScalacProjects)(ss: _*)
 
   def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
     Seq(sbt.Compile, sbt.Test).flatMap(sbt.inConfig(_)(ss))
 
+  object Keywords {
+    val Circe = " circe"
+    val Monocle = " monocle"
+    val Integration = " integration"
+    val Scalatest = " scalatest"
+    val Scalac = " scalac"
+  }
+
+  // Circe has to be always at the beginning
+  private val AllKeywords = List(
+    Keywords.Circe,
+    Keywords.Monocle,
+    Keywords.Integration,
+    Keywords.Scalatest,
+    Keywords.Scalac
+  )
+
   import sbt.complete.Parser
   import sbt.complete.DefaultParsers._
-  val CirceKeyword = " circe"
-  val CirceParser: Parser[String] = CirceKeyword
-  val MonocleKeyword = " monocle"
-  val IntegrationKeyword = " integration"
-  val ScalatestKeyword = " scalatest"
-  val AllKeywords = List(CirceKeyword, MonocleKeyword, IntegrationKeyword, ScalatestKeyword)
-  val AllParsers = CirceParser | MonocleKeyword | IntegrationKeyword | ScalatestKeyword
+  private val AllParsers =
+    AllKeywords.tail.foldLeft(AllKeywords.head: Parser[String]) { case (p, s) => p.|(s) }
   private val keywordsParser = AllParsers.+.examples(AllKeywords: _*)
   val keywordsSetting: Def.Initialize[sbt.State => Parser[Seq[String]]] =
     Def.setting((state: sbt.State) => keywordsParser)
@@ -198,6 +210,10 @@ object BuildImplementation {
       logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleTests).value.toString)
       logger.info((Keys.name in Test in BuildKeys.MonocleExample).value)
       logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleExample).value.toString)
+      logger.info((Keys.name in Test in BuildKeys.ScalatestCore).value)
+      logger.info((Keys.scalaInstance in Test in BuildKeys.ScalatestCore).value.toString)
+      logger.info((Keys.name in Test in BuildKeys.ScalacCompiler).value)
+      logger.info((Keys.scalaInstance in Test in BuildKeys.ScalacCompiler).value.toString)
       ()
     }
 
@@ -281,7 +297,7 @@ object BuildImplementation {
           },
           Keys.libraryDependencies ~= { previousDependencies =>
             // Assumes that all of these projects are on the same bincompat version (2.12.x)
-            val validScalaVersion = BuildKeys.PreviousScalaVersion.value
+            val validScalaVersion = scalaVersion
             previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
           }
         )

@@ -27,10 +27,6 @@ lazy val profiledb = project
     PB.targets in Compile := Seq(scalapb.gen() -> (sourceManaged in Compile).value)
   )
 
-lazy val scalacProxy = project
-  .in(file(".scalac-proxy"))
-  .dependsOn(Scalac)
-
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
   .dependsOn(profiledb)
@@ -132,42 +128,65 @@ lazy val profilingSbtPlugin = project
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
   .in(file("integrations"))
-  .dependsOn(Circe, Monocle, Scalatest)
+  .dependsOn(Circe, Monocle, Scalatest, Scalac)
   .settings(
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
     test := Def.sequential(
         (showScalaInstances in ThisBuild),
-        // Warmup on compile is enough -- classloader is the same for all
-        (profilingWarmupCompiler in Compile),
+        (profilingWarmupCompiler in Compile), // Warmup example, classloader is the same for all
         (compile in Compile),
+
+        (clean in Test in CirceTests),
         (compile in Test in CirceTests),
+        (compile in Test in CirceTests),
+
+        (clean in Test in MonocleTests),
+        (clean in Test in MonocleExample),
         (compile in Test in MonocleTests),
         (compile in Test in MonocleExample),
-        (compile in Compile in ScalatestCore)
+
+        (clean in Compile in ScalatestCore),
+        (compile in Compile in ScalatestCore),
+
+        (clean in ScalacCompiler),
+        (compile in ScalacCompiler)
     ).value,
     testOnly := Def.inputTaskDyn {
       val keywords = keywordsSetting.parsed
       val emptyAnalysis = Def.task(sbt.inc.Analysis.Empty)
       val CirceTask = Def.taskDyn {
-        if (keywords.contains(CirceKeyword)) (compile in Test in CirceTests)
-        else emptyAnalysis
+        if (keywords.contains(Keywords.Circe)) Def.sequential(
+          (clean in Test in CirceTests),
+          (compile in Test in CirceTests)
+        ) else emptyAnalysis
       }
       val IntegrationTask = Def.taskDyn {
-        if (keywords.contains(IntegrationKeyword)) (compile in Compile)
-        else emptyAnalysis
+        if (keywords.contains(Keywords.Integration)) Def.sequential(
+          (clean in Compile),
+          (compile in Compile)
+        ) else emptyAnalysis
       }
       val MonocleTask = Def.taskDyn {
-        if (keywords.contains(MonocleKeyword)) Def.sequential(
+        if (keywords.contains(Keywords.Monocle)) Def.sequential(
+          (clean in Test in MonocleTests),
+          (clean in Test in MonocleExample),
           (compile in Test in MonocleTests),
           (compile in Test in MonocleExample)
         ) else emptyAnalysis
       }
       val ScalatestTask = Def.taskDyn {
-        if (keywords.contains(ScalatestKeyword)) Def.sequential(
+        if (keywords.contains(Keywords.Scalatest)) Def.sequential(
+          (clean in Compile in ScalatestCore),
           (compile in Compile in ScalatestCore)
         ) else emptyAnalysis
       }
-      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask)
+      val ScalacTask = Def.taskDyn {
+         if (keywords.contains(Keywords.Scalac)) Def.sequential(
+          (clean in Compile in ScalacCompiler),
+          (compile in Compile in ScalacCompiler)
+        ) else emptyAnalysis
+      }
+      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask)
     }.evaluated
   )
