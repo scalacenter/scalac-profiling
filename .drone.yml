@@ -2,7 +2,7 @@ matrix:
   SBT_RUN:
     - sbt "plugin/test" "profilingSbtPlugin/scripted"
     - sbt "integrations/profilingWarmupCompiler" "integrations/testOnly circe integration monocle"
-    - sbt "integrations/profilingWarmupCompiler" "integrations/testOnly scalatest scalac"
+    - sbt "integrations/profilingWarmupCompiler" "integrations/testOnly scalatest scalac better-files"
 
 clone:
   git:

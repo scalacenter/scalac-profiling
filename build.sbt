@@ -128,7 +128,7 @@ lazy val profilingSbtPlugin = project
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
   .in(file("integrations"))
-  .dependsOn(Circe, Monocle, Scalatest, Scalac)
+  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles)
   .settings(
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
@@ -187,6 +187,12 @@ lazy val integrations = project
           (compile in Compile in ScalacCompiler)
         ) else emptyAnalysis
       }
-      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask)
+      val BetterFilesTask = Def.taskDyn {
+        if (keywords.contains(Keywords.BetterFiles)) Def.sequential(
+          (clean in Compile in BetterFilesCore),
+          (compile in Compile in BetterFilesCore)
+        ) else emptyAnalysis
+      }
+      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask, BetterFilesTask)
     }.evaluated
   )

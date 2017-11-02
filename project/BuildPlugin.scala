@@ -62,14 +62,26 @@ object BuildKeys {
   val Scalatest = RootProject(
     uri("git://github.com/jvican/scalatest.git#2bc97995612c467e4248a33b2ad0025c003a0fcb")
   )
+  val BetterFiles = RootProject(
+    uri("git://github.com/jvican/better-files.git#29270d200bdc5715be0fb6875b00718de2996641")
+  )
 
   val CirceTests = ProjectRef(Circe.build, "tests")
   val MonocleExample = ProjectRef(Monocle.build, "example")
   val MonocleTests = ProjectRef(Monocle.build, "testJVM")
   val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
   val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")
-  val AllIntegrationProjects =
-    List(CirceTests, MonocleExample, MonocleTests, ScalatestCore, ScalatestTests, ScalacCompiler)
+  val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
+
+  val AllIntegrationProjects = List(
+    CirceTests,
+    MonocleExample,
+    MonocleTests,
+    ScalatestCore,
+    ScalatestTests,
+    ScalacCompiler,
+    BetterFilesCore
+  )
 
   // Assumes that the previous scala version is the last bincompat version
   final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
@@ -138,6 +150,7 @@ object BuildKeys {
     val Integration = " integration"
     val Scalatest = " scalatest"
     val Scalac = " scalac"
+    val BetterFiles = " better-files"
   }
 
   // Circe has to be always at the beginning
@@ -146,7 +159,8 @@ object BuildKeys {
     Keywords.Monocle,
     Keywords.Integration,
     Keywords.Scalatest,
-    Keywords.Scalac
+    Keywords.Scalac,
+    Keywords.BetterFiles
   )
 
   import sbt.complete.Parser
@@ -160,7 +174,7 @@ object BuildKeys {
 
 object BuildImplementation {
   import sbt.{url, file, richFile, State, Logger}
-  import sbt.{ScmInfo, Developer, Resolver, ThisBuild, Watched, Compile, Test}
+  import sbt.{Developer, Resolver, ThisBuild, Watched, Compile, Test}
 
   // This should be added to upstream sbt.
   def GitHub(org: String, project: String): java.net.URL =
@@ -214,6 +228,8 @@ object BuildImplementation {
       logger.info((Keys.scalaInstance in Test in BuildKeys.ScalatestCore).value.toString)
       logger.info((Keys.name in Test in BuildKeys.ScalacCompiler).value)
       logger.info((Keys.scalaInstance in Test in BuildKeys.ScalacCompiler).value.toString)
+      logger.info((Keys.name in Test in BuildKeys.BetterFilesCore).value)
+      logger.info((Keys.scalaInstance in Test in BuildKeys.BetterFilesCore).value.toString)
       ()
     }
 
