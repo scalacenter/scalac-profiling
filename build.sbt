@@ -132,24 +132,24 @@ lazy val integrations = project
   .settings(
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
+    clean := Def.sequential(
+      clean,
+      (clean in Test in CirceTests),
+      (clean in Test in CirceTests),
+      (clean in Test in MonocleTests),
+      (clean in Test in MonocleExample),
+      (clean in Compile in ScalatestCore),
+      (clean in ScalacCompiler)
+    ).value,
     test := Def.sequential(
         (showScalaInstances in ThisBuild),
         (profilingWarmupCompiler in Compile), // Warmup example, classloader is the same for all
         (compile in Compile),
-
-        (clean in Test in CirceTests),
         (compile in Test in CirceTests),
         (compile in Test in CirceTests),
-
-        (clean in Test in MonocleTests),
-        (clean in Test in MonocleExample),
         (compile in Test in MonocleTests),
         (compile in Test in MonocleExample),
-
-        (clean in Compile in ScalatestCore),
         (compile in Compile in ScalatestCore),
-
-        (clean in ScalacCompiler),
         (compile in ScalacCompiler)
     ).value,
     testOnly := Def.inputTaskDyn {
@@ -157,39 +157,32 @@ lazy val integrations = project
       val emptyAnalysis = Def.task(sbt.inc.Analysis.Empty)
       val CirceTask = Def.taskDyn {
         if (keywords.contains(Keywords.Circe)) Def.sequential(
-          (clean in Test in CirceTests),
           (compile in Test in CirceTests)
         ) else emptyAnalysis
       }
       val IntegrationTask = Def.taskDyn {
         if (keywords.contains(Keywords.Integration)) Def.sequential(
-          (clean in Compile),
           (compile in Compile)
         ) else emptyAnalysis
       }
       val MonocleTask = Def.taskDyn {
         if (keywords.contains(Keywords.Monocle)) Def.sequential(
-          (clean in Test in MonocleTests),
-          (clean in Test in MonocleExample),
           (compile in Test in MonocleTests),
           (compile in Test in MonocleExample)
         ) else emptyAnalysis
       }
       val ScalatestTask = Def.taskDyn {
         if (keywords.contains(Keywords.Scalatest)) Def.sequential(
-          (clean in Compile in ScalatestCore),
           (compile in Compile in ScalatestCore)
         ) else emptyAnalysis
       }
       val ScalacTask = Def.taskDyn {
          if (keywords.contains(Keywords.Scalac)) Def.sequential(
-          (clean in Compile in ScalacCompiler),
           (compile in Compile in ScalacCompiler)
         ) else emptyAnalysis
       }
       val BetterFilesTask = Def.taskDyn {
         if (keywords.contains(Keywords.BetterFiles)) Def.sequential(
-          (clean in Compile in BetterFilesCore),
           (compile in Compile in BetterFilesCore)
         ) else emptyAnalysis
       }
