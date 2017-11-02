@@ -30,9 +30,8 @@ pipeline:
     image: scalaplatform/scala:2.0
     when:
       branch: master
-    environment:
-      - COURSIER_CACHE=/drone/.coursier/cache
     commands:
+      - ln -s /drone/.coursier /root/.coursier
       - git log | head -n 20
       - ${SBT_RUN}
       - ./bin/clean-cache.sh
