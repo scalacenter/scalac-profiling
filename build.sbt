@@ -27,9 +27,13 @@ lazy val profiledb = project
     PB.targets in Compile := Seq(scalapb.gen() -> (sourceManaged in Compile).value)
   )
 
+lazy val scalacProxy = project
+  .in(file(".scalac-proxy"))
+  .dependsOn(Scalac)
+
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
-  .dependsOn(Scalac, profiledb)
+  .dependsOn(profiledb)
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
