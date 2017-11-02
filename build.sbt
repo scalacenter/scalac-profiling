@@ -20,7 +20,7 @@ lazy val profiledb = project
   .in(file("profiledb"))
   .settings(
     // Specify scala version to allow third-party software to use this module
-    scalaVersion := "2.12.3",
+    scalaVersion := "2.12.4",
     crossScalaVersions := List(scalaVersion.value, "2.11.11"),
     libraryDependencies +=
       "com.trueaccord.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",

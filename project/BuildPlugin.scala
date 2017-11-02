@@ -181,10 +181,15 @@ object BuildImplementation {
     Keys.publishArtifact in Compile in Keys.packageDoc := false,
     // Use snapshot only for local development plz.
     // If placed in global settings, it's not applied. Sbt bug?
-    BuildKeys.scalacVersionSuffix in BuildKeys.Scalac := "bin-stats-SNAPSHOT"
+    BuildKeys.scalacVersionSuffix in BuildKeys.Scalac := BuildDefaults.scalacVersionSuffix.value
   )
 
   object BuildDefaults {
+    final val scalacVersionSuffix = Def.setting {
+      val previousSuffix = (BuildKeys.scalacVersionSuffix in BuildKeys.Scalac).value
+      if (BuildKeys.useScalacFork.value) s"stats-${previousSuffix}"
+      else previousSuffix
+    }
     final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
       val logger = Keys.streams.value.log
       logger.info((Keys.name in Test in BuildKeys.CirceTests).value)
