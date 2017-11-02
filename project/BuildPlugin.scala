@@ -32,6 +32,7 @@ object BuildKeys {
   final val optionsForSourceCompilerPlugin =
     taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
   final val showScalaInstances = taskKey[Unit]("Show versions of all integration tests")
+  final val useScalacFork = settingKey[Boolean]("Tells the build to use the fork instead of 2.12.4")
 
   // Refer to setting via reference because there is no dependency to the scalac build here.
   final val scalacVersionSuffix = sbt.SettingKey[String]("baseVersionSuffix")
@@ -53,13 +54,22 @@ object BuildKeys {
 
   // Source dependencies from git are cached by sbt
   val Circe = RootProject(
-    uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9"))
-  val CirceTests = ProjectRef(Circe.build, "tests")
+    uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9")
+  )
   val Monocle = RootProject(
-    uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596"))
+    uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596")
+  )
+  val Scalatest = RootProject(
+    uri("git://github.com/jvican/scalatest.git#2bc97995612c467e4248a33b2ad0025c003a0fcb")
+  )
+
+  val CirceTests = ProjectRef(Circe.build, "tests")
   val MonocleExample = ProjectRef(Monocle.build, "example")
   val MonocleTests = ProjectRef(Monocle.build, "testJVM")
-  val AllIntegrationProjects = List(CirceTests, MonocleExample, MonocleTests)
+  val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
+  val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")
+  val AllIntegrationProjects =
+    List(CirceTests, MonocleExample, MonocleTests, ScalatestCore, ScalatestTests)
 
   // Assumes that the previous scala version is the last bincompat version
   final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
@@ -87,17 +97,9 @@ object BuildKeys {
   }
 
   /**
-    * So you may want to ask, why is the code below this comment required?
-    *
-    * HA! Good question. Breathe and take your time.
-    *
     * Sbt does not like overrides of setting values that happen in ThisBuild,
     * nor in other project settings like integrations'. No. Sbt is exigent and
     * always asks you to give your best.
-    *
-    * So, as I'm a busy developer that does not have the time to debug, find a
-    * reproduction to this insidious bug and report it upstream, I force the
-    * settings overrides via this cute hook in `onLoad`.
     *
     * Why so much code for such a simple idea? Well, `Project.extract` does force
     * the execution and initialization of settings, so as `onLoad` is a setting
@@ -112,7 +114,7 @@ object BuildKeys {
     * sbt-cross-project), it does not work. On top of this, this wouldn't happen
     * if monocle defined the scala versions at the build level (it instead does it
     * at the project level, which is bad practice). So, finding a repro for this
-    * is going to be fun. Escape while you can.
+    * is going to be fun.
     */
   final val hijacked = sbt.AttributeKey[Boolean]("The hijacked sexy option.")
 
@@ -133,10 +135,13 @@ object BuildKeys {
   import sbt.complete.Parser
   import sbt.complete.DefaultParsers._
   val CirceKeyword = " circe"
+  val CirceParser: Parser[String] = CirceKeyword
   val MonocleKeyword = " monocle"
   val IntegrationKeyword = " integration"
-  val keywordsParser = ((CirceKeyword: Parser[String]) | MonocleKeyword | IntegrationKeyword).+
-    .examples(CirceKeyword, MonocleKeyword, IntegrationKeyword)
+  val ScalatestKeyword = " scalatest"
+  val AllKeywords = List(CirceKeyword, MonocleKeyword, IntegrationKeyword, ScalatestKeyword)
+  val AllParsers = CirceParser | MonocleKeyword | IntegrationKeyword | ScalatestKeyword
+  private val keywordsParser = AllParsers.+.examples(AllKeywords: _*)
   val keywordsSetting: Def.Initialize[sbt.State => Parser[Seq[String]]] =
     Def.setting((state: sbt.State) => keywordsParser)
 }
@@ -176,10 +181,15 @@ object BuildImplementation {
     Keys.publishArtifact in Compile in Keys.packageDoc := false,
     // Use snapshot only for local development plz.
     // If placed in global settings, it's not applied. Sbt bug?
-    BuildKeys.scalacVersionSuffix in BuildKeys.Scalac := "bin-stats-SNAPSHOT"
+    BuildKeys.scalacVersionSuffix in BuildKeys.Scalac := BuildDefaults.scalacVersionSuffix.value
   )
 
   object BuildDefaults {
+    final val scalacVersionSuffix = Def.setting {
+      val previousSuffix = (BuildKeys.scalacVersionSuffix in BuildKeys.Scalac).value
+      if (BuildKeys.useScalacFork.value) s"stats-${previousSuffix}"
+      else previousSuffix
+    }
     final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
       val logger = Keys.streams.value.log
       logger.info((Keys.name in Test in BuildKeys.CirceTests).value)
@@ -204,8 +214,8 @@ object BuildImplementation {
       // If sha cannot be fetched, always force publishing of fork.
       val currentHash = repository.headCommitSha.getOrElse(UnknownHash)
       if (!repository.hasUncommittedChanges &&
-          scalacHashFile.exists() &&
-          currentHash == IO.read(scalacHashFile)) {
+        scalacHashFile.exists() &&
+        currentHash == IO.read(scalacHashFile)) {
         state
       } else {
         val logger = Keys.sLog.value
@@ -244,18 +254,24 @@ object BuildImplementation {
       }
     }
 
+    private val MinimumScalaVersion = "2.12.4"
+    def pickScalaVersion: Def.Initialize[String] = Def.setting {
+      if (!BuildKeys.useScalacFork.value) MinimumScalaVersion
+      else (Keys.scalaVersion in Test in PluginProject).value
+    }
+
     final val PluginProject = sbt.LocalProject("plugin")
     final val hijackScalaVersions: Hook = Def.setting { (state: State) =>
       if (state.get(BuildKeys.hijacked).getOrElse(false)) state.remove(BuildKeys.hijacked)
       else {
         val hijackedState = state.put(BuildKeys.hijacked, true)
         val extracted = sbt.Project.extract(hijackedState)
-        val forkedScalaVersion = (Keys.scalaVersion in Test in PluginProject).value
+        val scalaVersion = pickScalaVersion.value
         val globalSettings = List(
-          Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $forkedScalaVersion."
+          Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $scalaVersion."
         )
         val projectSettings = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
-          Keys.scalaVersion := forkedScalaVersion,
+          Keys.scalaVersion := scalaVersion,
           Keys.scalacOptions ++= {
             val projectBuild = Keys.thisProjectRef.value.build
             val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
@@ -272,20 +288,24 @@ object BuildImplementation {
         // NOTE: This is done because sbt does not handle session settings correctly. Should be reported upstream.
         val currentSession = sbt.Project.session(state)
         val currentProject = currentSession.current
-        val currentSessionSettings = currentSession.append.get(currentProject).toList.flatten.map(_._1)
+        val currentSessionSettings =
+          currentSession.append.get(currentProject).toList.flatten.map(_._1)
         val allSessionSettings = currentSessionSettings ++ currentSession.rawAppend
         extracted.append(globalSettings ++ projectSettings ++ allSessionSettings, hijackedState)
       }
     }
 
-    final val customOnLoad: Hook =
-      Def.setting(publishForkScalac.value andThen hijackScalaVersions.value)
+    final val customOnLoad: Hook = Def.setting {
+      if (!BuildKeys.useScalacFork.value) hijackScalaVersions.value
+      else publishForkScalac.value andThen hijackScalaVersions.value
+    }
   }
 
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
     Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
-    Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value),
-    Keys.onLoadMessage := Header.intro
+    BuildKeys.useScalacFork := false,
+    Keys.onLoadMessage := Header.intro,
+    Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value)
   )
 
   final val commandAliases: Seq[Def.Setting[sbt.State => sbt.State]] = {
@@ -296,13 +316,11 @@ object BuildImplementation {
     scalac ++ home
   }
 
-  private final val ScalaVersions = Seq("2.11.11", "2.12.3")
   final val buildSettings: Seq[Def.Setting[_]] = Seq(
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := BuildKeys.ScalacVersion.value,
-    Keys.crossScalaVersions := ScalaVersions ++ List(BuildKeys.ScalacVersion.value),
+    Keys.scalaVersion := BuildDefaults.pickScalaVersion.value,
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := sys.env.get("CI").isDefined,
     BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value,
@@ -322,6 +340,7 @@ object BuildImplementation {
       "-Yno-adapted-args" :: "-Ywarn-numeric-widen" :: "-Xfuture" :: "-Xlint" :: Nil
   )
 
+  // This is only used when we use the fork instead of upstream. As of 2.12.4, we use upstream.
   private def publishCustomScalaFork(state0: State, version: String, logger: Logger): State = {
     import sbt.{Project, Value, Inc, Incomplete}
     logger.warn(s"Publishing Scala version $version from the fork...")
@@ -331,7 +350,7 @@ object BuildImplementation {
       .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacReflect, state0))
       .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacCompiler, state0))
     publishing match {
-      case None                       => sys.error(s"Key for publishing is not defined?")
+      case None => sys.error(s"Key for publishing is not defined?")
       case Some((newState, Value(v))) => newState
       case Some((newState, Inc(inc))) =>
         sys.error(s"Got error when publishing the Scala fork: $inc")

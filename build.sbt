@@ -20,16 +20,20 @@ lazy val profiledb = project
   .in(file("profiledb"))
   .settings(
     // Specify scala version to allow third-party software to use this module
-    scalaVersion := "2.12.3",
+    scalaVersion := "2.12.4",
     crossScalaVersions := List(scalaVersion.value, "2.11.11"),
     libraryDependencies +=
       "com.trueaccord.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
     PB.targets in Compile := Seq(scalapb.gen() -> (sourceManaged in Compile).value)
   )
 
+lazy val scalacProxy = project
+  .in(file(".scalac-proxy"))
+  .dependsOn(Scalac)
+
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
-  .dependsOn(Scalac, profiledb)
+  .dependsOn(profiledb)
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
@@ -128,7 +132,7 @@ lazy val profilingSbtPlugin = project
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
   .in(file("integrations"))
-  .dependsOn(Circe, Monocle)
+  .dependsOn(Circe, Monocle, Scalatest)
   .settings(
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
@@ -139,7 +143,8 @@ lazy val integrations = project
         (compile in Compile),
         (compile in Test in CirceTests),
         (compile in Test in MonocleTests),
-        (compile in Test in MonocleExample)
+        (compile in Test in MonocleExample),
+        (compile in Compile in ScalatestCore)
     ).value,
     testOnly := Def.inputTaskDyn {
       val keywords = keywordsSetting.parsed
@@ -158,6 +163,11 @@ lazy val integrations = project
           (compile in Test in MonocleExample)
         ) else emptyAnalysis
       }
-      Def.sequential(CirceTask, MonocleTask, IntegrationTask)
+      val ScalatestTask = Def.taskDyn {
+        if (keywords.contains(ScalatestKeyword)) Def.sequential(
+          (compile in Compile in ScalatestCore)
+        ) else emptyAnalysis
+      }
+      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask)
     }.evaluated
   )

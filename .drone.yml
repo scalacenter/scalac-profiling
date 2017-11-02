@@ -23,10 +23,7 @@ pipeline:
     mount:
       - /drone/.ivy2/cache
       - /drone/.coursier/cache
-      - /drone/.sbt/boot
-      - /drone/.sbt/preloaded
-      - /drone/.sbt/0.13/staging
-      - /drone/.sbt/1.0/staging
+      - /drone/.sbt
 
   build:
     image: scalaplatform/scala:2.0
@@ -37,6 +34,8 @@ pipeline:
     commands:
       - git log | head -n 20
       - ${SBT_RUN}
+      - ls $HOME
+      - ls /drone
       - ./bin/clean-cache.sh
 
   rebuild_cache:
@@ -46,7 +45,4 @@ pipeline:
     mount:
       - /drone/.ivy2/cache
       - /drone/.coursier/cache
-      - /drone/.sbt/boot
-      - /drone/.sbt/preloaded
-      - /drone/.sbt/0.13/staging
-      - /drone/.sbt/1.0/staging
+      - /drone/.sbt
