@@ -32,6 +32,7 @@ object BuildKeys {
   final val optionsForSourceCompilerPlugin =
     taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
   final val showScalaInstances = taskKey[Unit]("Show versions of all integration tests")
+  final val useScalacFork = settingKey[Boolean]("Tells the build to use the fork instead of 2.12.4")
 
   // Refer to setting via reference because there is no dependency to the scalac build here.
   final val scalacVersionSuffix = sbt.SettingKey[String]("baseVersionSuffix")
@@ -244,18 +245,21 @@ object BuildImplementation {
       }
     }
 
+    private val MinimumScalaVersion = "2.12.4"
     final val PluginProject = sbt.LocalProject("plugin")
     final val hijackScalaVersions: Hook = Def.setting { (state: State) =>
       if (state.get(BuildKeys.hijacked).getOrElse(false)) state.remove(BuildKeys.hijacked)
       else {
         val hijackedState = state.put(BuildKeys.hijacked, true)
         val extracted = sbt.Project.extract(hijackedState)
-        val forkedScalaVersion = (Keys.scalaVersion in Test in PluginProject).value
+        val scalaVersion =
+          if (!BuildKeys.useScalacFork.value) MinimumScalaVersion
+          else (Keys.scalaVersion in Test in PluginProject).value
         val globalSettings = List(
-          Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $forkedScalaVersion."
+          Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $scalaVersion."
         )
         val projectSettings = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
-          Keys.scalaVersion := forkedScalaVersion,
+          Keys.scalaVersion := scalaVersion,
           Keys.scalacOptions ++= {
             val projectBuild = Keys.thisProjectRef.value.build
             val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
@@ -278,14 +282,17 @@ object BuildImplementation {
       }
     }
 
-    final val customOnLoad: Hook =
-      Def.setting(publishForkScalac.value andThen hijackScalaVersions.value)
+    final val customOnLoad: Hook = Def.setting {
+      if (!BuildKeys.useScalacFork.value) hijackScalaVersions.value
+      else publishForkScalac.value andThen hijackScalaVersions.value
+    }
   }
 
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
     Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
-    Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value),
-    Keys.onLoadMessage := Header.intro
+    BuildKeys.useScalacFork := false,
+    Keys.onLoadMessage := Header.intro,
+    Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value)
   )
 
   final val commandAliases: Seq[Def.Setting[sbt.State => sbt.State]] = {
@@ -322,6 +329,7 @@ object BuildImplementation {
       "-Yno-adapted-args" :: "-Ywarn-numeric-widen" :: "-Xfuture" :: "-Xlint" :: Nil
   )
 
+  // This is only used when we use the fork instead of upstream. As of 2.12.4, we use upstream.
   private def publishCustomScalaFork(state0: State, version: String, logger: Logger): State = {
     import sbt.{Project, Value, Inc, Incomplete}
     logger.warn(s"Publishing Scala version $version from the fork...")
