@@ -69,6 +69,13 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     private def showExpansion(expansion: (global.Tree, Int)): (String, Int) =
       global.showCode(expansion._1) -> expansion._2
 
+    import scala.collection.mutable.LinkedHashMap
+    private def toLinkedHashMap[K, V](xs: List[(K, V)]): LinkedHashMap[K, V] = {
+      val builder = LinkedHashMap.newBuilder[K, V]
+      builder.++=(xs)
+      builder.result()
+    }
+
     private def reportStatistics(): Unit = if (config.showProfiles) {
       val macroProfiler = implementation.getMacroProfiler
       logger.info("Macro data per call-site", macroProfiler.perCallSite)
@@ -78,12 +85,13 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       logger.info("Macro repeated expansions", expansions)
 
       import implementation.{implicitSearchesByPos, implicitSearchesByType}
-      logger.info("Implicit searches by position", implicitSearchesByPos.toList.sortBy(_._2))
+      val implicitSearchesPosition = toLinkedHashMap(implicitSearchesByPos.toList.sortBy(_._2))
+      logger.info("Implicit searches by position", implicitSearchesPosition)
       val sortedImplicitSearches = implicitSearchesByType.toList.sortBy(_._2)
       // Make sure to stringify types right after typer to avoid compiler crashes
       val stringifiedSearchCounter =
         global.exitingTyper(sortedImplicitSearches.map(kv => kv._1.toString -> kv._2))
-      logger.info("Implicit searches by type", stringifiedSearchCounter)
+      logger.info("Implicit searches by type", toLinkedHashMap(stringifiedSearchCounter))
     }
 
     import com.google.protobuf.duration.Duration
