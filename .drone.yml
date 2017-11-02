@@ -1,7 +1,8 @@
 matrix:
   SBT_RUN:
     - sbt "plugin/test" "profilingSbtPlugin/scripted"
-    - sbt "integrations/test"
+    - sbt "integrations/profilingWarmupCompiler" "integrations/testOnly circe integration monocle"
+    - sbt "integrations/profilingWarmupCompiler" "integrations/testOnly scalatest scalac"
 
 clone:
   git:
@@ -34,8 +35,6 @@ pipeline:
     commands:
       - git log | head -n 20
       - ${SBT_RUN}
-      - ls -al $HOME
-      - ls -al /drone
       - ./bin/clean-cache.sh
 
   rebuild_cache:
