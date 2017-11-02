@@ -255,15 +255,18 @@ object BuildImplementation {
     }
 
     private val MinimumScalaVersion = "2.12.4"
+    def pickScalaVersion: Def.Initialize[String] = Def.setting {
+      if (!BuildKeys.useScalacFork.value) MinimumScalaVersion
+      else (Keys.scalaVersion in Test in PluginProject).value
+    }
+
     final val PluginProject = sbt.LocalProject("plugin")
     final val hijackScalaVersions: Hook = Def.setting { (state: State) =>
       if (state.get(BuildKeys.hijacked).getOrElse(false)) state.remove(BuildKeys.hijacked)
       else {
         val hijackedState = state.put(BuildKeys.hijacked, true)
         val extracted = sbt.Project.extract(hijackedState)
-        val scalaVersion =
-          if (!BuildKeys.useScalacFork.value) MinimumScalaVersion
-          else (Keys.scalaVersion in Test in PluginProject).value
+        val scalaVersion = pickScalaVersion.value
         val globalSettings = List(
           Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $scalaVersion."
         )
@@ -313,13 +316,11 @@ object BuildImplementation {
     scalac ++ home
   }
 
-  private final val ScalaVersions = Seq("2.11.11", "2.12.3")
   final val buildSettings: Seq[Def.Setting[_]] = Seq(
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := BuildKeys.ScalacVersion.value,
-    Keys.crossScalaVersions := ScalaVersions ++ List(BuildKeys.ScalacVersion.value),
+    Keys.scalaVersion := BuildDefaults.pickScalaVersion.value,
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := sys.env.get("CI").isDefined,
     BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value,
