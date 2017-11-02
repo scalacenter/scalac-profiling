@@ -34,8 +34,8 @@ pipeline:
     commands:
       - git log | head -n 20
       - ${SBT_RUN}
-      - ls $HOME
-      - ls /drone
+      - ls -al $HOME
+      - ls -al /drone
       - ./bin/clean-cache.sh
 
   rebuild_cache:
