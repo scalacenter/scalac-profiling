@@ -47,7 +47,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply)
   )
 
-  private final val logger = new Logger(global)
+  private lazy val logger = new Logger(global)
 
   private def pad20(option: String): String = option + (" " * (20 - option.length))
   override def init(ops: List[String], e: (String) => Unit): Boolean = true
@@ -69,6 +69,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     private def showExpansion(expansion: (global.Tree, Int)): (String, Int) =
       global.showCode(expansion._1) -> expansion._2
 
+    // This is just for displaying purposes
     import scala.collection.mutable.LinkedHashMap
     private def toLinkedHashMap[K, V](xs: List[(K, V)]): LinkedHashMap[K, V] = {
       val builder = LinkedHashMap.newBuilder[K, V]

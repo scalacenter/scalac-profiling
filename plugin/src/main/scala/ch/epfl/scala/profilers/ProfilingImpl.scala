@@ -113,6 +113,8 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   object ProfilingAnalyzerPlugin extends global.analyzer.AnalyzerPlugin {
     override def pluginsNotifyImplicitSearch(search: global.analyzer.ImplicitSearch): Unit = {
       if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
+        if (global.analyzer.openMacros.nonEmpty)
+          statistics.incCounter(implicitSearchesByMacrosCount)
         val targetType = search.pt
         val targetPos = search.pos
         val typeCounter = implicitSearchesByType.getOrElse(targetType, 0)
@@ -123,15 +125,6 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     }
   }
 
-  /**
-    * The profiling macro plugin instruments the macro interface to check
-    * certain behaviours. For now, the profiler takes care of:
-    *
-    * - Reporting the size of expanded trees.
-    *
-    * It would be useful in the future to report on the amount of expanded
-    * trees that are and are not discarded.
-    */
   object ProfilingMacroPlugin extends global.analyzer.MacroPlugin {
     type Typer = analyzer.Typer
     private def guessTreeSize(tree: Tree): Int =
@@ -218,6 +211,8 @@ trait ProfilingStats {
   final val preciseMacroTimer = newTimer("precise time in macroExpand")
   final val failedMacros = newSubCounter("  of which failed macros", macroExpandCount)
   final val delayedMacros = newSubCounter("  of which delayed macros", macroExpandCount)
+
+  final val implicitSearchesByMacrosCount = newSubCounter("  from macros", implicitSearchCount)
 
   import scala.reflect.internal.util.Position
   final val implicitSearchesByType = global.perRunCaches.newMap[global.Type, Int]()
