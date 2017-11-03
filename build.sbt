@@ -128,7 +128,7 @@ lazy val profilingSbtPlugin = project
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
   .in(file("integrations"))
-  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles)
+  .dependsOn(Circe)
   .settings(
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
@@ -192,4 +192,6 @@ lazy val integrations = project
 
 // Another hack? Projects' settings evaluation is presumably done via alphabetical sorting
 val zzzzzzzzzzzzzzzzzzzzzzzz = project
+  .in(file(".proxy"))
+  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles)
   .settings(overridingProjectSettings)
