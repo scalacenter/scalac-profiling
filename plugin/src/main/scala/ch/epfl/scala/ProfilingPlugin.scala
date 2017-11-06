@@ -78,7 +78,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     }
 
     private def reportStatistics(): Unit = if (config.showProfiles) {
-      val macroProfiler = implementation.getMacroProfiler
+      val macroProfiler = implementation.macroProfiler
       logger.info("Macro data per call-site", macroProfiler.perCallSite)
       logger.info("Macro data per file", macroProfiler.perFile)
       logger.info("Macro data in total", macroProfiler.inTotal)
@@ -205,9 +205,9 @@ class ProfilingPlugin(val global: Global) extends Plugin {
         )
       }
 
-      val macroProfiles = perFile(implementation.getMacroProfiler.perCallSite)
+      val macroProfiles = perFile(implementation.macroProfiler.perCallSite)
         .map { case (pos: Position, info: MacroInfo) => toMacroProfile(pos, info) }
-      val implicitSearchProfiles = perFile(implementation.getImplicitProfiler.perCallSite)
+      val implicitSearchProfiles = perFile(implementation.implicitProfiler.perCallSite)
         .map { case (pos: Position, info: ImplicitInfo) => toImplicitProfile(pos, info) }
 
       val timestamp = Some(getCurrentTimestamp)
