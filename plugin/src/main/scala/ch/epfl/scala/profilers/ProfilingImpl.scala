@@ -119,35 +119,49 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   private object ProfilingAnalyzerPlugin extends global.analyzer.AnalyzerPlugin {
     import scala.collection.mutable
     private type Entry = (global.analyzer.ImplicitSearch, statistics.TimerSnapshot)
-    private val implicitTimer = statistics.newTimer("implicit timers", "typer")
+    private type DependentEntry = (String, statistics.Timer)
+
     private var implicitsStack: List[Entry] = Nil
+    private val implicitTimer = statistics.newTimer("implicit timers", "typer")
     private val implicitsTimers = new mutable.HashMap[Type, statistics.Timer]()
-    private val implicitsDependants = new mutable.HashMap[String, mutable.HashSet[String]]
+    private val implicitsDependants = new mutable.HashMap[String, mutable.HashSet[DependentEntry]]()
 
     import java.nio.charset.StandardCharsets.UTF_8
     def dottify(graphName: String, outputPath: Path): Unit = {
       def clean(tpe: String) = tpe.replace("\"", "\'")
-      val connections = for {
-        (dependant, dependents) <- implicitsDependants.toSeq
-        dependent <- dependents
-        if dependant != dependent && !dependent.isEmpty && !dependant.isEmpty
-      } yield s"""\t"${clean(dependent)}" -> "${clean(dependant)}"\n"""
+      def qualify(node: String, timing: Long): String = {
+        val nodeName = node.stripPrefix("\"").stripSuffix("\"")
+        val style = if (timing >= 500) "style=filled, fillcolor=\"#ea9d8f\"," else ""
+        s"""$node [${style}label="${nodeName}\\l${timing}ms"];"""
+      }
 
-      val graph = s"""digraph "$graphName" { ${connections.mkString("")} }""".getBytes(UTF_8)
+      // Note that labelled dependent nodes != all nodes (there are nodes that are not dependent)
+      val dependentNodes = new mutable.HashSet[DependentEntry]()
+      val connections = for {
+        (dependant0, dependents) <- implicitsDependants.toSeq
+        (dependent0, timer) <- dependents
+        if dependant0 != dependent0 && !dependent0.isEmpty && !dependant0.isEmpty
+        dependent = s""""${clean(dependent0)}""""
+        dependant = s""""${clean(dependant0)}""""
+        _ = dependentNodes.+=(dependent -> timer)
+      } yield s"$dependent -> $dependant;"
+
+      val nodes = dependentNodes.map { case (id, timer) => qualify(id, timer.nanos / 1000000) }
+      val graph = s"""digraph "$graphName" {
+        | graph [ranksep=0];
+        |${nodes.mkString("  ", "\n  ", "\n  ")}
+        |${connections.mkString("  ", "\n  ", "\n  ")}
+        |}""".stripMargin.getBytes(UTF_8)
       Files.write(outputPath, graph, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
     }
+
+    private def getImplicitTimerFor(candidate: Type): statistics.Timer =
+      implicitsTimers.getOrElse(candidate, sys.error(s"Timer for ${candidate} doesn't exist"))
 
     override def pluginsNotifyImplicitSearch(search: global.analyzer.ImplicitSearch): Unit = {
       if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
         val targetType = search.pt
         val targetPos = search.pos
-
-        // Add dependants once we hit a concrete node
-        search.context.openImplicits.foreach { dependant =>
-          implicitsDependants
-            .getOrElseUpdate(targetType.toString, new mutable.HashSet())
-            .+=(dependant.pt.toString)
-        }
 
         // Update all timers and counters
         val perTypeTimer = implicitsTimers
@@ -160,6 +174,13 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         if (global.analyzer.openMacros.nonEmpty)
           statistics.incCounter(implicitSearchesByMacrosCount)
 
+        // Add dependants once we hit a concrete node
+        search.context.openImplicits.foreach { dependant =>
+          implicitsDependants
+            .getOrElseUpdate(targetType.toString, new mutable.HashSet())
+            .+=((dependant.pt.toString, getImplicitTimerFor(dependant.pt)))
+        }
+
         implicitsStack = (search, start) :: implicitsStack
       }
     }
@@ -168,8 +189,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       super.pluginsNotifyImplicitSearchResult(result)
       if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
         val (search, start) = implicitsStack.head
-        val timer = implicitsTimers
-          .getOrElse(search.pt, sys.error(s"Timer for ${search.pt} doesn't exist"))
+        val timer = getImplicitTimerFor(search.pt)
         statistics.stopTimer(timer, start)
         implicitsStack = implicitsStack.tail
       }
