@@ -79,7 +79,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
 
     private def reportStatistics(): Unit = if (config.showProfiles) {
       val macroProfiler = implementation.macroProfiler
-      logger.info("Macro data per call-site", macroProfiler.perCallSite)
+/*      logger.info("Macro data per call-site", macroProfiler.perCallSite)
       logger.info("Macro data per file", macroProfiler.perFile)
       logger.info("Macro data in total", macroProfiler.inTotal)
       val expansions = macroProfiler.repeatedExpansions.map(showExpansion)
@@ -92,7 +92,8 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       // Make sure to stringify types right after typer to avoid compiler crashes
       val stringifiedSearchCounter =
         global.exitingTyper(sortedImplicitSearches.map(kv => kv._1.toString -> kv._2))
-      logger.info("Implicit searches by type", toLinkedHashMap(stringifiedSearchCounter))
+      logger.info("Implicit searches by type", toLinkedHashMap(stringifiedSearchCounter))*/
+      ()
     }
 
     import com.google.protobuf.duration.Duration
