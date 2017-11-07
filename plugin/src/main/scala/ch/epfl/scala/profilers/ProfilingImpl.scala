@@ -135,7 +135,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         s"""$node [${style}label="${nodeName}\\l${timing}ms"];"""
       }
 
-      // Note that labelled dependent nodes != all nodes (there are nodes that are not dependent)
+      // Note that dependent nodes != all nodes (some nodes that are not dependent but dependant)
       val dependentNodes = new mutable.HashSet[DependentEntry]()
       val connections = for {
         (dependant0, dependents) <- implicitsDependants.toSeq
@@ -175,7 +175,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
           statistics.incCounter(implicitSearchesByMacrosCount)
 
         // Add dependants once we hit a concrete node
-        search.context.openImplicits.foreach { dependant =>
+        search.context.openImplicits.headOption.foreach { dependant =>
           implicitsDependants
             .getOrElseUpdate(targetType.toString, new mutable.HashSet())
             .+=((dependant.pt.toString, getImplicitTimerFor(dependant.pt)))
