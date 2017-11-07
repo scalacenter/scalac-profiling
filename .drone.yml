@@ -22,7 +22,7 @@ pipeline:
     restore: true
     mount:
       - /drone/.ivy2/cache
-      - /drone/.coursier/cache
+      - /drone/.coursier
       - /drone/.sbt
 
   build:
@@ -46,5 +46,5 @@ pipeline:
     rebuild: true
     mount:
       - /drone/.ivy2/cache
-      - /drone/.coursier/cache
+      - /drone/.coursier
       - /drone/.sbt
