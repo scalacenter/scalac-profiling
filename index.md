@@ -1,11 +1,8 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<!--*-markdown-*-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><!--*-markdown-*-->
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>
-Minimal Value Types (Shady Edition)
-</title>
+<title>Minimal Value Types (Shady Edition)</title>
 <style type="text/css">
   body          { font-family: Times New Roman; font-size: 16px;
                   line-height: 125%; width: 36em; margin: 2em; }
@@ -27,16 +24,18 @@ Minimal Value Types (Shady Edition)
 </style>
 </head>
 <body>
+
 <!-- This document is in Markdown format:
      http://daringfireball.net/projects/markdown/
      $ pandoc --smart home.md -o index.html
      H/T practicaltypography.com
  -->
-<h1 id="scalac-profiling">Scalac-profiling</h1>
-<h4 id="november-2017">November 2017:</h4>
+
+# Scalac-profiling
+
+#### November 2017: 
 <!-- recent changes in this edition:
   (none to speak of yet)
 -->
-<ul>
-<li><a href="circe-integration.html">circe-integration implicit search graph</a></li>
-</ul>
+
+* [circe-integration implicit search graph](circe-integration.html)
