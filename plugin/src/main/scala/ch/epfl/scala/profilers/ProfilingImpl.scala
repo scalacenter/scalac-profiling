@@ -135,16 +135,16 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         s"""$node [${style}label="${nodeName}\\l${timing}ms"];"""
       }
 
-      // Note that dependent nodes != all nodes (some nodes that are not dependent but dependant)
+      // Note that dependent nodes != all nodes
       val dependentNodes = new mutable.HashSet[DependentEntry]()
       val connections = for {
-        (dependant0, dependents) <- implicitsDependants.toSeq
+        (dependee0, dependents) <- implicitsDependants.toSeq
         (dependent0, timer) <- dependents
-        if dependant0 != dependent0 && !dependent0.isEmpty && !dependant0.isEmpty
+        if dependee0 != dependent0 && !dependent0.isEmpty && !dependee0.isEmpty
         dependent = s""""${clean(dependent0)}""""
-        dependant = s""""${clean(dependant0)}""""
+        dependee = s""""${clean(dependee0)}""""
         _ = dependentNodes.+=(dependent -> timer)
-      } yield s"$dependent -> $dependant;"
+      } yield s"$dependent -> $dependee;"
 
       val nodes = dependentNodes.map { case (id, timer) => qualify(id, timer.nanos / 1000000) }
       val graph = s"""digraph "$graphName" {
