@@ -1,7 +1,8 @@
 matrix:
   SBT_RUN:
     - sbt "plugin/test" "profilingSbtPlugin/scripted"
-    - sbt "integrations/test"
+    - sbt "showScalaInstances" "integrations/testOnly circe integration monocle better-files"
+    - sbt "showScalaInstances" "integrations/testOnly scalatest scalac"
 
 clone:
   git:
@@ -22,20 +23,16 @@ pipeline:
     restore: true
     mount:
       - /drone/.ivy2/cache
-      - /drone/.coursier/cache
+      - /drone/.coursier
       - /drone/.sbt
 
   build:
-    image: scalaplatform/scala:2.0
+    image: scalaplatform/scala:2.1
     when:
       branch: master
-    environment:
-      - COURSIER_CACHE=/drone/.coursier/cache
     commands:
       - git log | head -n 20
       - ${SBT_RUN}
-      - ls $HOME
-      - ls /drone
       - ./bin/clean-cache.sh
 
   rebuild_cache:
@@ -44,5 +41,5 @@ pipeline:
     rebuild: true
     mount:
       - /drone/.ivy2/cache
-      - /drone/.coursier/cache
+      - /drone/.coursier
       - /drone/.sbt

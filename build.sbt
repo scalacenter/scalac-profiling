@@ -12,7 +12,11 @@ lazy val root = project
   .settings(Seq(
     name := "profiling-root",
     publish := {},
-    publishLocal := {}
+    publishLocal := {},
+    watchSources ++=
+      (watchSources in plugin).value ++
+      (watchSources in profiledb).value ++
+      (watchSources in integrations).value
   ))
 
 import com.trueaccord.scalapb.compiler.Version.scalapbVersion
@@ -26,10 +30,6 @@ lazy val profiledb = project
       "com.trueaccord.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
     PB.targets in Compile := Seq(scalapb.gen() -> (sourceManaged in Compile).value)
   )
-
-lazy val scalacProxy = project
-  .in(file(".scalac-proxy"))
-  .dependsOn(Scalac)
 
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
@@ -132,42 +132,68 @@ lazy val profilingSbtPlugin = project
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
   .in(file("integrations"))
-  .dependsOn(Circe, Monocle, Scalatest)
+  .dependsOn(Circe)
   .settings(
+    parallelExecution in Test := false,
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
+    clean := Def.sequential(
+      clean,
+      (clean in Test in CirceTests),
+      (clean in Test in MonocleTests),
+      (clean in Test in MonocleExample),
+      (clean in Compile in ScalatestCore),
+      (clean in ScalacCompiler)
+    ).value,
     test := Def.sequential(
         (showScalaInstances in ThisBuild),
-        // Warmup on compile is enough -- classloader is the same for all
-        (profilingWarmupCompiler in Compile),
+        (profilingWarmupCompiler in Compile), // Warmup example, classloader is the same for all
         (compile in Compile),
         (compile in Test in CirceTests),
         (compile in Test in MonocleTests),
         (compile in Test in MonocleExample),
-        (compile in Compile in ScalatestCore)
+        (compile in Compile in ScalatestCore),
+        (compile in ScalacCompiler)
     ).value,
     testOnly := Def.inputTaskDyn {
       val keywords = keywordsSetting.parsed
       val emptyAnalysis = Def.task(sbt.inc.Analysis.Empty)
       val CirceTask = Def.taskDyn {
-        if (keywords.contains(CirceKeyword)) (compile in Test in CirceTests)
-        else emptyAnalysis
+        if (keywords.contains(Keywords.Circe)) Def.sequential(
+          (compile in Test in CirceTests)
+        ) else emptyAnalysis
       }
       val IntegrationTask = Def.taskDyn {
-        if (keywords.contains(IntegrationKeyword)) (compile in Compile)
-        else emptyAnalysis
+        if (keywords.contains(Keywords.Integration)) Def.sequential(
+          (compile in Compile)
+        ) else emptyAnalysis
       }
       val MonocleTask = Def.taskDyn {
-        if (keywords.contains(MonocleKeyword)) Def.sequential(
+        if (keywords.contains(Keywords.Monocle)) Def.sequential(
           (compile in Test in MonocleTests),
           (compile in Test in MonocleExample)
         ) else emptyAnalysis
       }
       val ScalatestTask = Def.taskDyn {
-        if (keywords.contains(ScalatestKeyword)) Def.sequential(
+        if (keywords.contains(Keywords.Scalatest)) Def.sequential(
           (compile in Compile in ScalatestCore)
         ) else emptyAnalysis
       }
-      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask)
+      val ScalacTask = Def.taskDyn {
+         if (keywords.contains(Keywords.Scalac)) Def.sequential(
+          (compile in Compile in ScalacCompiler)
+        ) else emptyAnalysis
+      }
+      val BetterFilesTask = Def.taskDyn {
+        if (keywords.contains(Keywords.BetterFiles)) Def.sequential(
+          (compile in Compile in BetterFilesCore)
+        ) else emptyAnalysis
+      }
+      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask, BetterFilesTask)
     }.evaluated
   )
+
+val proxy = project
+  .in(file(".proxy"))
+  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles)
+  .settings(overridingProjectSettings)

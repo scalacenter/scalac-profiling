@@ -20,7 +20,9 @@ object ProfileDb {
   def read(path: ProfileDbPath): Try[schema.Database] = Try {
     val inputStream = Files.newInputStream(path.target.underlying)
     val reader = CodedInputStream.newInstance(inputStream)
-    schema.Database.parseFrom(reader)
+    val read = schema.Database.parseFrom(reader)
+    inputStream.close()
+    read
   }
 
   def write(database: schema.Database, path: ProfileDbPath): Try[schema.Database] = Try {
@@ -31,6 +33,7 @@ object ProfileDb {
     val writer = CodedOutputStream.newInstance(outputStream)
     database.writeTo(writer)
     writer.flush()
+    outputStream.close()
     database
   }
 }

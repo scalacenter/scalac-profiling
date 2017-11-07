@@ -9,8 +9,10 @@
 
 package ch.epfl.scala.profilers
 
+import java.nio.file.{Path, Files, StandardOpenOption}
+
 import scala.tools.nsc.Global
-import ch.epfl.scala.profilers.tools.Logger
+import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker}
 
 import scala.reflect.internal.util.StatisticsStatics
 
@@ -69,7 +71,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     }
   }
 
-  lazy val getMacroProfiler: MacroProfiler = {
+  lazy val macroProfiler: MacroProfiler = {
     import ProfilingMacroPlugin.{macroInfos, repeatedTrees}
     val perCallSite = macroInfos.toMap
     val perFile = groupPerFile(perCallSite)(MacroInfo.Empty, _ + _)
@@ -99,39 +101,115 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       perCallSite: Map[Position, ImplicitInfo],
       perFile: Map[SourceFile, ImplicitInfo],
       perType: Map[Type, ImplicitInfo],
-      inTotal: ImplicitInfo
+      inTotal: ImplicitInfo,
+      dotFile: Path
   )
 
-  lazy val getImplicitProfiler: ImplicitProfiler = {
+  lazy val implicitProfiler: ImplicitProfiler = {
     val perCallSite = implicitSearchesByPos.toMap.mapValues(ImplicitInfo.apply)
     val perFile = groupPerFile[ImplicitInfo](perCallSite)(ImplicitInfo.Empty, _ + _)
     val perType = implicitSearchesByType.toMap.mapValues(ImplicitInfo.apply)
     val inTotal = ImplicitInfo.aggregate(perFile.valuesIterator)
-    ImplicitProfiler(perCallSite, perFile, perType, inTotal)
+    val graphName = s"implicit-searches-${java.lang.Long.toString(System.currentTimeMillis())}"
+    val dotFile = Files.createTempFile(graphName, ".dot")
+    ProfilingAnalyzerPlugin.dottify(graphName, dotFile)
+    ImplicitProfiler(perCallSite, perFile, perType, inTotal, dotFile)
   }
 
-  object ProfilingAnalyzerPlugin extends global.analyzer.AnalyzerPlugin {
+  private object ProfilingAnalyzerPlugin extends global.analyzer.AnalyzerPlugin {
+    import scala.collection.mutable
+    private type Entry = (global.analyzer.ImplicitSearch, statistics.TimerSnapshot)
+
+    private var implicitsStack: List[Entry] = Nil
+    private val implicitsTimers = new mutable.HashMap[Type, statistics.Timer]()
+    private val implicitsDependants = new mutable.HashMap[Type, mutable.HashSet[Type]]()
+    private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
+
+    private def typeToString(`type`: Type): String =
+      global.exitingTyper(`type`.toLongString)
+
+    import java.nio.charset.StandardCharsets.UTF_8
+    def dottify(graphName: String, outputPath: Path): Unit = {
+      def clean(`type`: Type) = typeToString(`type`).replace("\"", "\'")
+      def qualify(node: String, timing: Long, counter: Int): String = {
+        val nodeName = node.stripPrefix("\"").stripSuffix("\"")
+        val style = if (timing >= 500) "style=filled, fillcolor=\"#ea9d8f\"," else ""
+        s"""$node [${style}label="${nodeName}\\l${counter} times = ${timing}ms"];"""
+      }
+
+      val nodes = implicitSearchesByType.keys
+      val nodesIds = nodes.map(`type` => `type` -> s""""${clean(`type`)}"""").toMap
+      def getNodeId(`type`: Type): String =
+        nodesIds.getOrElse(`type`, sys.error(s"Id for ${`type`} doesn't exist"))
+
+      val connections = for {
+        (dependee, dependants) <- implicitsDependants.toSet
+        dependant <- dependants
+        dependantId = getNodeId(dependant)
+        dependeeId = getNodeId(dependee)
+        if dependeeId != dependantId && !dependantId.isEmpty && !dependeeId.isEmpty
+      } yield s"$dependantId -> $dependeeId;"
+
+      val nodeInfos = nodes.map { `type` =>
+        val id = getNodeId(`type`)
+        val timer = getImplicitTimerFor(`type`).nanos / 1000000
+        val count = implicitSearchesByType.getOrElse(`type`, sys.error(s"NO counter for ${`type`}"))
+        qualify(id, timer, count)
+      }
+
+      val graph = s"""digraph "$graphName" {
+        | graph [ranksep=0, rankdir=LR];
+        |${nodeInfos.mkString("  ", "\n  ", "\n  ")}
+        |${connections.mkString("  ", "\n  ", "\n  ")}
+        |}""".stripMargin.getBytes(UTF_8)
+      Files.write(outputPath, graph, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
+    }
+
+    private def getImplicitTimerFor(candidate: Type): statistics.Timer =
+      implicitsTimers.getOrElse(candidate, sys.error(s"Timer for ${candidate} doesn't exist"))
+
     override def pluginsNotifyImplicitSearch(search: global.analyzer.ImplicitSearch): Unit = {
       if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
         val targetType = search.pt
         val targetPos = search.pos
+
+        // Create timer and unregister it so that it is invisible in console output
+        val prefix = s"  $targetType"
+        val perTypeTimer = implicitsTimers
+          .getOrElseUpdate(targetType, statistics.newTimer(prefix, "typer"))
+        registeredQuantities.remove(s"/$prefix")
+
+        // Update all timers and counters
+        val start = statistics.startTimer(perTypeTimer)
         val typeCounter = implicitSearchesByType.getOrElse(targetType, 0)
         implicitSearchesByType.update(targetType, typeCounter + 1)
         val posCounter = implicitSearchesByPos.getOrElse(targetPos, 0)
         implicitSearchesByPos.update(targetPos, posCounter + 1)
+        if (global.analyzer.openMacros.nonEmpty)
+          statistics.incCounter(implicitSearchesByMacrosCount)
+
+        // Add dependants once we hit a concrete node
+        search.context.openImplicits.headOption.foreach { dependant =>
+          implicitsDependants
+            .getOrElseUpdate(targetType, new mutable.HashSet())
+            .+=(dependant.pt)
+        }
+
+        implicitsStack = (search, start) :: implicitsStack
+      }
+    }
+
+    override def pluginsNotifyImplicitSearchResult(result: global.analyzer.SearchResult): Unit = {
+      super.pluginsNotifyImplicitSearchResult(result)
+      if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
+        val (search, start) = implicitsStack.head
+        val timer = getImplicitTimerFor(search.pt)
+        statistics.stopTimer(timer, start)
+        implicitsStack = implicitsStack.tail
       }
     }
   }
 
-  /**
-    * The profiling macro plugin instruments the macro interface to check
-    * certain behaviours. For now, the profiler takes care of:
-    *
-    * - Reporting the size of expanded trees.
-    *
-    * It would be useful in the future to report on the amount of expanded
-    * trees that are and are not discarded.
-    */
   object ProfilingMacroPlugin extends global.analyzer.MacroPlugin {
     type Typer = analyzer.Typer
     private def guessTreeSize(tree: Tree): Int =
@@ -212,12 +290,14 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
 
 trait ProfilingStats {
   val global: Global
-  import global.statistics._
-
+  import global.statistics.{newTimer, newSubCounter, macroExpandCount, implicitSearchCount}
   macroExpandCount.children.clear()
+
   final val preciseMacroTimer = newTimer("precise time in macroExpand")
   final val failedMacros = newSubCounter("  of which failed macros", macroExpandCount)
   final val delayedMacros = newSubCounter("  of which delayed macros", macroExpandCount)
+
+  final val implicitSearchesByMacrosCount = newSubCounter("  from macros", implicitSearchCount)
 
   import scala.reflect.internal.util.Position
   final val implicitSearchesByType = global.perRunCaches.newMap[global.Type, Int]()

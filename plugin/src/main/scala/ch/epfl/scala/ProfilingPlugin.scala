@@ -28,7 +28,7 @@ import scala.util.matching.Regex
 class ProfilingPlugin(val global: Global) extends Plugin {
   val name = "scalac-profiling"
   val description = "Adds instrumentation to keep an eye on Scalac performance."
-  val components = List[PluginComponent](NewTypeComponent)
+  val components = List[PluginComponent](ProfilingComponent)
 
   private final val ShowProfiles = "show-profiles"
   private final val SourceRoot = "sourceroot"
@@ -47,7 +47,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply)
   )
 
-  private final val logger = new Logger(global)
+  private lazy val logger = new Logger(global)
 
   private def pad20(option: String): String = option + (" " * (20 - option.length))
   override def init(ops: List[String], e: (String) => Unit): Boolean = true
@@ -60,7 +60,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   lazy val implementation = new ProfilingImpl(ProfilingPlugin.this.global, logger)
   implementation.registerProfilers()
 
-  private object NewTypeComponent extends PluginComponent {
+  private object ProfilingComponent extends PluginComponent {
     override val global: implementation.global.type = implementation.global
     override val phaseName: String = "scalacenter-profiling"
     override val runsAfter: List[String] = List("jvm")
@@ -69,21 +69,31 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     private def showExpansion(expansion: (global.Tree, Int)): (String, Int) =
       global.showCode(expansion._1) -> expansion._2
 
+    // This is just for displaying purposes
+    import scala.collection.mutable.LinkedHashMap
+    private def toLinkedHashMap[K, V](xs: List[(K, V)]): LinkedHashMap[K, V] = {
+      val builder = LinkedHashMap.newBuilder[K, V]
+      builder.++=(xs)
+      builder.result()
+    }
+
     private def reportStatistics(): Unit = if (config.showProfiles) {
-      val macroProfiler = implementation.getMacroProfiler
-      logger.info("Macro data per call-site", macroProfiler.perCallSite)
+      val macroProfiler = implementation.macroProfiler
+/*      logger.info("Macro data per call-site", macroProfiler.perCallSite)
       logger.info("Macro data per file", macroProfiler.perFile)
       logger.info("Macro data in total", macroProfiler.inTotal)
       val expansions = macroProfiler.repeatedExpansions.map(showExpansion)
       logger.info("Macro repeated expansions", expansions)
 
       import implementation.{implicitSearchesByPos, implicitSearchesByType}
-      logger.info("Implicit searches by position", implicitSearchesByPos.toList.sortBy(_._2))
+      val implicitSearchesPosition = toLinkedHashMap(implicitSearchesByPos.toList.sortBy(_._2))
+      logger.info("Implicit searches by position", implicitSearchesPosition)
       val sortedImplicitSearches = implicitSearchesByType.toList.sortBy(_._2)
       // Make sure to stringify types right after typer to avoid compiler crashes
       val stringifiedSearchCounter =
         global.exitingTyper(sortedImplicitSearches.map(kv => kv._1.toString -> kv._2))
-      logger.info("Implicit searches by type", stringifiedSearchCounter)
+      logger.info("Implicit searches by type", toLinkedHashMap(stringifiedSearchCounter))*/
+      ()
     }
 
     import com.google.protobuf.duration.Duration
@@ -196,9 +206,9 @@ class ProfilingPlugin(val global: Global) extends Plugin {
         )
       }
 
-      val macroProfiles = perFile(implementation.getMacroProfiler.perCallSite)
+      val macroProfiles = perFile(implementation.macroProfiler.perCallSite)
         .map { case (pos: Position, info: MacroInfo) => toMacroProfile(pos, info) }
-      val implicitSearchProfiles = perFile(implementation.getImplicitProfiler.perCallSite)
+      val implicitSearchProfiles = perFile(implementation.implicitProfiler.perCallSite)
         .map { case (pos: Position, info: ImplicitInfo) => toImplicitProfile(pos, info) }
 
       val timestamp = Some(getCurrentTimestamp)
