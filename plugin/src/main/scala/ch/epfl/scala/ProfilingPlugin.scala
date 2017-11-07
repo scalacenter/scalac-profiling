@@ -14,7 +14,7 @@ import java.nio.file.Files
 import ch.epfl.scala.profiledb.{ProfileDb, ProfileDbPath}
 import ch.epfl.scala.profiledb.utils.AbsolutePath
 import ch.epfl.scala.profilers.ProfilingImpl
-import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker}
+import ch.epfl.scala.profilers.tools.Logger
 
 import scala.reflect.internal.util.Statistics
 import scala.reflect.io.Path
@@ -28,7 +28,7 @@ import scala.util.matching.Regex
 class ProfilingPlugin(val global: Global) extends Plugin {
   val name = "scalac-profiling"
   val description = "Adds instrumentation to keep an eye on Scalac performance."
-  val components = List[PluginComponent](NewTypeComponent)
+  val components = List[PluginComponent](ProfilingComponent)
 
   private final val ShowProfiles = "show-profiles"
   private final val SourceRoot = "sourceroot"
@@ -60,7 +60,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   lazy val implementation = new ProfilingImpl(ProfilingPlugin.this.global, logger)
   implementation.registerProfilers()
 
-  private object NewTypeComponent extends PluginComponent {
+  private object ProfilingComponent extends PluginComponent {
     override val global: implementation.global.type = implementation.global
     override val phaseName: String = "scalacenter-profiling"
     override val runsAfter: List[String] = List("jvm")

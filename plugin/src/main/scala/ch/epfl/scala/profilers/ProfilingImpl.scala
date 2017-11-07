@@ -291,9 +291,11 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
 
 trait ProfilingStats {
   val global: Global
-  import global.statistics._
-
+  import global.statistics.{newTimer, newSubCounter, macroExpandCount, implicitSearchCount}
+  println(scala.util.Properties.scalaHome)
+  println(scala.util.Properties.versionString)
   macroExpandCount.children.clear()
+
   final val preciseMacroTimer = newTimer("precise time in macroExpand")
   final val failedMacros = newSubCounter("  of which failed macros", macroExpandCount)
   final val delayedMacros = newSubCounter("  of which delayed macros", macroExpandCount)
