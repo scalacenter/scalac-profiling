@@ -12,7 +12,7 @@ package ch.epfl.scala.profilers
 import java.nio.file.{Path, Files, StandardOpenOption}
 
 import scala.tools.nsc.Global
-import ch.epfl.scala.profilers.tools.Logger
+import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker}
 
 import scala.reflect.internal.util.StatisticsStatics
 
@@ -121,9 +121,9 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     private type Entry = (global.analyzer.ImplicitSearch, statistics.TimerSnapshot)
 
     private var implicitsStack: List[Entry] = Nil
-    private val implicitTimer = statistics.newTimer("implicit timers", "typer")
     private val implicitsTimers = new mutable.HashMap[Type, statistics.Timer]()
     private val implicitsDependants = new mutable.HashMap[Type, mutable.HashSet[Type]]()
+    private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
 
     private def typeToString(`type`: Type): String =
       global.exitingTyper(`type`.toLongString)
@@ -174,9 +174,13 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         val targetType = search.pt
         val targetPos = search.pos
 
-        // Update all timers and counters
+        // Create timer and unregister it so that it is invisible in console output
+        val prefix = s"  $targetType"
         val perTypeTimer = implicitsTimers
-          .getOrElseUpdate(targetType, statistics.newSubTimer(s"  $targetType", implicitTimer))
+          .getOrElseUpdate(targetType, statistics.newTimer(prefix, "typer"))
+        registeredQuantities.remove(s"/$prefix")
+
+        // Update all timers and counters
         val start = statistics.startTimer(perTypeTimer)
         val typeCounter = implicitSearchesByType.getOrElse(targetType, 0)
         implicitSearchesByType.update(targetType, typeCounter + 1)

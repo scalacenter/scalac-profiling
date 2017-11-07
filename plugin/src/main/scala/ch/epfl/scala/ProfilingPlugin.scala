@@ -14,7 +14,7 @@ import java.nio.file.Files
 import ch.epfl.scala.profiledb.{ProfileDb, ProfileDbPath}
 import ch.epfl.scala.profiledb.utils.AbsolutePath
 import ch.epfl.scala.profilers.ProfilingImpl
-import ch.epfl.scala.profilers.tools.Logger
+import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker}
 
 import scala.reflect.internal.util.Statistics
 import scala.reflect.io.Path
