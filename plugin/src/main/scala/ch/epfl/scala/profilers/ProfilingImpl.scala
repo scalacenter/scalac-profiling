@@ -137,30 +137,29 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         s"""$node [${style}label="${nodeName}\\l${counter} times = ${timing}ms"];"""
       }
 
-      val nodesToIds = new mutable.HashMap[Type, String]()
-      val allNodes = new mutable.HashSet[Type]()
-      val connections = for {
-        (dependee0, dependants) <- implicitsDependants.toSet
-        dependant0 <- dependants
-        dependant = s""""${clean(dependant0)}""""
-        dependee = s""""${clean(dependee0)}""""
-        if dependee != dependant && !dependant.isEmpty && !dependee.isEmpty
-      } yield {
-        allNodes.+=(dependant0, dependee0)
-        nodesToIds.+=(dependant0 -> dependant, dependee0 -> dependee)
-        s"$dependant -> $dependee;"
-      }
+      val nodes = implicitSearchesByType.keys
+      val nodesIds = nodes.map(`type` => `type` -> s""""${clean(`type`)}"""").toMap
+      def getNodeId(`type`: Type): String =
+        nodesIds.getOrElse(`type`, sys.error(s"Id for ${`type`} doesn't exist"))
 
-      val nodes = allNodes.map { `type` =>
-        val id = nodesToIds.getOrElse(`type`, sys.error(s"Id for ${`type`} doesn't exist"))
+      val connections = for {
+        (dependee, dependants) <- implicitsDependants.toSet
+        dependant <- dependants
+        dependantId = getNodeId(dependant)
+        dependeeId = getNodeId(dependee)
+        if dependeeId != dependantId && !dependantId.isEmpty && !dependeeId.isEmpty
+      } yield s"$dependantId -> $dependeeId;"
+
+      val nodeInfos = nodes.map { `type` =>
+        val id = getNodeId(`type`)
         val timer = getImplicitTimerFor(`type`).nanos / 1000000
         val count = implicitSearchesByType.getOrElse(`type`, sys.error(s"NO counter for ${`type`}"))
         qualify(id, timer, count)
       }
 
       val graph = s"""digraph "$graphName" {
-        | graph [ranksep=0];
-        |${nodes.mkString("  ", "\n  ", "\n  ")}
+        | graph [ranksep=0, rankdir=LR];
+        |${nodeInfos.mkString("  ", "\n  ", "\n  ")}
         |${connections.mkString("  ", "\n  ", "\n  ")}
         |}""".stripMargin.getBytes(UTF_8)
       Files.write(outputPath, graph, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
@@ -292,8 +291,6 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
 trait ProfilingStats {
   val global: Global
   import global.statistics.{newTimer, newSubCounter, macroExpandCount, implicitSearchCount}
-  println(scala.util.Properties.scalaHome)
-  println(scala.util.Properties.versionString)
   macroExpandCount.children.clear()
 
   final val preciseMacroTimer = newTimer("precise time in macroExpand")
