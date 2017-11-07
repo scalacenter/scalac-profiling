@@ -187,6 +187,7 @@ object BuildImplementation {
   import com.typesafe.sbt.SbtPgp.autoImport.PgpKeys
   import ch.epfl.scala.sbt.release.ReleaseEarlyPlugin.{autoImport => ReleaseEarlyKeys}
 
+  final val PluginProject = sbt.LocalProject("plugin")
   private final val ThisRepo = GitHub("scalacenter", "scalac-profiling")
   final val publishSettings: Seq[Def.Setting[_]] = Seq(
     Keys.startYear := Some(2017),
@@ -288,44 +289,65 @@ object BuildImplementation {
       }
     }
 
-    private val MinimumScalaVersion = "2.12.4"
+    private[build] val MinimumScalaVersion = "2.12.4"
     def pickScalaVersion: Def.Initialize[String] = Def.setting {
       if (!BuildKeys.useScalacFork.value) MinimumScalaVersion
       else (Keys.scalaVersion in Test in PluginProject).value
     }
 
-    final val PluginProject = sbt.LocalProject("plugin")
+
+    private val longPattern = """\d{1,19}"""
+    private val FullVersion = raw"""($longPattern)\.($longPattern)\.($longPattern)(?:\..+)?""".r
+
+    /* This rounds off the trickery to set up those projects whose `overridingProjectSettings` have
+     * been overriden because sbt has decided to initialize the settings from the sourcedep after. */
     final val hijackScalaVersions: Hook = Def.setting { (state: State) =>
+      val scalaVersion = pickScalaVersion.value
+      def genGlobalSettings = List(
+        Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $scalaVersion."
+      )
+      def genProjectSettings(ref: sbt.ProjectRef) = BuildKeys.inProject(ref)(List(
+        Keys.scalaVersion := scalaVersion,
+        Keys.scalacOptions ++= {
+          val projectBuild = Keys.thisProjectRef.value.build
+          val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
+          val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
+          val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
+          sourceRoot +: pluginOpts
+        },
+        Keys.libraryDependencies ~= { previousDependencies =>
+          // Assumes that all of these projects are on the same bincompat version (2.12.x)
+          val validScalaVersion = scalaVersion
+          previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
+        }
+      ))
+
       if (state.get(BuildKeys.hijacked).getOrElse(false)) state.remove(BuildKeys.hijacked)
       else {
         val hijackedState = state.put(BuildKeys.hijacked, true)
         val extracted = sbt.Project.extract(hijackedState)
-        val scalaVersion = pickScalaVersion.value
-        val globalSettings = List(
-          Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $scalaVersion."
-        )
-        val projectSettings = BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
-          Keys.scalaVersion := scalaVersion,
-          Keys.scalacOptions ++= {
-            val projectBuild = Keys.thisProjectRef.value.build
-            val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
-            val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
-            val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
-            sourceRoot +: pluginOpts
-          },
-          Keys.libraryDependencies ~= { previousDependencies =>
-            // Assumes that all of these projects are on the same bincompat version (2.12.x)
-            val validScalaVersion = scalaVersion
-            previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
+        val projectSettings = BuildKeys.AllIntegrationProjects.flatMap { projectRef =>
+          val currentScalaVersion = extracted.get(Keys.scalaVersion in projectRef)
+          currentScalaVersion match {
+            case FullVersion(epoch0, major0, minor0) =>
+              val (epoch, major, minor) = (epoch0.toInt, major0.toInt, minor0.toInt)
+              if (epoch == 2 && ((major == 12 && minor >= 4) || major > 12)) Nil
+              else genProjectSettings(projectRef)
+            case _ => sys.error(s"The version $currentScalaVersion is not a full version.")
           }
-        )
-        // NOTE: This is done because sbt does not handle session settings correctly. Should be reported upstream.
-        val currentSession = sbt.Project.session(state)
-        val currentProject = currentSession.current
-        val currentSessionSettings =
-          currentSession.append.get(currentProject).toList.flatten.map(_._1)
-        val allSessionSettings = currentSessionSettings ++ currentSession.rawAppend
-        extracted.append(globalSettings ++ projectSettings ++ allSessionSettings, hijackedState)
+        }
+
+        if (projectSettings.isEmpty) state
+        else {
+          val globalSettings = genGlobalSettings
+          // NOTE: This is done because sbt does not handle session settings correctly. Should be reported upstream.
+          val currentSession = sbt.Project.session(state)
+          val currentProject = currentSession.current
+          val currentSessionSettings =
+            currentSession.append.get(currentProject).toList.flatten.map(_._1)
+          val allSessionSettings = currentSessionSettings ++ currentSession.rawAppend
+          extracted.append(globalSettings ++ projectSettings ++ allSessionSettings, hijackedState)
+        }
       }
     }
 
@@ -338,7 +360,15 @@ object BuildImplementation {
   final val overridingProjectSettings: Seq[Def.Setting[_]] = {
     BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
       Keys.ivyLoggingLevel in Keys.update := sbt.UpdateLogging.Quiet,
-      Keys.logLevel in Keys.update := sbt.Level.Warn
+      Keys.logLevel in Keys.update := sbt.Level.Warn,
+      // Set up version and options here just in case sbt initializes them correctly
+      Keys.scalaVersion := BuildDefaults.pickScalaVersion.value,
+      Keys.scalacOptions ++= {
+        val workingDir = Keys.baseDirectory.value
+        val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
+        val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
+        sourceRoot +: pluginOpts
+      }
     )
   }
 

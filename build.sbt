@@ -193,8 +193,7 @@ lazy val integrations = project
     }.evaluated
   )
 
-// Another hack? Projects' settings evaluation is presumably done via alphabetical sorting
-val zzzzzzzzzzzzzzzzzzzzzzzz = project
+val proxy = project
   .in(file(".proxy"))
   .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles)
   .settings(overridingProjectSettings)
