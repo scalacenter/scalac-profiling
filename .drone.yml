@@ -1,6 +1,7 @@
 matrix:
   SBT_RUN:
-    - sbt "exit"
+    - sbt "plugin/test" "profilingSbtPlugin/scripted"
+    - sbt "integrations/test"
 
 clone:
   git:
@@ -30,7 +31,7 @@ pipeline:
       branch: master
     commands:
       - git log | head -n 20
-      - ${SBT_RUN}
+      - ${SBT_RUN} > sbt-logs.text
       - ./bin/clean-cache.sh
 
   rebuild_cache:
