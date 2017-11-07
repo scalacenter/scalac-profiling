@@ -21,9 +21,9 @@ pipeline:
     secrets: [ sftp_cache_username, sftp_cache_private_key, sftp_cache_server, sftp_cache_path ]
     restore: true
     mount:
-      - /root/.ivy2/cache
-      - /root/.coursier/cache
-      - /root/.sbt
+      - /drone/.ivy2/cache
+      - /drone/.coursier/cache
+      - /drone/.sbt
 
   build:
     image: scalaplatform/scala:2.0
@@ -31,14 +31,16 @@ pipeline:
       branch: master
     commands:
       - git log | head -n 20
-      - ${SBT_RUN} > sbt-logs.text
-      - ./bin/clean-cache.sh
+      # - ${SBT_RUN} > sbt-logs.text
+      - cd docs
+      - sbt -sbt-create exit
+      - ../bin/clean-cache.sh
 
   rebuild_cache:
     image: appleboy/drone-sftp-cache
     secrets: [ sftp_cache_username, sftp_cache_private_key, sftp_cache_server, sftp_cache_path ]
     rebuild: true
     mount:
-      - /root/.ivy2/cache
-      - /root/.coursier/cache
-      - /root/.sbt
+      - /drone/.ivy2/cache
+      - /drone/.coursier/cache
+      - /drone/.sbt
