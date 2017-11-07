@@ -12,7 +12,11 @@ lazy val root = project
   .settings(Seq(
     name := "profiling-root",
     publish := {},
-    publishLocal := {}
+    publishLocal := {},
+    watchSources ++=
+      (watchSources in plugin).value ++
+      (watchSources in profiledb).value ++
+      (watchSources in integrations).value
   ))
 
 import com.trueaccord.scalapb.compiler.Version.scalapbVersion
