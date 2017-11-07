@@ -1,8 +1,8 @@
 matrix:
   SBT_RUN:
     - sbt "plugin/test" "profilingSbtPlugin/scripted"
-    - sbt "integrations/testOnly circe integration monocle better-files"
-    - sbt "show {file:/drone/src/github.com/scalacenter/scalac-profiling/scalac/}compiler/scalaVersion" "showScalaInstances" "integrations/testOnly scalatest scalac"
+    - sbt "showScalaInstances" "integrations/testOnly circe integration monocle better-files"
+    - sbt "showScalaInstances" "integrations/testOnly scalatest scalac"
 
 clone:
   git:
@@ -27,13 +27,11 @@ pipeline:
       - /drone/.sbt
 
   build:
-    image: scalaplatform/scala:2.0
+    image: scalaplatform/scala:2.1
     when:
       branch: master
     commands:
       - git log | head -n 20
-      - rm -rf /root/.coursier
-      - ln -s /drone/.coursier /root/.coursier
       - ${SBT_RUN}
       - ./bin/clean-cache.sh
 
