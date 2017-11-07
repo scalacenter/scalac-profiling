@@ -2,7 +2,7 @@ matrix:
   SBT_RUN:
     - sbt "plugin/test" "profilingSbtPlugin/scripted"
     - sbt "integrations/testOnly circe integration monocle better-files"
-    - sbt "integrations/testOnly scalatest scalac"
+    - sbt "show {file:/drone/src/github.com/scalacenter/scalac-profiling/scalac/}compiler/scalaVersion" "showScalaInstances" "integrations/testOnly scalatest scalac"
 
 clone:
   git:
