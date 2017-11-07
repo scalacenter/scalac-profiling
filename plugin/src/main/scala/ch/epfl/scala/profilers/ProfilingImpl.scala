@@ -119,34 +119,45 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   private object ProfilingAnalyzerPlugin extends global.analyzer.AnalyzerPlugin {
     import scala.collection.mutable
     private type Entry = (global.analyzer.ImplicitSearch, statistics.TimerSnapshot)
-    private type DependentEntry = (String, statistics.Timer)
 
     private var implicitsStack: List[Entry] = Nil
     private val implicitTimer = statistics.newTimer("implicit timers", "typer")
     private val implicitsTimers = new mutable.HashMap[Type, statistics.Timer]()
-    private val implicitsDependants = new mutable.HashMap[String, mutable.HashSet[DependentEntry]]()
+    private val implicitsDependants = new mutable.HashMap[Type, mutable.HashSet[Type]]()
+
+    private def typeToString(`type`: Type): String =
+      global.exitingTyper(`type`.toLongString)
 
     import java.nio.charset.StandardCharsets.UTF_8
     def dottify(graphName: String, outputPath: Path): Unit = {
-      def clean(tpe: String) = tpe.replace("\"", "\'")
-      def qualify(node: String, timing: Long): String = {
+      def clean(`type`: Type) = typeToString(`type`).replace("\"", "\'")
+      def qualify(node: String, timing: Long, counter: Int): String = {
         val nodeName = node.stripPrefix("\"").stripSuffix("\"")
         val style = if (timing >= 500) "style=filled, fillcolor=\"#ea9d8f\"," else ""
-        s"""$node [${style}label="${nodeName}\\l${timing}ms"];"""
+        s"""$node [${style}label="${nodeName}\\l${counter} times = ${timing}ms"];"""
       }
 
-      // Note that dependent nodes != all nodes
-      val dependentNodes = new mutable.HashSet[DependentEntry]()
+      val nodesToIds = new mutable.HashMap[Type, String]()
+      val allNodes = new mutable.HashSet[Type]()
       val connections = for {
-        (dependee0, dependents) <- implicitsDependants.toSeq
-        (dependent0, timer) <- dependents
-        if dependee0 != dependent0 && !dependent0.isEmpty && !dependee0.isEmpty
-        dependent = s""""${clean(dependent0)}""""
+        (dependee0, dependants) <- implicitsDependants.toSet
+        dependant0 <- dependants
+        dependant = s""""${clean(dependant0)}""""
         dependee = s""""${clean(dependee0)}""""
-        _ = dependentNodes.+=(dependent -> timer)
-      } yield s"$dependent -> $dependee;"
+        if dependee != dependant && !dependant.isEmpty && !dependee.isEmpty
+      } yield {
+        allNodes.+=(dependant0, dependee0)
+        nodesToIds.+=(dependant0 -> dependant, dependee0 -> dependee)
+        s"$dependant -> $dependee;"
+      }
 
-      val nodes = dependentNodes.map { case (id, timer) => qualify(id, timer.nanos / 1000000) }
+      val nodes = allNodes.map { `type` =>
+        val id = nodesToIds.getOrElse(`type`, sys.error(s"Id for ${`type`} doesn't exist"))
+        val timer = getImplicitTimerFor(`type`).nanos / 1000000
+        val count = implicitSearchesByType.getOrElse(`type`, sys.error(s"NO counter for ${`type`}"))
+        qualify(id, timer, count)
+      }
+
       val graph = s"""digraph "$graphName" {
         | graph [ranksep=0];
         |${nodes.mkString("  ", "\n  ", "\n  ")}
@@ -177,8 +188,8 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         // Add dependants once we hit a concrete node
         search.context.openImplicits.headOption.foreach { dependant =>
           implicitsDependants
-            .getOrElseUpdate(targetType.toString, new mutable.HashSet())
-            .+=((dependant.pt.toString, getImplicitTimerFor(dependant.pt)))
+            .getOrElseUpdate(targetType, new mutable.HashSet())
+            .+=(dependant.pt)
         }
 
         implicitsStack = (search, start) :: implicitsStack
