@@ -1,7 +1,6 @@
 matrix:
   SBT_RUN:
-    - sbt "plugin/test" "profilingSbtPlugin/scripted"
-    - sbt "integrations/test"
+    - sbt "exit"
 
 clone:
   git:
@@ -21,18 +20,15 @@ pipeline:
     secrets: [ sftp_cache_username, sftp_cache_private_key, sftp_cache_server, sftp_cache_path ]
     restore: true
     mount:
-      - /drone/.ivy2/cache
-      - /drone/.coursier/cache
-      - /drone/.sbt
+      - /root/.ivy2/cache
+      - /root/.coursier/cache
+      - /root/.sbt
 
   build:
     image: scalaplatform/scala:2.0
     when:
       branch: master
-    environment:
-      - DRONE_DIR=/drone
     commands:
-      - ln -s /drone/.coursier /root/.coursier
       - git log | head -n 20
       - ${SBT_RUN}
       - ./bin/clean-cache.sh
@@ -42,6 +38,6 @@ pipeline:
     secrets: [ sftp_cache_username, sftp_cache_private_key, sftp_cache_server, sftp_cache_path ]
     rebuild: true
     mount:
-      - /drone/.ivy2/cache
-      - /drone/.coursier/cache
-      - /drone/.sbt
+      - /root/.ivy2/cache
+      - /root/.coursier/cache
+      - /root/.sbt
