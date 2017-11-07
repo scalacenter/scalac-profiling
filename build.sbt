@@ -134,11 +134,11 @@ lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe)
   .settings(
+    parallelExecution in Test := false,
     scalacOptions in Compile ++=
       (optionsForSourceCompilerPlugin in plugin).value,
     clean := Def.sequential(
       clean,
-      (clean in Test in CirceTests),
       (clean in Test in CirceTests),
       (clean in Test in MonocleTests),
       (clean in Test in MonocleExample),
@@ -149,7 +149,6 @@ lazy val integrations = project
         (showScalaInstances in ThisBuild),
         (profilingWarmupCompiler in Compile), // Warmup example, classloader is the same for all
         (compile in Compile),
-        (compile in Test in CirceTests),
         (compile in Test in CirceTests),
         (compile in Test in MonocleTests),
         (compile in Test in MonocleExample),

@@ -1,7 +1,8 @@
 matrix:
   SBT_RUN:
     - sbt "plugin/test" "profilingSbtPlugin/scripted"
-    - sbt "integrations/test"
+    - sbt "integrations/testOnly circe integration monocle better-files"
+    - sbt "integrations/testOnly scalatest scalac"
 
 clone:
   git:
@@ -31,14 +32,10 @@ pipeline:
       branch: master
     commands:
       - git log | head -n 20
-      # - ${SBT_RUN} > sbt-logs.text
       - rm -rf /root/.coursier
       - ln -s /drone/.coursier /root/.coursier
-      - cd docs
-      - mkdir project
-      - echo 'addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC13")' > project/build.sbt
-      - sbt -sbt-create update exit
-      - ../bin/clean-cache.sh
+      - ${SBT_RUN}
+      - ./bin/clean-cache.sh
 
   rebuild_cache:
     image: appleboy/drone-sftp-cache
