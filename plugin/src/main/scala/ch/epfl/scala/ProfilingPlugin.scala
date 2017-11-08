@@ -77,8 +77,10 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       builder.result()
     }
 
-    private def reportStatistics(): Unit = if (config.showProfiles) {
+    private def reportStatistics(graphsPath: AbsolutePath): Unit = if (config.showProfiles) {
       val macroProfiler = implementation.macroProfiler
+      val persistedGraphData = implementation.generateGraphData(graphsPath)
+      persistedGraphData.foreach(p => logger.info(s"Writing graph date to ${p.underlying}"))
 /*      logger.info("Macro data per call-site", macroProfiler.perCallSite)
       logger.info("Macro data per file", macroProfiler.perFile)
       logger.info("Macro data in total", macroProfiler.inTotal)
@@ -262,7 +264,11 @@ class ProfilingPlugin(val global: Global) extends Plugin {
 
         override def run(): Unit = {
           super.run()
-          reportStatistics()
+
+          val graphsRelativePath = ProfileDbPath.GraphsProfileDbRelativePath
+          val graphsDir = globalOutputDir.resolve(graphsRelativePath)
+          reportStatistics(graphsDir)
+
           val globalDatabase = toGlobalDatabase(global.statistics)
           val globalRelativePath = ProfileDbPath.GlobalProfileDbRelativePath
           val globalProfileDbPath = ProfileDbPath(globalOutputDir, globalRelativePath)

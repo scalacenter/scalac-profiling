@@ -9,7 +9,9 @@
 
 package ch.epfl.scala.profilers
 
-import java.nio.file.{Path, Files, StandardOpenOption}
+import java.nio.file.{Files, Path, StandardOpenOption}
+
+import ch.epfl.scala.profiledb.utils.AbsolutePath
 
 import scala.tools.nsc.Global
 import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker}
@@ -101,8 +103,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       perCallSite: Map[Position, ImplicitInfo],
       perFile: Map[SourceFile, ImplicitInfo],
       perType: Map[Type, ImplicitInfo],
-      inTotal: ImplicitInfo,
-      dotFile: Path
+      inTotal: ImplicitInfo
   )
 
   lazy val implicitProfiler: ImplicitProfiler = {
@@ -110,10 +111,17 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     val perFile = groupPerFile[ImplicitInfo](perCallSite)(ImplicitInfo.Empty, _ + _)
     val perType = implicitSearchesByType.toMap.mapValues(ImplicitInfo.apply)
     val inTotal = ImplicitInfo.aggregate(perFile.valuesIterator)
+    ImplicitProfiler(perCallSite, perFile, perType, inTotal)
+  }
+
+  def generateGraphData(outputDir: AbsolutePath): List[AbsolutePath] = {
+    Files.createDirectories(outputDir.underlying)
     val graphName = s"implicit-searches-${java.lang.Long.toString(System.currentTimeMillis())}"
-    val dotFile = Files.createTempFile(graphName, ".dot")
-    ProfilingAnalyzerPlugin.dottify(graphName, dotFile)
-    ImplicitProfiler(perCallSite, perFile, perType, inTotal, dotFile)
+    val dotFile = outputDir.resolve(s"$graphName.dot")
+    val flamegraphFile = outputDir.resolve(s"$graphName.flamegraph")
+    ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)
+    ProfilingAnalyzerPlugin.foldStacks(flamegraphFile.underlying)
+    List(dotFile, flamegraphFile)
   }
 
   private object ProfilingAnalyzerPlugin extends global.analyzer.AnalyzerPlugin {
@@ -122,6 +130,8 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
 
     private var implicitsStack: List[Entry] = Nil
     private val implicitsTimers = new mutable.HashMap[Type, statistics.Timer]()
+    private val searchIdsToStackedNames = new mutable.HashMap[Int, String]
+    private val stackedTimingsDiffs = new mutable.HashMap[String, List[Long]]
     private val implicitsDependants = new mutable.HashMap[Type, mutable.HashSet[Type]]()
     private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
 
@@ -129,6 +139,15 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       global.exitingTyper(`type`.toLongString)
 
     import java.nio.charset.StandardCharsets.UTF_8
+    def foldStacks(outputPath: Path): Unit = {
+      val stackLines = stackedTimingsDiffs.toList
+        .flatMap { case (name, diffs) => diffs.map(diff => s"$name $diff") }
+        .sorted
+        .mkString("\n")
+        .getBytes(UTF_8)
+      Files.write(outputPath, stackLines, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
+    }
+
     def dottify(graphName: String, outputPath: Path): Unit = {
       def clean(`type`: Type) = typeToString(`type`).replace("\"", "\'")
       def qualify(node: String, timing: Long, counter: Int): String = {
@@ -188,6 +207,12 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         if (global.analyzer.openMacros.nonEmpty)
           statistics.incCounter(implicitSearchesByMacrosCount)
 
+        // Add stacked names and timer for the flamegraph generation
+        val stackedName = search.context.openImplicits.foldLeft(typeToString(targetType)) {
+          case (stackedName, dependant) => s"${typeToString(dependant.pt)};$stackedName"
+        }
+        searchIdsToStackedNames.+=(search.searchId -> stackedName)
+
         // Add dependants once we hit a concrete node
         search.context.openImplicits.headOption.foreach { dependant =>
           implicitsDependants
@@ -202,9 +227,21 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     override def pluginsNotifyImplicitSearchResult(result: global.analyzer.SearchResult): Unit = {
       super.pluginsNotifyImplicitSearchResult(result)
       if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
+        // 1. Stop timer for the running search.
         val (search, start) = implicitsStack.head
-        val timer = getImplicitTimerFor(search.pt)
+        val targetType = search.pt
+        val timer = getImplicitTimerFor(targetType)
+        val previousNanos = timer.nanos
         statistics.stopTimer(timer, start)
+
+        // 2. Register the timing diff for every stacked name.
+        val diffMs = (timer.nanos - previousNanos) / 1000000
+        val searchId = search.searchId
+        val stackedName = searchIdsToStackedNames
+          .getOrElse(searchId, sys.error(s"Missing stacked name for $searchId ($targetType)."))
+        val newDiffs = diffMs :: stackedTimingsDiffs.getOrElse(stackedName, Nil)
+        stackedTimingsDiffs.+=(stackedName -> newDiffs)
+
         implicitsStack = implicitsStack.tail
       }
     }
