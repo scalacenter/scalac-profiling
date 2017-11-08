@@ -126,26 +126,28 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
 
   private object ProfilingAnalyzerPlugin extends global.analyzer.AnalyzerPlugin {
     import scala.collection.mutable
-    private type Entry = (global.analyzer.ImplicitSearch, statistics.TimerSnapshot)
+    private type Entry =
+      (global.analyzer.ImplicitSearch, statistics.TimerSnapshot, statistics.TimerSnapshot)
 
     private var implicitsStack: List[Entry] = Nil
     private val implicitsTimers = new mutable.HashMap[Type, statistics.Timer]()
-    private val searchIdsToStackedNames = new mutable.HashMap[Int, String]
-    private val stackedTimingsDiffs = new mutable.HashMap[String, List[Long]]
+    private val searchIdsToStackedNames = new mutable.HashMap[Int, String]()
+    private val stackedTimers = new mutable.HashMap[String, statistics.Timer]()
+    private val stackedNanos = new mutable.HashMap[String, Long]()
     private val implicitsDependants = new mutable.HashMap[Type, mutable.HashSet[Type]]()
     private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
+    private val searchIdsToTimers = new mutable.HashMap[Int, statistics.Timer]()
 
     private def typeToString(`type`: Type): String =
       global.exitingTyper(`type`.toLongString)
 
     import java.nio.charset.StandardCharsets.UTF_8
     def foldStacks(outputPath: Path): Unit = {
-      val stackLines = stackedTimingsDiffs.toList
-        .flatMap { case (name, diffs) => diffs.map(diff => s"$name $diff") }
-        .sorted
-        .mkString("\n")
-        .getBytes(UTF_8)
-      Files.write(outputPath, stackLines, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
+      val stackLines = stackedNanos.toList.map {
+        case (name, nanos) => s"$name ${nanos / 1000000}"
+      }.sorted
+      val allStacks = stackLines.mkString("\n").getBytes(UTF_8)
+      Files.write(outputPath, allStacks, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
     }
 
     def dottify(graphName: String, outputPath: Path): Unit = {
@@ -187,16 +189,35 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     private def getImplicitTimerFor(candidate: Type): statistics.Timer =
       implicitsTimers.getOrElse(candidate, sys.error(s"Timer for ${candidate} doesn't exist"))
 
+    private def getSearchTimerFor(searchId: Int): statistics.Timer = {
+      searchIdsToTimers
+        .getOrElse(searchId, sys.error(s"Missing non-cumulative timer for $searchId"))
+    }
+
     override def pluginsNotifyImplicitSearch(search: global.analyzer.ImplicitSearch): Unit = {
       if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
         val targetType = search.pt
         val targetPos = search.pos
+
+        // Stop counter of dependant implicit search
+        implicitsStack.headOption.foreach {
+          case (search, _, searchStart) =>
+            val searchTimer = getSearchTimerFor(search.searchId)
+            statistics.stopTimer(searchTimer, searchStart)
+        }
 
         // Create timer and unregister it so that it is invisible in console output
         val prefix = s"  $targetType"
         val perTypeTimer = implicitsTimers
           .getOrElseUpdate(targetType, statistics.newTimer(prefix, "typer"))
         registeredQuantities.remove(s"/$prefix")
+
+        // Create non-cumulative timer for the search and unregister it too
+        val searchId = search.searchId
+        val searchPrefix = s"  implicit search ${searchId}"
+        val searchTimer = statistics.newTimer(searchPrefix, "typer")
+        registeredQuantities.remove(s"/$searchPrefix")
+        searchIdsToTimers.+=(searchId -> searchTimer)
 
         // Update all timers and counters
         val typeCounter = implicitSearchesByType.getOrElse(targetType, 0)
@@ -220,8 +241,9 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         }
 
         // Start the timer at the end to factor out the cost of our analysis
-        val start = statistics.startTimer(perTypeTimer)
-        implicitsStack = (search, start) :: implicitsStack
+        val implicitTypeStart = statistics.startTimer(perTypeTimer)
+        val searchStart = statistics.startTimer(searchTimer)
+        implicitsStack = (search, implicitTypeStart, searchStart) :: implicitsStack
       }
     }
 
@@ -229,21 +251,28 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       super.pluginsNotifyImplicitSearchResult(result)
       if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
         // 1. Stop timer for the running search.
-        val (search, start) = implicitsStack.head
+        val (search, implicitTypeStart, searchStart) = implicitsStack.head
         val targetType = search.pt
         val timer = getImplicitTimerFor(targetType)
-        val previousNanos = timer.nanos
-        statistics.stopTimer(timer, start)
+        statistics.stopTimer(timer, implicitTypeStart)
 
         // 2. Register the timing diff for every stacked name.
-        val diffMs = (timer.nanos - previousNanos) / 1000000
         val searchId = search.searchId
+        val searchTimer = getSearchTimerFor(searchId)
+        statistics.stopTimer(searchTimer, searchStart)
         val stackedName = searchIdsToStackedNames
           .getOrElse(searchId, sys.error(s"Missing stacked name for $searchId ($targetType)."))
-        val newDiffs = diffMs :: stackedTimingsDiffs.getOrElse(stackedName, Nil)
-        stackedTimingsDiffs.+=(stackedName -> newDiffs)
+        val previousNanos = stackedNanos.getOrElse(stackedName, 0L)
+        stackedNanos.+=(stackedName -> (searchTimer.nanos + previousNanos))
 
-        implicitsStack = implicitsStack.tail
+        // 3. Reset the stack and stop timer if there is a dependant search
+        val previousImplicits = implicitsStack.tail
+        implicitsStack = previousImplicits.headOption match {
+          case Some((prevSearch, implicitTypeStart, _)) =>
+            val newSearchStart = statistics.startTimer(getSearchTimerFor(prevSearch.searchId))
+            (prevSearch, implicitTypeStart, newSearchStart) :: previousImplicits.tail
+          case None => previousImplicits
+        }
       }
     }
   }
