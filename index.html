@@ -9,11 +9,13 @@ Scalac-profiling: profile Scala compile times
 <style type="text/css">
   body          { font-family: Times New Roman; font-size: 16px;
                   line-height: 125%; width: 36em; margin: 2em; }
-  code, pre     { font-family: Courier New; }
+  code, pre     { font-family: Input Mono Sans, Courier New, Courier, monospace; }
   blockquote    { font-size: 14px; line-height: 130%; }
   pre           { font-size: 14px; line-height: 120%; }
+  code          { font-size: 15px; }
   h1            { font-size: 24px; }
-  h3            { font: inherit; font-weight:bold; }
+  h2            { font-size: 20px; }
+  h3            { font: inherit; font-weight:bold; font-size: 18px; }
   pre           { padding: 1ex; background: #eee; width: 40em; }
   h3            { margin: 1.5em 0 0; }
   ol, ul, pre   { margin: 1em 1ex; }
@@ -27,17 +29,50 @@ Scalac-profiling: profile Scala compile times
 </style>
 </head>
 <body>
-<!-- $ pandoc --smart home.md -o index.html -->
 <h1 id="scalac-profiling">Scalac-profiling</h1>
 <h4 id="jorge-vicente-cantero-jvican-scala-center">Jorge Vicente Cantero (<a href="https://github.com/jvican">jvican</a>), <a href="https://scala.epfl.ch">Scala Center</a></h4>
-<h2 id="implicit-search-graphs-with-dot">Implicit search graphs with dot</h2>
-<p><code>scalac-profiling</code> generates dot graph of all the implicit searches happened during compilation. These graphs will help you to reason about your code better and profile slow compile times in big applications.</p>
-<h3 id="how-should-you-read-the-graphs">How should you read the graphs?</h3>
+<p><code>scalac-profiling</code> aims at providing the tools to understand and profile your Scala projects. In this document, I dive into how you can use <code>scalac-profiling</code> to profile implicit search.</p>
+<h2 id="profiling-implicit-search">Profiling implicit search</h2>
+<p>Profiling implicit search is useful to answer the following questions:</p>
+<ol style="list-style-type: decimal">
+<li>What implicit searches happen in my project?</li>
+<li>How do all implicit searches interact with each other?</li>
+<li>Are implicit searches the main bottleneck of my compile times?</li>
+</ol>
+<p>Incidentally, implicit searches also help you to assess how expensive the use of a macro library is, specifically if the macro library relies heavily on implicit search. Libraries that provide generic typeclass derivation are an example.</p>
+<h3 id="graphs">Graphs</h3>
+<p><code>scalac-profiling</code> generates several graph representations of all the implicit searches happened during compilation. The supported graph representations are <a href="http://www.graphviz.org/doc/info/command.html">graphviz</a> (aka dot) and <a href="https://github.com/brendangregg/FlameGraph">flamegraph</a>.</p>
+<p>The compiler plugin does not generate the graphs for you; instead, it persists the graph data in a format that allows you to generate the graphs yourself without touching or transforming the data.</p>
+<p>These graphs are present under the <em>profiledb META-INF directory</em>, located in your classes directory. For example, a flamegraph data file can be located at <code>target/scala-2.12/classes/META-INF/profiledb/graphs/$name.flamegraph</code>.</p>
+<h3 id="flamegraphs">Flamegraphs</h3>
+<p>If this is the first time you hear about flamegraphs, have a look at the <a href="https://github.com/brendangregg/FlameGraph">official website</a> and the <a href="http://queue.acm.org/detail.cfm?id=2927301">ACM article</a>.</p>
+<p>Flamegraphs are graphs that allow you to see the stack of all the implicit search calls that have happened during a concrete compilation. They are intuitive to inspect and to browse.</p>
+<h4 id="flamegraph-generation">Flamegraph generation</h4>
+<p>In order to generate flamegraphs, clone <a href="https://github.com/brendangregg/FlameGraph">brendangregg/FlameGraph</a> GitHub repository. The repository provides the tools to generate the svg files that you will later on use.</p>
+<p>Next, compile your project with <code>scalac-profiling</code> as a compiler plugin, and statistics enabled (<code>-Ystatistics</code>). <code>scalac-profiling</code> will generate the flamegraph data in the profiledb <code>graphs</code> directory explained in <a href="#graphs">the Graphs section</a>.</p>
+<p>Run the following command in the Flamegraph project’s root directory:</p>
+<pre><code>./flamegraph.pl --countname=&quot;ms&quot; \
+    $PATH_TO_FLAMEGRAPH_FILE &gt; graph.svg</code></pre>
+<p>And it will generate something like <a href="circe-integration-flamegraph.svg">this</a>.</p>
+<h4 id="examples">Examples</h4>
+<ul>
+<li><a href="circe-integration-flamegraph.svg">circe website example flamegraph</a></li>
+</ul>
+<h3 id="dot-graphs">Dot graphs</h3>
+<p>The process to generate dot graphs is similar to Flamegraph. Dot graph files are files that declare a graph and tell Graphviz how it should be rendered. They can then be visualized in several ways: a <code>png</code> file, a pdf, a svg, et cetera.</p>
+<h4 id="dot-graph-generation">Dot graph generation</h4>
+<p>Install [dot][].</p>
+<p>Read <a href="#flamegraph-generation">the previous Flamegraph generation</a> first.</p>
+<p>When you compile your project with <code>scalac-profiling</code>, the plugin creates dot files along with the flamegraph data files. You can use these dot files to generate a graph with the following command:</p>
+<pre><code>dot -Tsvg -o graph.svg $PATH_TO_DOT_FILE</code></pre>
+<p>After that, you can open the resulting svg with your favorite web browser. For example, by running <code>firefox graph.svg</code>.</p>
+<p>However, you will quickly realize that exploring larger graphs is difficult with a normal svg. I recommend using <a href="https://github.com/jvican/jquery.graphviz.svg">jquery.graphviz.svg</a> to have a nicer browsing experience: zoom in and out, reset zoom and the killer feature: only highlight the edges for a given node (by clicking on the node).</p>
+<h4 id="reading-the-generated-graphs">Reading the generated graphs</h4>
 <p>A graph is a set of nodes and edges. A node represent an implicit search for a given type. Every node tells you how many implicit searches have been triggered in total, and how much time they took in total. An edge represents the dependency between an implicit search and another one.</p>
 <blockquote>
 <p><span class="smaller"> Note that every node can be depended upon by others and be the start of the implicit search in the program. That means that often the amount of times a node has been searched for will not be equal to the sum of the nodes that depend on it.</p>
 </blockquote>
-<h3 id="examples">Examples</h3>
+<h4 id="examples-1">Examples</h4>
 <ul>
 <li><a href="circe-integration.html">circe website example implicit search graph</a></li>
 </ul>
