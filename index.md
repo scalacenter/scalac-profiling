@@ -28,7 +28,27 @@
 <!-- $ pandoc --smart home.md -o index.html -->
 
 # Scalac-profiling
+#### Jorge Vicente Cantero, Scala Center
 
-#### November 2017: 
+## Implicit search graphs with dot
+
+`scalac-profiling` generates dot graph of all the implicit searches happened
+during compilation. These graphs will help you to reason about your code better
+and profile slow compile times in big applications.
+
+### How should you read the graphs?
+
+A graph is a set of nodes and edges. A node represent an implicit search for a
+given type. Every node tells you how many implicit searches have been triggered
+in total, and how much time they took in total.  An edge represents the
+dependency between an implicit search and another one.
+
+> <span class="smaller">
+Note that every node can be depended upon by others and be the start of the
+implicit search in the program. That means that often the amount of times a node
+has been searched for will not be equal to the sum of the nodes that depend on
+it.
+
+### Examples
 
 * [circe website example implicit search graph](circe-integration.html)
