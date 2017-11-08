@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>Minimal Value Types (Shady Edition)</title>
+<title>Scalac-profiling: profile Scala compile times</title>
 <style type="text/css">
   body          { font-family: Times New Roman; font-size: 16px;
                   line-height: 125%; width: 36em; margin: 2em; }
