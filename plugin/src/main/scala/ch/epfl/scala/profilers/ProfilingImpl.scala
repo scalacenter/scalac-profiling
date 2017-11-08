@@ -199,7 +199,6 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         registeredQuantities.remove(s"/$prefix")
 
         // Update all timers and counters
-        val start = statistics.startTimer(perTypeTimer)
         val typeCounter = implicitSearchesByType.getOrElse(targetType, 0)
         implicitSearchesByType.update(targetType, typeCounter + 1)
         val posCounter = implicitSearchesByPos.getOrElse(targetPos, 0)
@@ -220,6 +219,8 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
             .+=(dependant.pt)
         }
 
+        // Start the timer at the end to factor out the cost of our analysis
+        val start = statistics.startTimer(perTypeTimer)
         implicitsStack = (search, start) :: implicitsStack
       }
     }
