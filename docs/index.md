@@ -28,7 +28,7 @@
 <!-- $ pandoc --smart home.md -o index.html -->
 
 # Scalac-profiling
-#### Jorge Vicente Cantero, Scala Center
+#### Jorge Vicente Cantero ([jvican]), [Scala Center]
 
 ## Implicit search graphs with dot
 
@@ -52,3 +52,6 @@ it.
 ### Examples
 
 * [circe website example implicit search graph](circe-integration.html)
+
+[jvican]: https://github.com/jvican
+[Scala Center]: https://scala.epfl.ch
