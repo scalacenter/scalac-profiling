@@ -25,17 +25,10 @@
 </head>
 <body>
 
-<!-- This document is in Markdown format:
-     http://daringfireball.net/projects/markdown/
-     $ pandoc --smart home.md -o index.html
-     H/T practicaltypography.com
- -->
+<!-- $ pandoc --smart home.md -o index.html -->
 
 # Scalac-profiling
 
 #### November 2017: 
-<!-- recent changes in this edition:
-  (none to speak of yet)
--->
 
-* [circe-integration implicit search graph](circe-integration.html)
+* [circe website example implicit search graph](circe-integration.html)
