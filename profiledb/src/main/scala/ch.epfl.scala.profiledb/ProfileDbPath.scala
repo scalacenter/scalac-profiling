@@ -27,6 +27,7 @@ object ProfileDbPath {
   private[profiledb] final val ProfileDbExtension = s".$ProfileDbName"
   private[profiledb] final val Prefix = RelativePath("META-INF").resolve(s"$ProfileDbName")
   final val GlobalProfileDbRelativePath = toProfileDbPath(RelativePath("global"))
+  final val GraphsProfileDbRelativePath = Prefix.resolveRelative(RelativePath("graphs"))
 
   private[profiledb] def hasDbExtension(path: RelativePath): Boolean =
     path.underlying.getFileName.toString.endsWith(ProfileDbExtension)
