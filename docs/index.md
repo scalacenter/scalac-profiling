@@ -35,6 +35,9 @@
 Scala projects. In this document, I dive into how you can use `scalac-profiling`
 to profile implicit search.
 
+**Note** that `scalac-profiling` is not released yet, so the installation steps
+in this document are shallow on purpose.
+
 ## Profiling implicit search
 
 Profiling implicit search is useful to answer the following questions:
@@ -68,7 +71,12 @@ If this is the first time you hear about flamegraphs, have a look at the
 
 Flamegraphs are graphs that allow you to see the stack of all the implicit
 search calls that have happened during a concrete compilation.  They are
-intuitive to inspect and to browse.
+intuitive to inspect and to browse, and stand out because:
+
+* They allow you to selectively choose what things to profile. Click on every
+  stack to zoom in, and reset by clicking "Reset zoom" on the bottom left.
+* They allow you to search via regexes and those matching stacks are
+  highlighted. Check the search button on the top right.
 
 #### Flamegraph generation
 
@@ -92,6 +100,10 @@ And it will generate something like [this](circe-integration-flamegraph.svg).
 
 * [circe website example flamegraph](circe-integration-flamegraph.svg)
 * [circe test suite flamegraph](circe-test-suite-flamegraph.svg)
+* [scalac flamegraph](scalac-flamegraph.svg)
+* [monocle example flamegraph](monocle-example-flamegraph.svg)
+* [monocle test suite flamegraph](monocle-test-suite-flamegraph.svg)
+* [scalatest core flamegraph](scalatest-core-flamegraph.svg)
 
 ### Dot graphs
 
@@ -101,7 +113,7 @@ can then be visualized in several ways: a `png` file, a pdf, a svg, et cetera.
 
 #### Dot graph generation
 
-Install [dot][].
+Install [graphviz][].
 
 Read [the previous Flamegraph generation](#flamegraph-generation) first.
 
@@ -136,6 +148,10 @@ it.
 
 * [circe website example dot graph](circe-integration.html)
 * [circe test suite dot graph](circe-test-suite.html)
+* [scalac dot graph](scalac.html)
+* [monocle example dot graph](monocle-example.html)
+* [monocle test suite dot graph](monocle-test-suite.html)
+* [scalatest dot graph](scalatest-core.html)
 
 [graphviz]: http://www.graphviz.org/doc/info/command.html
 [flamegraph]: https://github.com/brendangregg/FlameGraph

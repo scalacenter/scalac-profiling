@@ -32,6 +32,7 @@ Scalac-profiling: profile Scala compile times
 <h1 id="scalac-profiling">Scalac-profiling</h1>
 <h4 id="jorge-vicente-cantero-jvican-scala-center">Jorge Vicente Cantero (<a href="https://github.com/jvican">jvican</a>), <a href="https://scala.epfl.ch">Scala Center</a></h4>
 <p><code>scalac-profiling</code> aims at providing the tools to understand and profile your Scala projects. In this document, I dive into how you can use <code>scalac-profiling</code> to profile implicit search.</p>
+<p><strong>Note</strong> that <code>scalac-profiling</code> is not released yet, so the installation steps in this document are shallow on purpose.</p>
 <h2 id="profiling-implicit-search">Profiling implicit search</h2>
 <p>Profiling implicit search is useful to answer the following questions:</p>
 <ol style="list-style-type: decimal">
@@ -46,7 +47,11 @@ Scalac-profiling: profile Scala compile times
 <p>These graphs are present under the <em>profiledb META-INF directory</em>, located in your classes directory. For example, a flamegraph data file can be located at <code>target/scala-2.12/classes/META-INF/profiledb/graphs/$name.flamegraph</code>.</p>
 <h3 id="flamegraphs">Flamegraphs</h3>
 <p>If this is the first time you hear about flamegraphs, have a look at the <a href="https://github.com/brendangregg/FlameGraph">official website</a> and the <a href="http://queue.acm.org/detail.cfm?id=2927301">ACM article</a>.</p>
-<p>Flamegraphs are graphs that allow you to see the stack of all the implicit search calls that have happened during a concrete compilation. They are intuitive to inspect and to browse.</p>
+<p>Flamegraphs are graphs that allow you to see the stack of all the implicit search calls that have happened during a concrete compilation. They are intuitive to inspect and to browse, and stand out because:</p>
+<ul>
+<li>They allow you to selectively choose what things to profile. Click on every stack to zoom in, and reset by clicking “Reset zoom” on the bottom left.</li>
+<li>They allow you to search via regexes and those matching stacks are highlighted. Check the search button on the top right.</li>
+</ul>
 <h4 id="flamegraph-generation">Flamegraph generation</h4>
 <p>In order to generate flamegraphs, clone <a href="https://github.com/brendangregg/FlameGraph">brendangregg/FlameGraph</a> GitHub repository. The repository provides the tools to generate the svg files that you will later on use.</p>
 <p>Next, compile your project with <code>scalac-profiling</code> as a compiler plugin, and statistics enabled (<code>-Ystatistics</code>). <code>scalac-profiling</code> will generate the flamegraph data in the profiledb <code>graphs</code> directory explained in <a href="#graphs">the Graphs section</a>.</p>
@@ -58,11 +63,15 @@ Scalac-profiling: profile Scala compile times
 <ul>
 <li><a href="circe-integration-flamegraph.svg">circe website example flamegraph</a></li>
 <li><a href="circe-test-suite-flamegraph.svg">circe test suite flamegraph</a></li>
+<li><a href="scalac-flamegraph.svg">scalac flamegraph</a></li>
+<li><a href="monocle-example-flamegraph.svg">monocle example flamegraph</a></li>
+<li><a href="monocle-test-suite-flamegraph.svg">monocle test suite flamegraph</a></li>
+<li><a href="scalatest-core-flamegraph.svg">scalatest core flamegraph</a></li>
 </ul>
 <h3 id="dot-graphs">Dot graphs</h3>
 <p>The process to generate dot graphs is similar to Flamegraph. Dot graph files are files that declare a graph and tell Graphviz how it should be rendered. They can then be visualized in several ways: a <code>png</code> file, a pdf, a svg, et cetera.</p>
 <h4 id="dot-graph-generation">Dot graph generation</h4>
-<p>Install [dot][].</p>
+<p>Install <a href="http://www.graphviz.org/doc/info/command.html">graphviz</a>.</p>
 <p>Read <a href="#flamegraph-generation">the previous Flamegraph generation</a> first.</p>
 <p>When you compile your project with <code>scalac-profiling</code>, the plugin creates dot files along with the flamegraph data files. You can use these dot files to generate a graph with the following command:</p>
 <pre><code>dot -Tsvg -o graph.svg $PATH_TO_DOT_FILE</code></pre>
@@ -77,4 +86,8 @@ Scalac-profiling: profile Scala compile times
 <ul>
 <li><a href="circe-integration.html">circe website example dot graph</a></li>
 <li><a href="circe-test-suite.html">circe test suite dot graph</a></li>
+<li><a href="scalac.html">scalac dot graph</a></li>
+<li><a href="monocle-example.html">monocle example dot graph</a></li>
+<li><a href="monocle-test-suite.html">monocle test suite dot graph</a></li>
+<li><a href="scalatest-core.html">scalatest dot graph</a></li>
 </ul>
