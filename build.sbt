@@ -181,7 +181,8 @@ lazy val integrations = project
       }
       val ScalacTask = Def.taskDyn {
          if (keywords.contains(Keywords.Scalac)) Def.sequential(
-          (compile in Compile in ScalacCompiler)
+          (compile in Compile in ScalacCompiler),
+          (compile in Compile in ScalatestTests)
         ) else emptyAnalysis
       }
       val BetterFilesTask = Def.taskDyn {

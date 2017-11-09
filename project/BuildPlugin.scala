@@ -393,7 +393,7 @@ object BuildImplementation {
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
     Keys.scalaVersion := BuildDefaults.pickScalaVersion.value,
     Keys.triggeredMessage := Watched.clearWhenTriggered,
-    BuildKeys.enableStatistics := sys.env.get("CI").isDefined,
+    BuildKeys.enableStatistics := true,
     BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value,
     Keys.publishArtifact in Compile in Keys.packageDoc := false
   ) ++ publishSettings ++ commandAliases
