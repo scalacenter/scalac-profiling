@@ -65,6 +65,9 @@ object BuildKeys {
   val BetterFiles = RootProject(
     uri("git://github.com/jvican/better-files.git#29270d200bdc5715be0fb6875b00718de2996641")
   )
+  val Shapeless = RootProject(
+    uri("git://github.com/jvican/shapeless.git#4105c8a78b9355632892a5049d57280c8fedbc24")
+  )
 
   val CirceTests = ProjectRef(Circe.build, "tests")
   val MonocleExample = ProjectRef(Monocle.build, "example")
@@ -72,6 +75,8 @@ object BuildKeys {
   val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
   val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")
   val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
+  val ShapelessCore = ProjectRef(Shapeless.build, "coreJVM")
+  val ShapelessExamples = ProjectRef(Shapeless.build, "examplesJVM")
 
   val AllIntegrationProjects = List(
     CirceTests,
@@ -80,7 +85,9 @@ object BuildKeys {
     ScalatestCore,
     ScalatestTests,
     ScalacCompiler,
-    BetterFilesCore
+    BetterFilesCore,
+    ShapelessCore,
+    ShapelessExamples
   )
 
   // Assumes that the previous scala version is the last bincompat version
@@ -151,6 +158,7 @@ object BuildKeys {
     val Scalatest = " scalatest"
     val Scalac = " scalac"
     val BetterFiles = " better-files"
+    val Shapeless = " shapeless"
   }
 
   // Circe has to be always at the beginning
@@ -160,7 +168,8 @@ object BuildKeys {
     Keywords.Integration,
     Keywords.Scalatest,
     Keywords.Scalac,
-    Keywords.BetterFiles
+    Keywords.BetterFiles,
+    Keywords.Shapeless
   )
 
   import sbt.complete.Parser
@@ -296,9 +305,6 @@ object BuildImplementation {
     }
 
 
-    private val longPattern = """\d{1,19}"""
-    private val FullVersion = raw"""($longPattern)\.($longPattern)\.($longPattern)(?:\..+)?""".r
-
     /* This rounds off the trickery to set up those projects whose `overridingProjectSettings` have
      * been overriden because sbt has decided to initialize the settings from the sourcedep after. */
     final val hijackScalaVersions: Hook = Def.setting { (state: State) =>
@@ -326,17 +332,7 @@ object BuildImplementation {
       else {
         val hijackedState = state.put(BuildKeys.hijacked, true)
         val extracted = sbt.Project.extract(hijackedState)
-        val projectSettings = BuildKeys.AllIntegrationProjects.flatMap { projectRef =>
-          val currentScalaVersion = extracted.get(Keys.scalaVersion in projectRef)
-          currentScalaVersion match {
-            case FullVersion(epoch0, major0, minor0) =>
-              val (epoch, major, minor) = (epoch0.toInt, major0.toInt, minor0.toInt)
-              if (epoch == 2 && ((major == 12 && minor >= 4) || major > 12)) Nil
-              else genProjectSettings(projectRef)
-            case _ => sys.error(s"The version $currentScalaVersion is not a full version.")
-          }
-        }
-
+        val projectSettings = BuildKeys.AllIntegrationProjects.flatMap(genProjectSettings)
         if (projectSettings.isEmpty) state
         else {
           val globalSettings = genGlobalSettings

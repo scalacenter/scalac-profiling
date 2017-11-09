@@ -190,11 +190,17 @@ lazy val integrations = project
           (compile in Compile in BetterFilesCore)
         ) else emptyAnalysis
       }
-      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask, BetterFilesTask)
+      val ShapelessTask = Def.taskDyn {
+        if (keywords.contains(Keywords.Shapeless)) Def.sequential(
+          (compile in Compile in ShapelessCore),
+          (compile in Test in ShapelessCore)
+        ) else emptyAnalysis
+      }
+      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask, BetterFilesTask, ShapelessTask)
     }.evaluated
   )
 
 val proxy = project
   .in(file(".proxy"))
-  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles)
+  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless)
   .settings(overridingProjectSettings)
