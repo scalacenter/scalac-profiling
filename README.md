@@ -122,10 +122,6 @@ Per call-site, file and total:
 - [x] How long do they take to run?
 - [x] How many tree nodes do macros create?
 
-#### Extra ideas (future work maybe?)
-- [ ] What's the ratio of generated code/user-defined code?
-- [ ] How many of these tree nodes are discarded? (is this possible?)
-
 ### Information about implicit search
 
 Getting hold of this information requires changes in mainstream scalac.
@@ -134,7 +130,7 @@ Per call-site, file and total:
 
 - [x] How many implicit searches are triggered per position?
 - [x] How many implicit searches are triggered for a given type?
-- [ ] How long implicit searches take to run?
+- [x] How long implicit searches take to run?
 - [x] How many implicit search failures are?
 - [x] How many implicit search hits are?
 - [x] What's the ratio of search failures/hits?
