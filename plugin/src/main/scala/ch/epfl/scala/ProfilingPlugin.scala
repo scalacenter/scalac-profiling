@@ -16,12 +16,11 @@ import ch.epfl.scala.profiledb.utils.AbsolutePath
 import ch.epfl.scala.profilers.ProfilingImpl
 import ch.epfl.scala.profilers.tools.Logger
 
-import scala.reflect.internal.util.Statistics
+import scala.reflect.internal.util.{SourceFile, Statistics, StatisticsStatics}
 import scala.reflect.io.Path
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.nsc.{Global, Phase}
 import scala.tools.nsc.plugins.{Plugin, PluginComponent}
-import scala.reflect.internal.util.SourceFile
 import scala.util.Try
 import scala.util.matching.Regex
 
@@ -81,7 +80,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       val macroProfiler = implementation.macroProfiler
       val persistedGraphData = implementation.generateGraphData(graphsPath)
       persistedGraphData.foreach(p => logger.info(s"Writing graph date to ${p.underlying}"))
-/*      logger.info("Macro data per call-site", macroProfiler.perCallSite)
+      /*      logger.info("Macro data per call-site", macroProfiler.perCallSite)
       logger.info("Macro data per file", macroProfiler.perFile)
       logger.info("Macro data in total", macroProfiler.inTotal)
       val expansions = macroProfiler.repeatedExpansions.map(showExpansion)
@@ -249,16 +248,19 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     override def newPhase(prev: Phase): Phase = {
       new StdPhase(prev) {
         override def apply(unit: global.CompilationUnit): Unit = {
-          val currentSourceFile = unit.source
-          val compilationUnitEntry = profileDbEntryFor(currentSourceFile)
-          dbPathFor(currentSourceFile) match {
-            case Some(profileDbPath) =>
-              logger.info(s"Creating compilation unit for ${profileDbPath.target}")
-              val freshDatabase =
-                schema.Database(`type` = PerCompilationUnit, entries = List(compilationUnitEntry))
-              writeDatabase(freshDatabase, profileDbPath).failed
-                .foreach(t => global.globalError(s"I/O profiledb error: ${t.getMessage}"))
-            case None => global.globalError(s"Could not write profiledb for $currentSourceFile.")
+          if (StatisticsStatics.areSomeColdStatsEnabled() &&
+            global.statistics.areStatisticsLocallyEnabled) {
+            val currentSourceFile = unit.source
+            val compilationUnitEntry = profileDbEntryFor(currentSourceFile)
+            dbPathFor(currentSourceFile) match {
+              case Some(profileDbPath) =>
+                logger.info(s"Creating compilation unit for ${profileDbPath.target}")
+                val freshDatabase =
+                  schema.Database(`type` = PerCompilationUnit, entries = List(compilationUnitEntry))
+                writeDatabase(freshDatabase, profileDbPath).failed
+                  .foreach(t => global.globalError(s"I/O profiledb error: ${t.getMessage}"))
+              case None => global.globalError(s"Could not write profiledb for $currentSourceFile.")
+            }
           }
         }
 
