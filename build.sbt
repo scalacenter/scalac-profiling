@@ -55,7 +55,7 @@ lazy val plugin = project
       // Enable debugging information when necessary
       val debuggingPluginOptions =
         if (!enableStatistics.value) Nil
-        else List("-Ystatistics", "-P:scalac-profiling:show-profiles")
+        else List("-Ystatistics")//, "-P:scalac-profiling:show-profiles")
         //else List("-Xlog-implicits", "-Ystatistics:typer")
       Seq(addPlugin, dummy) ++ debuggingPluginOptions
     },

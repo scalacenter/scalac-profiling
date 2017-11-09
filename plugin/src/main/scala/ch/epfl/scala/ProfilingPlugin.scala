@@ -76,25 +76,27 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       builder.result()
     }
 
-    private def reportStatistics(graphsPath: AbsolutePath): Unit = if (config.showProfiles) {
+    private def reportStatistics(graphsPath: AbsolutePath): Unit = {
       val macroProfiler = implementation.macroProfiler
       val persistedGraphData = implementation.generateGraphData(graphsPath)
-      persistedGraphData.foreach(p => logger.info(s"Writing graph date to ${p.underlying}"))
-      /*      logger.info("Macro data per call-site", macroProfiler.perCallSite)
-      logger.info("Macro data per file", macroProfiler.perFile)
-      logger.info("Macro data in total", macroProfiler.inTotal)
-      val expansions = macroProfiler.repeatedExpansions.map(showExpansion)
-      logger.info("Macro repeated expansions", expansions)
+      persistedGraphData.foreach(p => logger.info(s"Writing graph to ${p.underlying}"))
+      if (config.showProfiles) {
+        logger.info("Macro data per call-site", macroProfiler.perCallSite)
+        logger.info("Macro data per file", macroProfiler.perFile)
+        logger.info("Macro data in total", macroProfiler.inTotal)
+        val expansions = macroProfiler.repeatedExpansions.map(showExpansion)
+        logger.info("Macro repeated expansions", expansions)
 
-      import implementation.{implicitSearchesByPos, implicitSearchesByType}
-      val implicitSearchesPosition = toLinkedHashMap(implicitSearchesByPos.toList.sortBy(_._2))
-      logger.info("Implicit searches by position", implicitSearchesPosition)
-      val sortedImplicitSearches = implicitSearchesByType.toList.sortBy(_._2)
-      // Make sure to stringify types right after typer to avoid compiler crashes
-      val stringifiedSearchCounter =
-        global.exitingTyper(sortedImplicitSearches.map(kv => kv._1.toString -> kv._2))
-      logger.info("Implicit searches by type", toLinkedHashMap(stringifiedSearchCounter))*/
-      ()
+        import implementation.{implicitSearchesByPos, implicitSearchesByType}
+        val implicitSearchesPosition = toLinkedHashMap(implicitSearchesByPos.toList.sortBy(_._2))
+        logger.info("Implicit searches by position", implicitSearchesPosition)
+        val sortedImplicitSearches = implicitSearchesByType.toList.sortBy(_._2)
+        // Make sure to stringify types right after typer to avoid compiler crashes
+        val stringifiedSearchCounter =
+          global.exitingTyper(sortedImplicitSearches.map(kv => kv._1.toString -> kv._2))
+        logger.info("Implicit searches by type", toLinkedHashMap(stringifiedSearchCounter))
+        ()
+      }
     }
 
     import com.google.protobuf.duration.Duration
