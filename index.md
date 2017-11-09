@@ -91,6 +91,7 @@ And it will generate something like [this](circe-integration-flamegraph.svg).
 #### Examples
 
 * [circe website example flamegraph](circe-integration-flamegraph.svg)
+* [circe test suite flamegraph](circe-test-suite-flamegraph.svg)
 
 ### Dot graphs
 
@@ -133,7 +134,8 @@ it.
 
 #### Examples
 
-* [circe website example implicit search graph](circe-integration.html)
+* [circe website example dot graph](circe-integration.html)
+* [circe test suite dot graph](circe-test-suite.html)
 
 [graphviz]: http://www.graphviz.org/doc/info/command.html
 [flamegraph]: https://github.com/brendangregg/FlameGraph
