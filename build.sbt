@@ -37,7 +37,7 @@ lazy val plugin = project
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
-      "com.lihaoyi" %% "pprint" % "0.5.0",
+      "com.lihaoyi" %% "pprint" % "0.5.3",
       scalaOrganization.value % "scala-compiler" % scalaVersion.value
     ),
     libraryDependencies ++= testDependencies,

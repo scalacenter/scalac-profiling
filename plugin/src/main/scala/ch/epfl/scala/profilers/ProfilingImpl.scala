@@ -117,11 +117,11 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   def generateGraphData(outputDir: AbsolutePath): List[AbsolutePath] = {
     Files.createDirectories(outputDir.underlying)
     val graphName = s"implicit-searches-${java.lang.Long.toString(System.currentTimeMillis())}"
-    val dotFile = outputDir.resolve(s"$graphName.dot")
+/*    val dotFile = outputDir.resolve(s"$graphName.dot")
+    ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)*/
     val flamegraphFile = outputDir.resolve(s"$graphName.flamegraph")
-    ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)
     ProfilingAnalyzerPlugin.foldStacks(flamegraphFile.underlying)
-    List(dotFile, flamegraphFile)
+    List(flamegraphFile)
   }
 
   private object ProfilingAnalyzerPlugin extends global.analyzer.AnalyzerPlugin {
@@ -160,8 +160,18 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
 
       val nodes = implicitSearchesByType.keys
       val nodesIds = nodes.map(`type` => `type` -> s""""${clean(`type`)}"""").toMap
-      def getNodeId(`type`: Type): String =
-        nodesIds.getOrElse(`type`, sys.error(s"Id for ${`type`} doesn't exist"))
+      def getNodeId(`type`: Type): String = {
+        nodesIds.getOrElse(`type`, sys.error {
+            s"""Id for ${`type`} doesn't exist.
+              |
+              |  Information about the type:
+              |   - `structure` -> ${global.showRaw(`type`)}
+              |   - `safeToString` -> ${`type`.safeToString}
+              |   - `toLongString` after typer -> ${typeToString(`type`)}
+              |   - `typeSymbol` -> ${`type`.typeSymbol}
+            """.stripMargin
+        })
+      }
 
       val connections = for {
         (dependee, dependants) <- implicitsDependants.toSet
@@ -174,7 +184,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       val nodeInfos = nodes.map { `type` =>
         val id = getNodeId(`type`)
         val timer = getImplicitTimerFor(`type`).nanos / 1000000
-        val count = implicitSearchesByType.getOrElse(`type`, sys.error(s"NO counter for ${`type`}"))
+        val count = implicitSearchesByType.getOrElse(`type`, sys.error(s"No counter for ${`type`}"))
         qualify(id, timer, count)
       }
 
