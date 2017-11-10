@@ -66,7 +66,7 @@ object BuildKeys {
     uri("git://github.com/jvican/better-files.git#29270d200bdc5715be0fb6875b00718de2996641")
   )
   val Shapeless = RootProject(
-    uri("git://github.com/jvican/shapeless.git#4105c8a78b9355632892a5049d57280c8fedbc24")
+    uri("git://github.com/jvican/shapeless.git#11e473058a02ccda408d937cb0e35aec9d3a4a66")
   )
 
   val CirceTests = ProjectRef(Circe.build, "tests")
