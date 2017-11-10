@@ -1,8 +1,8 @@
 matrix:
   SBT_RUN:
     - sbt "plugin/test" "profilingSbtPlugin/scripted"
-    - sbt "showScalaInstances" "integrations/testOnly circe integration monocle better-files"
-    - sbt "showScalaInstances" "integrations/testOnly scalatest scalac"
+    - sbt "showScalaInstances" "integrations/testOnly circe integration monocle better-files scalac"
+    - sbt "showScalaInstances" "integrations/testOnly scalatest shapeless"
 
 clone:
   git:

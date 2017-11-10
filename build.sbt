@@ -37,7 +37,7 @@ lazy val plugin = project
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
-      "com.lihaoyi" %% "pprint" % "0.5.0",
+      "com.lihaoyi" %% "pprint" % "0.5.3",
       scalaOrganization.value % "scala-compiler" % scalaVersion.value
     ),
     libraryDependencies ++= testDependencies,
@@ -55,7 +55,7 @@ lazy val plugin = project
       // Enable debugging information when necessary
       val debuggingPluginOptions =
         if (!enableStatistics.value) Nil
-        else List("-Ystatistics", "-P:scalac-profiling:show-profiles")
+        else List("-Ystatistics")//, "-P:scalac-profiling:show-profiles")
         //else List("-Xlog-implicits", "-Ystatistics:typer")
       Seq(addPlugin, dummy) ++ debuggingPluginOptions
     },
@@ -181,7 +181,8 @@ lazy val integrations = project
       }
       val ScalacTask = Def.taskDyn {
          if (keywords.contains(Keywords.Scalac)) Def.sequential(
-          (compile in Compile in ScalacCompiler)
+          (compile in Compile in ScalacCompiler),
+          (compile in Compile in ScalatestTests)
         ) else emptyAnalysis
       }
       val BetterFilesTask = Def.taskDyn {
@@ -189,11 +190,17 @@ lazy val integrations = project
           (compile in Compile in BetterFilesCore)
         ) else emptyAnalysis
       }
-      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask, BetterFilesTask)
+      val ShapelessTask = Def.taskDyn {
+        if (keywords.contains(Keywords.Shapeless)) Def.sequential(
+          (compile in Compile in ShapelessCore),
+          (compile in Test in ShapelessCore)
+        ) else emptyAnalysis
+      }
+      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask, BetterFilesTask, ShapelessTask)
     }.evaluated
   )
 
 val proxy = project
   .in(file(".proxy"))
-  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles)
+  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless)
   .settings(overridingProjectSettings)

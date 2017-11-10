@@ -44,6 +44,7 @@ These are some encouraged practices:
    These factors make results unpredictable.
 6. If you aim for high predictability, you can pin the compiler threads to one concrete CPU.
    This should most of the times not be necessary.
+7. **Do not reload** the sbt shell, otherwise you'll need to warm up the compiler again.
 
 ### Future features
 

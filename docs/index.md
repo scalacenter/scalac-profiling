@@ -104,6 +104,7 @@ And it will generate something like [this](circe-integration-flamegraph.svg).
 * [monocle example flamegraph](monocle-example-flamegraph.svg)
 * [monocle test suite flamegraph](monocle-test-suite-flamegraph.svg)
 * [scalatest core flamegraph](scalatest-core-flamegraph.svg)
+* [scalatest tests flamegraph](scalatest-tests-flamegraph.svg)
 
 ### Dot graphs
 
