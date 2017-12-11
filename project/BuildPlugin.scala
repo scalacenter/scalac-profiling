@@ -68,6 +68,9 @@ object BuildKeys {
   val Shapeless = RootProject(
     uri("git://github.com/jvican/shapeless.git#11e473058a02ccda408d937cb0e35aec9d3a4a66")
   )
+  val Magnolia = RootProject(
+    uri("git://github.com/propensive/magnolia.git#379f0075ca8042945d8ff89212536894a96f56a8")
+  )
 
   val CirceTests = ProjectRef(Circe.build, "tests")
   val MonocleExample = ProjectRef(Monocle.build, "example")
@@ -77,6 +80,7 @@ object BuildKeys {
   val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
   val ShapelessCore = ProjectRef(Shapeless.build, "coreJVM")
   val ShapelessExamples = ProjectRef(Shapeless.build, "examplesJVM")
+  val MagnoliaTests = ProjectRef(Magnolia.build, "tests")
 
   val AllIntegrationProjects = List(
     CirceTests,
@@ -87,7 +91,8 @@ object BuildKeys {
     ScalacCompiler,
     BetterFilesCore,
     ShapelessCore,
-    ShapelessExamples
+    ShapelessExamples,
+    MagnoliaTests
   )
 
   // Assumes that the previous scala version is the last bincompat version
@@ -159,6 +164,7 @@ object BuildKeys {
     val Scalac = " scalac"
     val BetterFiles = " better-files"
     val Shapeless = " shapeless"
+    val Magnolia = " magnolia"
   }
 
   // Circe has to be always at the beginning
@@ -169,7 +175,8 @@ object BuildKeys {
     Keywords.Scalatest,
     Keywords.Scalac,
     Keywords.BetterFiles,
-    Keywords.Shapeless
+    Keywords.Shapeless,
+    Keywords.Magnolia
   )
 
   import sbt.complete.Parser

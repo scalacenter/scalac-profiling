@@ -143,6 +143,7 @@ lazy val integrations = project
       (clean in Test in MonocleTests),
       (clean in Test in MonocleExample),
       (clean in Compile in ScalatestCore),
+      (clean in Compile in MagnoliaTests),
       (clean in ScalacCompiler)
     ).value,
     test := Def.sequential(
@@ -153,6 +154,7 @@ lazy val integrations = project
         (compile in Test in MonocleTests),
         (compile in Test in MonocleExample),
         (compile in Compile in ScalatestCore),
+        (compile in Compile in MagnoliaTests),
         (compile in ScalacCompiler)
     ).value,
     testOnly := Def.inputTaskDyn {
@@ -196,11 +198,16 @@ lazy val integrations = project
           (compile in Test in ShapelessCore)
         ) else emptyAnalysis
       }
-      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask, BetterFilesTask, ShapelessTask)
+      val MagnoliaTask = Def.taskDyn {
+        if (keywords.contains(Keywords.Magnolia)) Def.sequential(
+          (compile in Compile in MagnoliaTests)
+        ) else emptyAnalysis
+      }
+      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask, BetterFilesTask, ShapelessTask, MagnoliaTask)
     }.evaluated
   )
 
 val proxy = project
   .in(file(".proxy"))
-  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless)
+  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless, Magnolia)
   .settings(overridingProjectSettings)
