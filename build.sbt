@@ -20,6 +20,7 @@ lazy val root = project
       (watchSources in integrations).value
   ))
 
+import build.BuildImplementation.BuildDefaults
 import com.trueaccord.scalapb.compiler.Version.scalapbVersion
 lazy val profiledb = project
   .in(file("profiledb"))
@@ -135,9 +136,10 @@ lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe)
   .settings(
+    scalaVersion := BuildDefaults.pickScalaVersion.value,
     parallelExecution in Test := false,
-    scalacOptions in Compile ++=
-      (optionsForSourceCompilerPlugin in plugin).value,
+    scalacOptions ++=
+      BuildDefaults.scalacProfilingScalacOptions.value,
     clean := Def.sequential(
       clean,
       (clean in Test in CirceTests),
@@ -210,4 +212,4 @@ lazy val integrations = project
 
 val proxy = project
   .in(file(".proxy"))
-  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless, Magnolia)
+  .aggregate(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless, Magnolia)

@@ -83,24 +83,25 @@ object BuildKeys {
   val ShapelessExamples = ProjectRef(Shapeless.build, "examplesJVM")
   val MagnoliaTests = ProjectRef(Magnolia.build, "tests")
 
-  val AllIntegrationProjects = List(
-    CirceTests,
-    MonocleExample,
-    MonocleTests,
-    ScalatestCore,
-    ScalatestTests,
+  val IntegrationProjectsAndReferences = List(
+    CirceTests -> "CirceTests",
+    MonocleExample -> "MonocleExample",
+    MonocleTests -> "MonocleTests",
+    ScalatestCore -> "ScalatestCore",
+    ScalatestTests -> "ScalatestTests",
+    BetterFilesCore -> "BetterFilesCore",
+    ShapelessCore -> "ShapelessCore",
+    ShapelessExamples -> "ShapelessExamples",
+    MagnoliaTests -> "MagnoliaTests"
     // Enable the scalac compiler when it's not used as a fork
     // ScalacCompiler,
-    BetterFilesCore,
-    ShapelessCore,
-    ShapelessExamples,
-    MagnoliaTests
   )
+
+  val AllIntegrationProjects = IntegrationProjectsAndReferences.map(_._1)
 
   // Assumes that the previous scala version is the last bincompat version
   final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
   final val ScalacScalaVersion = Keys.scalaVersion in BuildKeys.ScalacCompiler
-  final val ScalacScalaBinVersion = Keys.scalaBinaryVersion in BuildKeys.ScalacCompiler
 
   final val testDependencies = List(
     "junit" % "junit" % "4.12" % "test",
@@ -311,51 +312,66 @@ object BuildImplementation {
       else Def.setting(BuildKeys.ScalacVersion.value)
     }
 
-    /* This rounds off the trickery to set up those projects whose settings have
-     * been overriden because sbt has decided to initialize the settings from the sourcedep after. */
-    final val hijackScalaVersions: Hook = Def.setting { (state: State) =>
-      val scalaVersion = pickScalaVersion.value
-      def genGlobalSettings = List(
-        Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $scalaVersion."
-      )
-      def genProjectSettings(ref: sbt.ProjectRef) =
-        BuildKeys.inProject(ref)(
-          List(
-            Keys.scalaVersion := scalaVersion,
-            Keys.scalacOptions ++= {
-              val projectBuild = Keys.thisProjectRef.value.build
-              val workingDir =
-                Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
-              val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
-              val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
-              sourceRoot +: pluginOpts
-            },
-            Keys.libraryDependencies ~= { previousDependencies =>
-              // Assumes that all of these projects are on the same bincompat version (2.12.x)
-              val validScalaVersion = BuildKeys.ScalacScalaVersion.value
-              println(s"VALID SCALA VERSION $validScalaVersion")
-              println(s"For project ${ref}")
-              previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
-            }
+    def scalacProfilingScalacOptions: Def.Initialize[sbt.Task[Seq[String]]] = Def.task {
+      val projectBuild = Keys.thisProjectRef.value.build
+      val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
+      val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
+      val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
+      sourceRoot +: pluginOpts
+    }
+
+    def fixedLibraryDependencies: Def.Initialize[Seq[ModuleID]] = Def.setting {
+      val previousDependencies = Keys.libraryDependencies.value
+      // Assumes that all of these projects are on the same bincompat version (2.12.x)
+      val validScalaVersion = Keys.scalaVersion.value
+      previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
+    }
+
+    def fixedIvyScala: Def.Initialize[Option[sbt.IvyScala]] = Def.setting {
+      val scalaVersion = Keys.scalaVersion.value
+      Keys.ivyScala.value.map(_.copy(scalaFullVersion = scalaVersion))
+    }
+
+    object MethodRefs {
+      final val scalacProfilingScalacOptionsRef: String =
+        "build.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions"
+      final val fixedLibraryDependenciesRef: String =
+        "build.BuildImplementation.BuildDefaults.fixedLibraryDependencies"
+      final val fixedIvyScala: String =
+        "build.BuildImplementation.BuildDefaults.fixedIvyScala"
+    }
+
+    def setUpSourceDependenciesCmd(refs: List[String]): Def.Initialize[String] = {
+      Def.setting {
+        val scalaVersion = BuildDefaults.pickScalaVersion.value
+        def setScalaVersion(ref: String) =
+          s"""${Keys.scalaVersion.key.label} in $ref := "$scalaVersion""""
+        def setScalacOptions(ref: String) =
+          s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef}.value"""
+        def fixLibraryDependencies(ref: String) =
+          s"""${Keys.libraryDependencies.key.label} in $ref := ${MethodRefs.fixedLibraryDependenciesRef}.value"""
+        def fixIvyScala(ref: String) =
+          s"""${Keys.ivyScala.key.label} in $ref := ${MethodRefs.fixedIvyScala}.value"""
+        val msg = s"Preparing the build to use Scalac $scalaVersion."
+        val setLoadMessage = s"""${Keys.onLoadMessage.key.label} in sbt.Global := "$msg""""
+        val allSettingsRedefinitions = refs.flatMap(
+          ref => List(
+            setScalaVersion(ref),
+            setScalacOptions(ref),
+            fixLibraryDependencies(ref),
+            fixIvyScala(ref)
           )
         )
 
-      if (state.get(BuildKeys.hijacked).getOrElse(false)) state.remove(BuildKeys.hijacked)
-      else {
-        val hijackedState = state.put(BuildKeys.hijacked, true)
-        val extracted = sbt.Project.extract(hijackedState)
-        val projectSettings = BuildKeys.AllIntegrationProjects.flatMap(genProjectSettings)
-        if (projectSettings.isEmpty) state
-        else {
-          val globalSettings = genGlobalSettings
-          // NOTE: This is done because sbt does not handle session settings correctly. Should be reported upstream.
-          val currentSession = sbt.Project.session(state)
-          val currentProject = currentSession.current
-          val currentSessionSettings =
-            currentSession.append.get(currentProject).toList.flatten.map(_._1)
-          val allSessionSettings = currentSessionSettings ++ currentSession.rawAppend
-          extracted.append(globalSettings ++ projectSettings ++ allSessionSettings, hijackedState)
-        }
+        s"set List(${allSettingsRedefinitions.mkString(",")})"
+      }
+    }
+
+    final val hijackScalaVersions: Hook = Def.settingDyn {
+      val cmd = setUpSourceDependenciesCmd(BuildKeys.IntegrationProjectsAndReferences.map(_._2))
+      Def.setting { (state: State) =>
+        if (state.get(BuildKeys.hijacked).getOrElse(false)) state.remove(BuildKeys.hijacked)
+        else cmd.value :: state.put(BuildKeys.hijacked, true)
       }
     }
 
