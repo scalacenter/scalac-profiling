@@ -9,6 +9,7 @@
 
 lazy val root = project
   .in(file("."))
+  .aggregate(profiledb, plugin, integrations)
   .settings(Seq(
     name := "profiling-root",
     publish := {},

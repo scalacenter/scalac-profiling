@@ -306,9 +306,9 @@ object BuildImplementation {
     }
 
     private[build] val MinimumScalaVersion = "2.12.4"
-    def pickScalaVersion: Def.Initialize[String] = Def.setting {
-      if (!BuildKeys.useScalacFork.value) MinimumScalaVersion
-      else (Keys.scalaVersion in Test in PluginProject).value
+    def pickScalaVersion: Def.Initialize[String] = Def.settingDyn {
+      if (!BuildKeys.useScalacFork.value) Def.setting(MinimumScalaVersion)
+      else Def.setting(BuildKeys.ScalacVersion.value)
     }
 
 
@@ -354,9 +354,9 @@ object BuildImplementation {
       }
     }
 
-    final val customOnLoad: Hook = Def.setting {
-      if (!BuildKeys.useScalacFork.value) hijackScalaVersions.value
-      else publishForkScalac.value andThen hijackScalaVersions.value
+    final val customOnLoad: Hook = Def.settingDyn {
+      if (!BuildKeys.useScalacFork.value) Def.setting(hijackScalaVersions.value)
+      else Def.setting(publishForkScalac.value andThen hijackScalaVersions.value)
     }
   }
 
