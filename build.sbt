@@ -9,7 +9,6 @@
 
 lazy val root = project
   .in(file("."))
-  .aggregate(profiledb, plugin, integrations)
   .settings(Seq(
     name := "profiling-root",
     publish := {},
@@ -179,13 +178,13 @@ lazy val integrations = project
       }
       val ScalatestTask = Def.taskDyn {
         if (keywords.contains(Keywords.Scalatest)) Def.sequential(
-          (compile in Compile in ScalatestCore)
+          (compile in Compile in ScalatestCore),
+          (compile in Compile in ScalatestTests)
         ) else emptyAnalysis
       }
       val ScalacTask = Def.taskDyn {
          if (keywords.contains(Keywords.Scalac)) Def.sequential(
-          (compile in Compile in ScalacCompiler),
-          (compile in Compile in ScalatestTests)
+          (compile in Compile in ScalacCompiler)
         ) else emptyAnalysis
       }
       val BetterFilesTask = Def.taskDyn {

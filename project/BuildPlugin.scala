@@ -89,7 +89,8 @@ object BuildKeys {
     MonocleTests,
     ScalatestCore,
     ScalatestTests,
-    ScalacCompiler,
+    // Enable the scalac compiler when it's not used as a fork
+    // ScalacCompiler,
     BetterFilesCore,
     ShapelessCore,
     ShapelessExamples,
@@ -233,7 +234,7 @@ object BuildImplementation {
   object BuildDefaults {
     final val scalacVersionSuffix = Def.setting {
       val previousSuffix = (BuildKeys.scalacVersionSuffix in BuildKeys.Scalac).value
-      if (previousSuffix.contains("stats")) s"stats-${previousSuffix}" else previousSuffix
+      if (!previousSuffix.contains("stats")) s"stats-${previousSuffix}" else previousSuffix
     }
     final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
       val logger = Keys.streams.value.log
