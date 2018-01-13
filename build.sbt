@@ -9,6 +9,7 @@
 
 lazy val root = project
   .in(file("."))
+  .aggregate(profiledb, plugin, profilingSbtPlugin)
   .settings(Seq(
     name := "profiling-root",
     publish := {},
@@ -121,9 +122,9 @@ lazy val profilingSbtPlugin = project
   .settings(
     name := "sbt-profiling",
     sbtPlugin := true,
-    sbtVersion := "0.13.16",
-    scalaVersion := "2.10.6",
-    crossSbtVersions := List("0.13.16", "1.0.0"),
+    sbtVersion := "1.0.4",
+    scalaVersion := "2.12.4",
+    crossSbtVersions := List("0.13.16", "1.0.4"),
     ScriptedPlugin.scriptedSettings,
     scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", s"-Dplugin.version=${version.value}"),
     scriptedBufferLog := false
