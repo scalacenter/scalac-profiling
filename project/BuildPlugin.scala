@@ -230,10 +230,14 @@ object BuildImplementation {
   )
 
   object BuildDefaults {
+    private final var applySettingOnlyOncePlease: Boolean = false
     final val scalacVersionSuffix = Def.setting {
       val previousSuffix = (BuildKeys.scalacVersionSuffix in BuildKeys.Scalac).value
-      if (BuildKeys.useScalacFork.value) s"stats-${previousSuffix}"
-      else previousSuffix
+      if (applySettingOnlyOncePlease) previousSuffix
+      else if (BuildKeys.useScalacFork.value) {
+        applySettingOnlyOncePlease = true
+        s"-stats-${previousSuffix}"
+      } else previousSuffix
     }
     final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
       val logger = Keys.streams.value.log
@@ -311,7 +315,6 @@ object BuildImplementation {
       else Def.setting(BuildKeys.ScalacVersion.value)
     }
 
-
     /* This rounds off the trickery to set up those projects whose `overridingProjectSettings` have
      * been overriden because sbt has decided to initialize the settings from the sourcedep after. */
     final val hijackScalaVersions: Hook = Def.setting { (state: State) =>
@@ -319,21 +322,25 @@ object BuildImplementation {
       def genGlobalSettings = List(
         Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $scalaVersion."
       )
-      def genProjectSettings(ref: sbt.ProjectRef) = BuildKeys.inProject(ref)(List(
-        Keys.scalaVersion := scalaVersion,
-        Keys.scalacOptions ++= {
-          val projectBuild = Keys.thisProjectRef.value.build
-          val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
-          val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
-          val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
-          sourceRoot +: pluginOpts
-        },
-        Keys.libraryDependencies ~= { previousDependencies =>
-          // Assumes that all of these projects are on the same bincompat version (2.12.x)
-          val validScalaVersion = scalaVersion
-          previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
-        }
-      ))
+      def genProjectSettings(ref: sbt.ProjectRef) =
+        BuildKeys.inProject(ref)(
+          List(
+            Keys.scalaVersion := scalaVersion,
+            Keys.scalacOptions ++= {
+              val projectBuild = Keys.thisProjectRef.value.build
+              val workingDir =
+                Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
+              val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
+              val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
+              sourceRoot +: pluginOpts
+            },
+            Keys.libraryDependencies ~= { previousDependencies =>
+              // Assumes that all of these projects are on the same bincompat version (2.12.x)
+              val validScalaVersion = scalaVersion
+              previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
+            }
+          )
+        )
 
       if (state.get(BuildKeys.hijacked).getOrElse(false)) state.remove(BuildKeys.hijacked)
       else {
