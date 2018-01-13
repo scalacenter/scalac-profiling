@@ -37,7 +37,6 @@ object ProfilingPluginImplementation {
   import java.lang.{Long => BoxedLong}
   import sbt.{Compile, Test, ConsoleLogger, Project, Task, ScopedKey, Tags}
 
-  private val logger = ConsoleLogger.apply()
   private val timingsForCompilers = new ConcurrentHashMap[ClassLoader, BoxedLong]()
   private val timingsForKeys = new ConcurrentHashMap[ScopedKey[_], BoxedLong]()
   private val WarmupTag = Tags.Tag("Warmup")
