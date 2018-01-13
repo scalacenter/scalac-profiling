@@ -100,6 +100,7 @@ object BuildKeys {
   // Assumes that the previous scala version is the last bincompat version
   final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
   final val ScalacScalaVersion = Keys.scalaVersion in BuildKeys.ScalacCompiler
+  final val ScalacScalaBinVersion = Keys.scalaBinaryVersion in BuildKeys.ScalacCompiler
 
   final val testDependencies = List(
     "junit" % "junit" % "4.12" % "test",
@@ -333,7 +334,7 @@ object BuildImplementation {
             },
             Keys.libraryDependencies ~= { previousDependencies =>
               // Assumes that all of these projects are on the same bincompat version (2.12.x)
-              val validScalaVersion = scalaVersion
+              val validScalaVersion = BuildKeys.ScalacScalaVersion.value
               previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
             }
           )
@@ -398,7 +399,7 @@ object BuildImplementation {
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := BuildDefaults.pickScalaVersion.value,
+    Keys.scalaVersion := BuildKeys.ScalacScalaVersion.value,
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := true,
     BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value,
