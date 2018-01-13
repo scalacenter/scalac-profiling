@@ -32,7 +32,8 @@ object BuildKeys {
   final val optionsForSourceCompilerPlugin =
     taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
   final val showScalaInstances = taskKey[Unit]("Show versions of all integration tests")
-  final val useScalacFork = settingKey[Boolean]("Tells the build to use the fork instead of 2.12.4")
+  final val useScalacFork =
+    settingKey[Boolean]("Make every module use the Scala fork instead latest Scala 2.12.x.")
 
   // Refer to setting via reference because there is no dependency to the scalac build here.
   final val scalacVersionSuffix = sbt.SettingKey[String]("baseVersionSuffix")
@@ -69,7 +70,7 @@ object BuildKeys {
     uri("git://github.com/jvican/shapeless.git#11e473058a02ccda408d937cb0e35aec9d3a4a66")
   )
   val Magnolia = RootProject(
-    uri("git://github.com/propensive/magnolia.git#379f0075ca8042945d8ff89212536894a96f56a8")
+    uri("git://github.com/jvican/magnolia.git#249eb311a78b2967dcdf388576bd5eaa7c55c8fa")
   )
 
   val CirceTests = ProjectRef(Circe.build, "tests")
@@ -225,19 +226,14 @@ object BuildImplementation {
     Keys.scalacOptions in Compile in Keys.doc := Seq.empty,
     Keys.publishArtifact in Compile in Keys.packageDoc := false,
     // Use snapshot only for local development plz.
-    // If placed in global settings, it's not applied. Sbt bug?
+    // If placed in global settings, it's not applied. Sbt bug? Ordinary order init in sourcedeps bug.
     BuildKeys.scalacVersionSuffix in BuildKeys.Scalac := BuildDefaults.scalacVersionSuffix.value
   )
 
   object BuildDefaults {
-    private final var applySettingOnlyOncePlease: Boolean = false
     final val scalacVersionSuffix = Def.setting {
       val previousSuffix = (BuildKeys.scalacVersionSuffix in BuildKeys.Scalac).value
-      if (applySettingOnlyOncePlease) previousSuffix
-      else if (BuildKeys.useScalacFork.value) {
-        applySettingOnlyOncePlease = true
-        s"-stats-${previousSuffix}"
-      } else previousSuffix
+      if (previousSuffix.contains("stats")) s"stats-${previousSuffix}" else previousSuffix
     }
     final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
       val logger = Keys.streams.value.log
