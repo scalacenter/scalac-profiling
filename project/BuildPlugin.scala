@@ -377,7 +377,7 @@ object BuildImplementation {
 
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
     Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
-    BuildKeys.useScalacFork := false,
+    BuildKeys.useScalacFork := true,
     Keys.onLoadMessage := Header.intro,
     Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value)
   )
