@@ -189,8 +189,6 @@ object BuildKeys {
   private val keywordsParser = AllParsers.+.examples(AllKeywords: _*)
   val keywordsSetting: Def.Initialize[sbt.State => Parser[Seq[String]]] =
     Def.setting((state: sbt.State) => keywordsParser)
-
-  final val overridingProjectSettings = BuildImplementation.overridingProjectSettings
 }
 
 object BuildImplementation {
@@ -313,7 +311,7 @@ object BuildImplementation {
       else Def.setting(BuildKeys.ScalacVersion.value)
     }
 
-    /* This rounds off the trickery to set up those projects whose `overridingProjectSettings` have
+    /* This rounds off the trickery to set up those projects whose settings have
      * been overriden because sbt has decided to initialize the settings from the sourcedep after. */
     final val hijackScalaVersions: Hook = Def.setting { (state: State) =>
       val scalaVersion = pickScalaVersion.value
@@ -335,6 +333,8 @@ object BuildImplementation {
             Keys.libraryDependencies ~= { previousDependencies =>
               // Assumes that all of these projects are on the same bincompat version (2.12.x)
               val validScalaVersion = BuildKeys.ScalacScalaVersion.value
+              println(s"VALID SCALA VERSION $validScalaVersion")
+              println(s"For project ${ref}")
               previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
             }
           )
@@ -363,21 +363,6 @@ object BuildImplementation {
       if (!BuildKeys.useScalacFork.value) Def.setting(hijackScalaVersions.value)
       else Def.setting(publishForkScalac.value andThen hijackScalaVersions.value)
     }
-  }
-
-  final val overridingProjectSettings: Seq[Def.Setting[_]] = {
-    BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
-      Keys.ivyLoggingLevel in Keys.update := sbt.UpdateLogging.Quiet,
-      Keys.logLevel in Keys.update := sbt.Level.Warn,
-      // Set up version and options here just in case sbt initializes them correctly
-      Keys.scalaVersion := BuildDefaults.pickScalaVersion.value,
-      Keys.scalacOptions ++= {
-        val workingDir = Keys.baseDirectory.value
-        val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
-        val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
-        sourceRoot +: pluginOpts
-      }
-    )
   }
 
   final val globalSettings: Seq[Def.Setting[_]] = Seq(

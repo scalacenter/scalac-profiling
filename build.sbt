@@ -211,4 +211,3 @@ lazy val integrations = project
 val proxy = project
   .in(file(".proxy"))
   .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless, Magnolia)
-  .settings(overridingProjectSettings)
