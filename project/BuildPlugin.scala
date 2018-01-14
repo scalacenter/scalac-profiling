@@ -312,13 +312,6 @@ object BuildImplementation {
       sourceRoot +: pluginOpts
     }
 
-    def fixedLibraryDependencies: Def.Initialize[Seq[ModuleID]] = Def.setting {
-      val previousDependencies = Keys.libraryDependencies.value
-      // Assumes that all of these projects are on the same bincompat version (2.12.x)
-      val validScalaVersion = Keys.scalaVersion.value
-      previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
-    }
-
     def fixedIvyScala: Def.Initialize[Option[sbt.IvyScala]] = Def.setting {
       val scalaVersion = Keys.scalaVersion.value
       Keys.ivyScala.value.map(_.copy(scalaFullVersion = scalaVersion))
@@ -327,8 +320,6 @@ object BuildImplementation {
     object MethodRefs {
       final val scalacProfilingScalacOptionsRef: String =
         "build.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions"
-      final val fixedLibraryDependenciesRef: String =
-        "build.BuildImplementation.BuildDefaults.fixedLibraryDependencies"
       final val fixedIvyScala: String =
         "build.BuildImplementation.BuildDefaults.fixedIvyScala"
     }
@@ -340,20 +331,12 @@ object BuildImplementation {
           s"""${Keys.scalaVersion.key.label} in $ref := "$scalaVersion""""
         def setScalacOptions(ref: String) =
           s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef}.value"""
-        def fixLibraryDependencies(ref: String) =
-          s"""${Keys.libraryDependencies.key.label} in $ref := ${MethodRefs.fixedLibraryDependenciesRef}.value"""
         def fixIvyScala(ref: String) =
           s"""${Keys.ivyScala.key.label} in $ref := ${MethodRefs.fixedIvyScala}.value"""
         val msg = s"The build is prepared to use Scalac $scalaVersion."
         val setLoadMessage = s"""${Keys.onLoadMessage.key.label} in sbt.Global := "$msg""""
         val allSettingsRedefinitions = refs.flatMap(
-          ref =>
-            List(
-              setScalaVersion(ref),
-              setScalacOptions(ref),
-              fixLibraryDependencies(ref),
-              fixIvyScala(ref)
-          )
+          ref => List(setScalaVersion(ref), setScalacOptions(ref), fixIvyScala(ref))
         ) ++ List(setLoadMessage)
 
         s"set List(${allSettingsRedefinitions.mkString(",")})"
