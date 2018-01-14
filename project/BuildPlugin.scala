@@ -402,13 +402,13 @@ object BuildImplementation {
       "-Yno-adapted-args" :: "-Ywarn-numeric-widen" :: "-Xfuture" :: "-Xlint" :: Nil
   )
 
-  private final val mkBin = sbt.taskKey[Seq[java.io.File]]("mkBin")
+  private final val mkPack = sbt.taskKey[java.io.File]("mkPack")
   // This is only used when we use the fork instead of upstream. As of 2.12.4, we use upstream.
   private def publishCustomScalaFork(state0: State, version: String, logger: Logger): State = {
     import sbt.{Project, Value, Inc, Incomplete}
     logger.warn(s"Publishing Scala version $version from the fork...")
     // Bah, reuse the same state for everything.
-    Project.runTask(mkBin in BuildKeys.ScalacDist, state0) match {
+    Project.runTask(mkPack in BuildKeys.ScalacDist, state0) match {
       case None => sys.error(s"Key for publishing is not defined?")
       case Some((newState, Value(v))) => newState
       case Some((newState, Inc(inc))) =>

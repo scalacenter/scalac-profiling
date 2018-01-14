@@ -256,7 +256,8 @@ class ProfilingPlugin(val global: Global) extends Plugin {
             val compilationUnitEntry = profileDbEntryFor(currentSourceFile)
             dbPathFor(currentSourceFile) match {
               case Some(profileDbPath) =>
-                logger.info(s"Creating compilation unit for ${profileDbPath.target}")
+                val canonicalTarget = profileDbPath.target.underlying.normalize()
+                logger.info(s"Creating compilation unit for ${canonicalTarget}")
                 val freshDatabase =
                   schema.Database(`type` = PerCompilationUnit, entries = List(compilationUnitEntry))
                 writeDatabase(freshDatabase, profileDbPath).failed
