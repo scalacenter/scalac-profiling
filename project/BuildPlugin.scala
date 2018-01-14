@@ -314,7 +314,7 @@ object BuildImplementation {
 
     def fixedIvyScala: Def.Initialize[Option[sbt.IvyScala]] = Def.setting {
       val scalaVersion = Keys.scalaVersion.value
-      Keys.ivyScala.value.map(_.copy(scalaFullVersion = scalaVersion))
+      Keys.ivyScala.value.map(_.copy(scalaFullVersion = scalaVersion, overrideScalaVersion = true))
     }
 
     object MethodRefs {
