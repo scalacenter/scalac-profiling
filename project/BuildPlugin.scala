@@ -344,7 +344,7 @@ object BuildImplementation {
           s"""${Keys.libraryDependencies.key.label} in $ref := ${MethodRefs.fixedLibraryDependenciesRef}.value"""
         def fixIvyScala(ref: String) =
           s"""${Keys.ivyScala.key.label} in $ref := ${MethodRefs.fixedIvyScala}.value"""
-        val msg = s"Preparing the build to use Scalac $scalaVersion."
+        val msg = s"The build is prepared to use Scalac $scalaVersion."
         val setLoadMessage = s"""${Keys.onLoadMessage.key.label} in sbt.Global := "$msg""""
         val allSettingsRedefinitions = refs.flatMap(
           ref =>
