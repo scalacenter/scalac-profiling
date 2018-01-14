@@ -140,8 +140,7 @@ lazy val integrations = project
   .settings(
     scalaHome := BuildDefaults.setUpScalaHome.value,
     parallelExecution in Test := false,
-    scalacOptions ++=
-      (optionsForSourceCompilerPlugin in plugin).value,
+    scalacOptions ++= BuildDefaults.scalacProfilingScalacOptions.value,
     clean := Def.sequential(
       clean,
       (clean in Test in CirceTests),
