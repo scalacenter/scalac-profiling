@@ -48,6 +48,7 @@ object BuildKeys {
   final val ScalacCompiler = ProjectRef(Scalac.build, "compiler")
   final val ScalacLibrary = ProjectRef(Scalac.build, "library")
   final val ScalacReflect = ProjectRef(Scalac.build, "reflect")
+  final val ScalacDist = ProjectRef(Scalac.build, "dist")
   final val AllScalacProjects = List(ScalacCompiler, ScalacLibrary, ScalacReflect)
 
   final val VscodeScala = RootProject(file(s"$AbsolutePath/vscode-scala"))
@@ -301,7 +302,8 @@ object BuildImplementation {
     private[build] val MinimumScalaVersion = "2.12.4"
     def pickScalaVersion: Def.Initialize[String] = Def.settingDyn {
       if (!BuildKeys.useScalacFork.value) Def.setting(MinimumScalaVersion)
-      else Def.setting(BuildKeys.ScalacVersion.value)
+      // 2.12.3 has no statistics, so if scalaHome isn't used it will fail to compile
+      else Def.setting("2.12.3")
     }
 
     def scalacProfilingScalacOptions: Def.Initialize[sbt.Task[Seq[String]]] = Def.task {
@@ -312,16 +314,20 @@ object BuildImplementation {
       sourceRoot +: pluginOpts
     }
 
-    def fixedIvyScala: Def.Initialize[Option[sbt.IvyScala]] = Def.setting {
-      val scalaVersion = Keys.scalaVersion.value
-      Keys.ivyScala.value.map(_.copy(scalaFullVersion = scalaVersion, overrideScalaVersion = true))
+    def setUpScalaHome: Def.Initialize[Option[sbt.File]] = Def.setting {
+      val pathToHome = new java.io.File(s"${BuildKeys.Scalac.build.toURL().getFile()}build/pack")
+      if (pathToHome.exists()) Some(pathToHome)
+      else {
+        Keys.sLog.value.warn(s"Scala home $pathToHome didn't exist.")
+        None
+      }
     }
 
     object MethodRefs {
       final val scalacProfilingScalacOptionsRef: String =
         "build.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions"
-      final val fixedIvyScala: String =
-        "build.BuildImplementation.BuildDefaults.fixedIvyScala"
+      final val setUpScalaHomeRef: String =
+        "build.BuildImplementation.BuildDefaults.setUpScalaHome"
     }
 
     def setUpSourceDependenciesCmd(refs: List[String]): Def.Initialize[String] = {
@@ -331,13 +337,13 @@ object BuildImplementation {
           s"""${Keys.scalaVersion.key.label} in $ref := "$scalaVersion""""
         def setScalacOptions(ref: String) =
           s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef}.value"""
-        def fixIvyScala(ref: String) =
-          s"""${Keys.ivyScala.key.label} in $ref := ${MethodRefs.fixedIvyScala}.value"""
-        val msg = s"The build is prepared to use Scalac $scalaVersion."
+        def setScalaHome(ref: String) =
+          s"""${Keys.scalaHome.key.label} in $ref := ${MethodRefs.setUpScalaHomeRef}.value"""
+        val msg = s"The build integrations are using a local Scalac home."
         val setLoadMessage = s"""${Keys.onLoadMessage.key.label} in sbt.Global := "$msg""""
-        val allSettingsRedefinitions = refs.flatMap(
-          ref => List(setScalaVersion(ref), setScalacOptions(ref), fixIvyScala(ref))
-        ) ++ List(setLoadMessage)
+        val allSettingsRedefinitions = refs.flatMap { ref =>
+          List(setScalaVersion(ref), setScalacOptions(ref), setScalaHome(ref))
+        } ++ List(setLoadMessage)
 
         s"set List(${allSettingsRedefinitions.mkString(",")})"
       }
@@ -396,16 +402,13 @@ object BuildImplementation {
       "-Yno-adapted-args" :: "-Ywarn-numeric-widen" :: "-Xfuture" :: "-Xlint" :: Nil
   )
 
+  private final val mkBin = sbt.taskKey[Seq[java.io.File]]("mkBin")
   // This is only used when we use the fork instead of upstream. As of 2.12.4, we use upstream.
   private def publishCustomScalaFork(state0: State, version: String, logger: Logger): State = {
     import sbt.{Project, Value, Inc, Incomplete}
     logger.warn(s"Publishing Scala version $version from the fork...")
     // Bah, reuse the same state for everything.
-    val publishing = Project
-      .runTask(Keys.publishLocal in BuildKeys.ScalacLibrary, state0)
-      .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacReflect, state0))
-      .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacCompiler, state0))
-    publishing match {
+    Project.runTask(mkBin in BuildKeys.ScalacDist, state0) match {
       case None => sys.error(s"Key for publishing is not defined?")
       case Some((newState, Value(v))) => newState
       case Some((newState, Inc(inc))) =>

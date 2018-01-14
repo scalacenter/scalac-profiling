@@ -138,10 +138,10 @@ lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe)
   .settings(
-    scalaVersion := BuildDefaults.pickScalaVersion.value,
+    scalaHome := BuildDefaults.setUpScalaHome.value,
     parallelExecution in Test := false,
     scalacOptions ++=
-      BuildDefaults.scalacProfilingScalacOptions.value,
+      (optionsForSourceCompilerPlugin in plugin).value,
     clean := Def.sequential(
       clean,
       (clean in Test in CirceTests),
