@@ -273,19 +273,11 @@ object BuildImplementation {
         val logger = Keys.sLog.value
         val extracted = sbt.Project.extract(state)
         val buildData = extracted.structure.data
-        val maybeVersion = BuildKeys.ScalacVersion.get(buildData)
-        maybeVersion match {
-          case Some(version) =>
-            (Keys.scalaVersion in ThisBuild).get(buildData) match {
-              case Some(scalaVersion) if scalaVersion == version =>
-                val newState = publishCustomScalaFork(state, version, logger)
-                if (currentHash != UnknownHash)
-                  IO.write(scalacHashFile, currentHash)
-                newState
-              case _ => state // Do nothing
-            }
-          case None => state // Do nothing
-        }
+        val maybeVersion = BuildKeys.ScalacVersion.get(buildData).get
+        val newState = publishCustomScalaFork(state, maybeVersion, logger)
+        if (currentHash != UnknownHash)
+          IO.write(scalacHashFile, currentHash)
+        newState
       }
     }
 
@@ -355,13 +347,14 @@ object BuildImplementation {
         val msg = s"Preparing the build to use Scalac $scalaVersion."
         val setLoadMessage = s"""${Keys.onLoadMessage.key.label} in sbt.Global := "$msg""""
         val allSettingsRedefinitions = refs.flatMap(
-          ref => List(
-            setScalaVersion(ref),
-            setScalacOptions(ref),
-            fixLibraryDependencies(ref),
-            fixIvyScala(ref)
+          ref =>
+            List(
+              setScalaVersion(ref),
+              setScalacOptions(ref),
+              fixLibraryDependencies(ref),
+              fixIvyScala(ref)
           )
-        )
+        ) ++ List(setLoadMessage)
 
         s"set List(${allSettingsRedefinitions.mkString(",")})"
       }
