@@ -31,6 +31,8 @@ object BuildKeys {
     settingKey[Boolean]("Enable performance debugging if true.")
   final val optionsForSourceCompilerPlugin =
     taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
+  final val allDepsForCompilerPlugin =
+    taskKey[Def.Classpath]("Return all dependencies for the source compiler plugin.")
   final val showScalaInstances = taskKey[Unit]("Show versions of all integration tests")
   final val useScalacFork =
     settingKey[Boolean]("Make every module use the Scala fork instead latest Scala 2.12.x.")
@@ -282,23 +284,6 @@ object BuildImplementation {
       }
     }
 
-    import sbt.ModuleID
-
-    /**
-      * Removes scala version from those modules that use full cross version and injects
-      * the manual Scala version in the library dependency name assuming that the library
-      * will not use any binary incompatible change in the compiler sources (or assuming
-      * that there is none, which is even better!).
-      */
-    def trickLibraryDependency(dependency: ModuleID, validVersion: String): ModuleID = {
-      dependency.crossVersion match {
-        case fullVersion: sbt.CrossVersion.Full =>
-          val manualNameWithScala = s"${dependency.name}_$validVersion"
-          dependency.copy(name = manualNameWithScala).copy(crossVersion = sbt.CrossVersion.Disabled)
-        case _ => dependency
-      }
-    }
-
     private[build] val MinimumScalaVersion = "2.12.4"
     def pickScalaVersion: Def.Initialize[String] = Def.settingDyn {
       if (!BuildKeys.useScalacFork.value) Def.setting(MinimumScalaVersion)
@@ -323,11 +308,19 @@ object BuildImplementation {
       }
     }
 
+    def setUpUnmanagedJars: Def.Initialize[sbt.Task[Def.Classpath]] = Def.task {
+      val previousJars = Keys.unmanagedJars.in(Compile).value
+      val allPluginDeps = BuildKeys.allDepsForCompilerPlugin.in(PluginProject).value
+      previousJars ++ allPluginDeps
+    }
+
     object MethodRefs {
       final val scalacProfilingScalacOptionsRef: String =
         "build.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions"
       final val setUpScalaHomeRef: String =
         "build.BuildImplementation.BuildDefaults.setUpScalaHome"
+      final val setUpUnmanagedJarsRef: String =
+        "build.BuildImplementation.BuildDefaults.setUpUnmanagedJars"
     }
 
     def setUpSourceDependenciesCmd(refs: List[String]): Def.Initialize[String] = {
@@ -339,10 +332,14 @@ object BuildImplementation {
           s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef}.value"""
         def setScalaHome(ref: String) =
           s"""${Keys.scalaHome.key.label} in $ref := ${MethodRefs.setUpScalaHomeRef}.value"""
+        def setUnmanagedJars(ref: String, config: String) =
+          s"""${Keys.unmanagedJars.key.label} in $config in $ref := ${MethodRefs.setUpUnmanagedJarsRef}.value"""
         val msg = s"The build integrations are using a local Scalac home."
         val setLoadMessage = s"""${Keys.onLoadMessage.key.label} in sbt.Global := "$msg""""
         val allSettingsRedefinitions = refs.flatMap { ref =>
-          List(setScalaVersion(ref), setScalacOptions(ref), setScalaHome(ref))
+          val setsUnmanagedJars =
+            List(setUnmanagedJars(ref, "Compile"), setUnmanagedJars(ref, "Test"))
+          List(setScalaVersion(ref), setScalacOptions(ref), setScalaHome(ref)) ++ setsUnmanagedJars
         } ++ List(setLoadMessage)
 
         s"set List(${allSettingsRedefinitions.mkString(",")})"
