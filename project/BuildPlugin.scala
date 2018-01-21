@@ -7,7 +7,7 @@
 **                                                                                                **
 \*                                                                                                */
 
-package build
+package ch.epfl.scala.profiling.build
 
 import sbt.{AutoPlugin, Def, Keys, PluginTrigger, Plugins}
 
@@ -256,6 +256,18 @@ object BuildImplementation {
       ()
     }
 
+    import sbt.Command
+    def fixPluginCross(commands: Seq[Command]): Seq[Command] = {
+      val pruned = commands.filterNot(p => p == sbt.WorkingPluginCross.oldPluginSwitch)
+      sbt.WorkingPluginCross.pluginSwitch +: pruned
+    }
+
+    val fixScalaVersionForSbtPlugin: Def.Initialize[String] = Def.setting {
+      val orig = Keys.scalaVersion.value
+      val is013 = (Keys.sbtVersion in Keys.pluginCrossBuild).value.startsWith("0.13")
+      if (is013) "2.10.6" else orig
+    }
+
     type Hook = Def.Initialize[State => State]
 
     private final val UnknownHash = "UNKNOWN"
@@ -263,7 +275,7 @@ object BuildImplementation {
       import sbt.IO
       import com.typesafe.sbt.git.JGit
       // Only publish scalac if file doesn't exist
-      val baseDirectory = (Keys.baseDirectory in sbt.ThisBuild).value
+      val baseDirectory = (Keys.baseDirectory in ThisBuild).value
       val scalacHashFile = baseDirectory./(".scalac-hash")
       val repository = JGit(baseDirectory./("scalac"))
       // If sha cannot be fetched, always force publishing of fork.
@@ -315,12 +327,13 @@ object BuildImplementation {
     }
 
     object MethodRefs {
+      private final val build = "_root_.ch.epfl.scala.profiling.build"
       final val scalacProfilingScalacOptionsRef: String =
-        "build.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions"
+        s"${build}.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions"
       final val setUpScalaHomeRef: String =
-        "build.BuildImplementation.BuildDefaults.setUpScalaHome"
+        s"${build}.BuildImplementation.BuildDefaults.setUpScalaHome"
       final val setUpUnmanagedJarsRef: String =
-        "build.BuildImplementation.BuildDefaults.setUpUnmanagedJars"
+        s"${build}.BuildImplementation.BuildDefaults.setUpUnmanagedJars"
     }
 
     def setUpSourceDependenciesCmd(refs: List[String]): Def.Initialize[String] = {
@@ -363,6 +376,7 @@ object BuildImplementation {
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
     Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
     BuildKeys.useScalacFork := true,
+    Keys.commands ~= BuildDefaults.fixPluginCross _,
     Keys.onLoadMessage := Header.intro,
     Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value)
   )

@@ -22,7 +22,7 @@ lazy val root = project
     )
   )
 
-import build.BuildImplementation.BuildDefaults
+import _root_.ch.epfl.scala.profiling.build.BuildImplementation.BuildDefaults
 import com.trueaccord.scalapb.compiler.Version.scalapbVersion
 lazy val profiledb = project
   .in(file("profiledb"))
@@ -130,11 +130,8 @@ lazy val profilingSbtPlugin = project
   .settings(
     name := "sbt-profiling",
     sbtPlugin := true,
-    crossSbtVersions := List("0.13.16", "1.0.4"),
-    scalaVersion := {
-      val orig = scalaVersion.value
-      if ((sbtVersion in pluginCrossBuild).value.startsWith("0.13")) "2.10.6" else orig
-    },
+    crossSbtVersions := List("0.13.16", "1.1.0"),
+    scalaVersion := BuildDefaults.fixScalaVersionForSbtPlugin.value,
     ScriptedPlugin.scriptedSettings,
     scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", s"-Dplugin.version=${version.value}"),
     scriptedBufferLog := false

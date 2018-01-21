@@ -61,11 +61,12 @@ object ProfilingPluginImplementation {
     import sbt.{Command, State}
     import sbt.complete.Parser
 
+    import sbt.ch.epfl.scala.Compat._
     val profilingWarmupCompiler: Def.Initialize[Task[Unit]] = Def.task {
       // Meh, we don't care about the resulting state, we'll throw it away.
-      def runCommandAndRemaining(command: String): State => State = { st: State =>
+      def runCommandAndRemaining(command: ExecCommand): State => State = { st: State =>
         @annotation.tailrec
-        def runCommand(command: String, state: State): State = {
+        def runCommand(command: ExecCommand, state: State): State = {
           val nextState = Parser.parse(command, state.combinedParser) match {
             case Right(cmd) => cmd()
             case Left(msg) => sys.error(s"Invalid programmatic input:\n$msg")
