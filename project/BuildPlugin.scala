@@ -7,7 +7,7 @@
 **                                                                                                **
 \*                                                                                                */
 
-package build
+package ch.epfl.scala.profiling.build
 
 import sbt.{AutoPlugin, Def, Keys, PluginTrigger, Plugins}
 
@@ -31,8 +31,11 @@ object BuildKeys {
     settingKey[Boolean]("Enable performance debugging if true.")
   final val optionsForSourceCompilerPlugin =
     taskKey[Seq[String]]("Generate scalac options for source compiler plugin")
+  final val allDepsForCompilerPlugin =
+    taskKey[Def.Classpath]("Return all dependencies for the source compiler plugin.")
   final val showScalaInstances = taskKey[Unit]("Show versions of all integration tests")
-  final val useScalacFork = settingKey[Boolean]("Tells the build to use the fork instead of 2.12.4")
+  final val useScalacFork =
+    settingKey[Boolean]("Make every module use the Scala fork instead latest Scala 2.12.x.")
 
   // Refer to setting via reference because there is no dependency to the scalac build here.
   final val scalacVersionSuffix = sbt.SettingKey[String]("baseVersionSuffix")
@@ -47,6 +50,7 @@ object BuildKeys {
   final val ScalacCompiler = ProjectRef(Scalac.build, "compiler")
   final val ScalacLibrary = ProjectRef(Scalac.build, "library")
   final val ScalacReflect = ProjectRef(Scalac.build, "reflect")
+  final val ScalacDist = ProjectRef(Scalac.build, "dist")
   final val AllScalacProjects = List(ScalacCompiler, ScalacLibrary, ScalacReflect)
 
   final val VscodeScala = RootProject(file(s"$AbsolutePath/vscode-scala"))
@@ -69,7 +73,7 @@ object BuildKeys {
     uri("git://github.com/jvican/shapeless.git#11e473058a02ccda408d937cb0e35aec9d3a4a66")
   )
   val Magnolia = RootProject(
-    uri("git://github.com/propensive/magnolia.git#379f0075ca8042945d8ff89212536894a96f56a8")
+    uri("git://github.com/jvican/magnolia.git#249eb311a78b2967dcdf388576bd5eaa7c55c8fa")
   )
 
   val CirceTests = ProjectRef(Circe.build, "tests")
@@ -82,18 +86,21 @@ object BuildKeys {
   val ShapelessExamples = ProjectRef(Shapeless.build, "examplesJVM")
   val MagnoliaTests = ProjectRef(Magnolia.build, "tests")
 
-  val AllIntegrationProjects = List(
-    CirceTests,
-    MonocleExample,
-    MonocleTests,
-    ScalatestCore,
-    ScalatestTests,
-    ScalacCompiler,
-    BetterFilesCore,
-    ShapelessCore,
-    ShapelessExamples,
-    MagnoliaTests
+  val IntegrationProjectsAndReferences = List(
+    CirceTests -> "CirceTests",
+    MonocleExample -> "MonocleExample",
+    MonocleTests -> "MonocleTests",
+    ScalatestCore -> "ScalatestCore",
+    ScalatestTests -> "ScalatestTests",
+    BetterFilesCore -> "BetterFilesCore",
+    ShapelessCore -> "ShapelessCore",
+    ShapelessExamples -> "ShapelessExamples",
+    MagnoliaTests -> "MagnoliaTests"
+    // Enable the scalac compiler when it's not used as a fork
+    // ScalacCompiler,
   )
+
+  val AllIntegrationProjects = IntegrationProjectsAndReferences.map(_._1)
 
   // Assumes that the previous scala version is the last bincompat version
   final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
@@ -186,8 +193,6 @@ object BuildKeys {
   private val keywordsParser = AllParsers.+.examples(AllKeywords: _*)
   val keywordsSetting: Def.Initialize[sbt.State => Parser[Seq[String]]] =
     Def.setting((state: sbt.State) => keywordsParser)
-
-  final val overridingProjectSettings = BuildImplementation.overridingProjectSettings
 }
 
 object BuildImplementation {
@@ -225,15 +230,14 @@ object BuildImplementation {
     Keys.scalacOptions in Compile in Keys.doc := Seq.empty,
     Keys.publishArtifact in Compile in Keys.packageDoc := false,
     // Use snapshot only for local development plz.
-    // If placed in global settings, it's not applied. Sbt bug?
+    // If placed in global settings, it's not applied. Sbt bug? Ordinary order init in sourcedeps bug.
     BuildKeys.scalacVersionSuffix in BuildKeys.Scalac := BuildDefaults.scalacVersionSuffix.value
   )
 
   object BuildDefaults {
     final val scalacVersionSuffix = Def.setting {
       val previousSuffix = (BuildKeys.scalacVersionSuffix in BuildKeys.Scalac).value
-      if (BuildKeys.useScalacFork.value) s"stats-${previousSuffix}"
-      else previousSuffix
+      if (!previousSuffix.contains("stats")) s"stats-${previousSuffix}" else previousSuffix
     }
     final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
       val logger = Keys.streams.value.log
@@ -252,6 +256,18 @@ object BuildImplementation {
       ()
     }
 
+    import sbt.Command
+    def fixPluginCross(commands: Seq[Command]): Seq[Command] = {
+      val pruned = commands.filterNot(p => p == sbt.WorkingPluginCross.oldPluginSwitch)
+      sbt.WorkingPluginCross.pluginSwitch +: pruned
+    }
+
+    val fixScalaVersionForSbtPlugin: Def.Initialize[String] = Def.setting {
+      val orig = Keys.scalaVersion.value
+      val is013 = (Keys.sbtVersion in Keys.pluginCrossBuild).value.startsWith("0.13")
+      if (is013) "2.10.6" else orig
+    }
+
     type Hook = Def.Initialize[State => State]
 
     private final val UnknownHash = "UNKNOWN"
@@ -259,7 +275,7 @@ object BuildImplementation {
       import sbt.IO
       import com.typesafe.sbt.git.JGit
       // Only publish scalac if file doesn't exist
-      val baseDirectory = (Keys.baseDirectory in sbt.ThisBuild).value
+      val baseDirectory = (Keys.baseDirectory in ThisBuild).value
       val scalacHashFile = baseDirectory./(".scalac-hash")
       val repository = JGit(baseDirectory./("scalac"))
       // If sha cannot be fetched, always force publishing of fork.
@@ -272,112 +288,95 @@ object BuildImplementation {
         val logger = Keys.sLog.value
         val extracted = sbt.Project.extract(state)
         val buildData = extracted.structure.data
-        val maybeVersion = BuildKeys.ScalacVersion.get(buildData)
-        maybeVersion match {
-          case Some(version) =>
-            (Keys.scalaVersion in ThisBuild).get(buildData) match {
-              case Some(scalaVersion) if scalaVersion == version =>
-                val newState = publishCustomScalaFork(state, version, logger)
-                if (currentHash != UnknownHash)
-                  IO.write(scalacHashFile, currentHash)
-                newState
-              case _ => state // Do nothing
-            }
-          case None => state // Do nothing
-        }
-      }
-    }
-
-    import sbt.ModuleID
-
-    /**
-      * Removes scala version from those modules that use full cross version and injects
-      * the manual Scala version in the library dependency name assuming that the library
-      * will not use any binary incompatible change in the compiler sources (or assuming
-      * that there is none, which is even better!).
-      */
-    def trickLibraryDependency(dependency: ModuleID, validVersion: String): ModuleID = {
-      dependency.crossVersion match {
-        case fullVersion: sbt.CrossVersion.Full =>
-          val manualNameWithScala = s"${dependency.name}_$validVersion"
-          dependency.copy(name = manualNameWithScala).copy(crossVersion = sbt.CrossVersion.Disabled)
-        case _ => dependency
+        val maybeVersion = BuildKeys.ScalacVersion.get(buildData).get
+        val newState = publishCustomScalaFork(state, maybeVersion, logger)
+        if (currentHash != UnknownHash)
+          IO.write(scalacHashFile, currentHash)
+        newState
       }
     }
 
     private[build] val MinimumScalaVersion = "2.12.4"
-    def pickScalaVersion: Def.Initialize[String] = Def.setting {
-      if (!BuildKeys.useScalacFork.value) MinimumScalaVersion
-      else (Keys.scalaVersion in Test in PluginProject).value
+    def pickScalaVersion: Def.Initialize[String] = Def.settingDyn {
+      if (!BuildKeys.useScalacFork.value) Def.setting(MinimumScalaVersion)
+      // 2.12.3 has no statistics, so if scalaHome isn't used it will fail to compile
+      else Def.setting("2.12.3")
     }
 
+    def scalacProfilingScalacOptions: Def.Initialize[sbt.Task[Seq[String]]] = Def.task {
+      val projectBuild = Keys.thisProjectRef.value.build
+      val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
+      val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
+      val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
+      sourceRoot +: pluginOpts
+    }
 
-    /* This rounds off the trickery to set up those projects whose `overridingProjectSettings` have
-     * been overriden because sbt has decided to initialize the settings from the sourcedep after. */
-    final val hijackScalaVersions: Hook = Def.setting { (state: State) =>
-      val scalaVersion = pickScalaVersion.value
-      def genGlobalSettings = List(
-        Keys.onLoadMessage in sbt.Global := s"Preparing the build to use Scalac $scalaVersion."
-      )
-      def genProjectSettings(ref: sbt.ProjectRef) = BuildKeys.inProject(ref)(List(
-        Keys.scalaVersion := scalaVersion,
-        Keys.scalacOptions ++= {
-          val projectBuild = Keys.thisProjectRef.value.build
-          val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
-          val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
-          val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
-          sourceRoot +: pluginOpts
-        },
-        Keys.libraryDependencies ~= { previousDependencies =>
-          // Assumes that all of these projects are on the same bincompat version (2.12.x)
-          val validScalaVersion = scalaVersion
-          previousDependencies.map(dep => trickLibraryDependency(dep, validScalaVersion))
-        }
-      ))
-
-      if (state.get(BuildKeys.hijacked).getOrElse(false)) state.remove(BuildKeys.hijacked)
+    def setUpScalaHome: Def.Initialize[Option[sbt.File]] = Def.setting {
+      val pathToHome = new java.io.File(s"${BuildKeys.Scalac.build.toURL().getFile()}build/pack")
+      if (pathToHome.exists()) Some(pathToHome)
       else {
-        val hijackedState = state.put(BuildKeys.hijacked, true)
-        val extracted = sbt.Project.extract(hijackedState)
-        val projectSettings = BuildKeys.AllIntegrationProjects.flatMap(genProjectSettings)
-        if (projectSettings.isEmpty) state
-        else {
-          val globalSettings = genGlobalSettings
-          // NOTE: This is done because sbt does not handle session settings correctly. Should be reported upstream.
-          val currentSession = sbt.Project.session(state)
-          val currentProject = currentSession.current
-          val currentSessionSettings =
-            currentSession.append.get(currentProject).toList.flatten.map(_._1)
-          val allSessionSettings = currentSessionSettings ++ currentSession.rawAppend
-          extracted.append(globalSettings ++ projectSettings ++ allSessionSettings, hijackedState)
-        }
+        Keys.sLog.value.warn(s"Scala home $pathToHome didn't exist.")
+        None
       }
     }
 
-    final val customOnLoad: Hook = Def.setting {
-      if (!BuildKeys.useScalacFork.value) hijackScalaVersions.value
-      else publishForkScalac.value andThen hijackScalaVersions.value
+    def setUpUnmanagedJars: Def.Initialize[sbt.Task[Def.Classpath]] = Def.task {
+      val previousJars = Keys.unmanagedJars.in(Compile).value
+      val allPluginDeps = BuildKeys.allDepsForCompilerPlugin.in(PluginProject).value
+      previousJars ++ allPluginDeps
     }
-  }
 
-  final val overridingProjectSettings: Seq[Def.Setting[_]] = {
-    BuildKeys.inProjectRefs(BuildKeys.AllIntegrationProjects)(
-      Keys.ivyLoggingLevel in Keys.update := sbt.UpdateLogging.Quiet,
-      Keys.logLevel in Keys.update := sbt.Level.Warn,
-      // Set up version and options here just in case sbt initializes them correctly
-      Keys.scalaVersion := BuildDefaults.pickScalaVersion.value,
-      Keys.scalacOptions ++= {
-        val workingDir = Keys.baseDirectory.value
-        val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
-        val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
-        sourceRoot +: pluginOpts
+    object MethodRefs {
+      private final val build = "_root_.ch.epfl.scala.profiling.build"
+      final val scalacProfilingScalacOptionsRef: String =
+        s"${build}.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions"
+      final val setUpScalaHomeRef: String =
+        s"${build}.BuildImplementation.BuildDefaults.setUpScalaHome"
+      final val setUpUnmanagedJarsRef: String =
+        s"${build}.BuildImplementation.BuildDefaults.setUpUnmanagedJars"
+    }
+
+    def setUpSourceDependenciesCmd(refs: List[String]): Def.Initialize[String] = {
+      Def.setting {
+        val scalaVersion = BuildDefaults.pickScalaVersion.value
+        def setScalaVersion(ref: String) =
+          s"""${Keys.scalaVersion.key.label} in $ref := "$scalaVersion""""
+        def setScalacOptions(ref: String) =
+          s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef}.value"""
+        def setScalaHome(ref: String) =
+          s"""${Keys.scalaHome.key.label} in $ref := ${MethodRefs.setUpScalaHomeRef}.value"""
+        def setUnmanagedJars(ref: String, config: String) =
+          s"""${Keys.unmanagedJars.key.label} in $config in $ref := ${MethodRefs.setUpUnmanagedJarsRef}.value"""
+        val msg = s"The build integrations are using a local Scalac home."
+        val setLoadMessage = s"""${Keys.onLoadMessage.key.label} in sbt.Global := "$msg""""
+        val allSettingsRedefinitions = refs.flatMap { ref =>
+          val setsUnmanagedJars =
+            List(setUnmanagedJars(ref, "Compile"), setUnmanagedJars(ref, "Test"))
+          List(setScalaVersion(ref), setScalacOptions(ref), setScalaHome(ref)) ++ setsUnmanagedJars
+        } ++ List(setLoadMessage)
+
+        s"set List(${allSettingsRedefinitions.mkString(",")})"
       }
-    )
+    }
+
+    final val hijackScalaVersions: Hook = Def.settingDyn {
+      val cmd = setUpSourceDependenciesCmd(BuildKeys.IntegrationProjectsAndReferences.map(_._2))
+      Def.setting { (state: State) =>
+        if (state.get(BuildKeys.hijacked).getOrElse(false)) state.remove(BuildKeys.hijacked)
+        else cmd.value :: state.put(BuildKeys.hijacked, true)
+      }
+    }
+
+    final val customOnLoad: Hook = Def.settingDyn {
+      if (!BuildKeys.useScalacFork.value) Def.setting(hijackScalaVersions.value)
+      else Def.setting(publishForkScalac.value andThen hijackScalaVersions.value)
+    }
   }
 
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
     Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
-    BuildKeys.useScalacFork := false,
+    BuildKeys.useScalacFork := true,
+    Keys.commands ~= BuildDefaults.fixPluginCross _,
     Keys.onLoadMessage := Header.intro,
     Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value)
   )
@@ -394,7 +393,7 @@ object BuildImplementation {
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := BuildDefaults.pickScalaVersion.value,
+    Keys.scalaVersion := BuildKeys.ScalacScalaVersion.value,
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := true,
     BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value,
@@ -414,16 +413,13 @@ object BuildImplementation {
       "-Yno-adapted-args" :: "-Ywarn-numeric-widen" :: "-Xfuture" :: "-Xlint" :: Nil
   )
 
+  private final val mkPack = sbt.taskKey[java.io.File]("mkPack")
   // This is only used when we use the fork instead of upstream. As of 2.12.4, we use upstream.
   private def publishCustomScalaFork(state0: State, version: String, logger: Logger): State = {
     import sbt.{Project, Value, Inc, Incomplete}
     logger.warn(s"Publishing Scala version $version from the fork...")
     // Bah, reuse the same state for everything.
-    val publishing = Project
-      .runTask(Keys.publishLocal in BuildKeys.ScalacLibrary, state0)
-      .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacReflect, state0))
-      .flatMap(_ => Project.runTask(Keys.publishLocal in BuildKeys.ScalacCompiler, state0))
-    publishing match {
+    Project.runTask(mkPack in BuildKeys.ScalacDist, state0) match {
       case None => sys.error(s"Key for publishing is not defined?")
       case Some((newState, Value(v))) => newState
       case Some((newState, Inc(inc))) =>

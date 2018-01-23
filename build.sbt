@@ -9,16 +9,20 @@
 
 lazy val root = project
   .in(file("."))
-  .settings(Seq(
-    name := "profiling-root",
-    publish := {},
-    publishLocal := {},
-    watchSources ++=
-      (watchSources in plugin).value ++
-      (watchSources in profiledb).value ++
-      (watchSources in integrations).value
-  ))
+  .aggregate(profiledb, plugin, profilingSbtPlugin)
+  .settings(
+    Seq(
+      name := "profiling-root",
+      publish := {},
+      publishLocal := {},
+      watchSources ++=
+        (watchSources in plugin).value ++
+          (watchSources in profiledb).value ++
+          (watchSources in integrations).value
+    )
+  )
 
+import _root_.ch.epfl.scala.profiling.build.BuildImplementation.BuildDefaults
 import com.trueaccord.scalapb.compiler.Version.scalapbVersion
 lazy val profiledb = project
   .in(file("profiledb"))
@@ -42,21 +46,24 @@ lazy val plugin = project
     ),
     libraryDependencies ++= testDependencies,
     testOptions in Test ++= List(Tests.Argument("-v"), Tests.Argument("-s")),
+    allDepsForCompilerPlugin := {
+      val jar = (Keys.packageBin in Compile).value
+      val profileDbJar = (Keys.`package` in Compile in profiledb).value
+      val absoluteJars = List(jar, profileDbJar).classpath
+      val pluginDeps = (managedClasspath in Compile).value
+      (absoluteJars ++ pluginDeps)
+    },
     // Make the tests to compile with the plugin
     optionsForSourceCompilerPlugin := {
-      val jar = (Keys.`package` in Compile).value
-      val profileDbJar = (Keys.`package` in Compile in profiledb).value
-      val absoluteJars = List(jar, profileDbJar).map(_.getAbsolutePath)
-      // Should we filter out all the scala artifacts?
-      val pluginDeps = (managedClasspath in Compile).value.files.toList
-      val pluginAndDeps = (absoluteJars ++ pluginDeps).mkString(":")
+      val jar = (Keys.packageBin in Compile).value
+      val pluginAndDeps = allDepsForCompilerPlugin.value.map(_.data.getAbsolutePath()).mkString(":")
       val addPlugin = "-Xplugin:" + pluginAndDeps
       val dummy = "-Jdummy=" + jar.lastModified
       // Enable debugging information when necessary
       val debuggingPluginOptions =
         if (!enableStatistics.value) Nil
-        else List("-Ystatistics")//, "-P:scalac-profiling:show-profiles")
-        //else List("-Xlog-implicits", "-Ystatistics:typer")
+        else List("-Ystatistics") //, "-P:scalac-profiling:show-profiles")
+      //else List("-Xlog-implicits", "-Ystatistics:typer")
       Seq(addPlugin, dummy) ++ debuggingPluginOptions
     },
     scalacOptions in Test ++= optionsForSourceCompilerPlugin.value,
@@ -76,13 +83,12 @@ lazy val plugin = project
         case (2, y) if y >= 12 => new File(scalaSource.value.getPath + "-2.12")
       }.toList
     }),
-    packageBin in Compile := (assembly in Compile).value,
+    Keys.`package` in Compile := (assembly in Compile).value,
     test in assembly := {},
     assemblyOption in assembly :=
       (assemblyOption in assembly).value
         .copy(includeScala = false, includeDependency = true)
   )
-
 
 // Trick to copy profiledb with Scala 2.11.11 so that vscode can depend on it
 lazy val profiledb211 = profiledb
@@ -110,10 +116,13 @@ lazy val vscodeIntegration = project
     publish := (publish in VscodeImplementation).dependsOn(publish in profiledb211).value,
     publishLocal :=
       (publishLocal in VscodeImplementation).dependsOn(publishLocal in profiledb211).value,
-    publishExtension := (Def.task {
-      val scalaExtensionDir = (baseDirectory in VscodeScala).value./("scala")
-      sys.process.Process(Seq("vsce", "package"), scalaExtensionDir).!!
-    }).dependsOn(publishLocal).value
+    publishExtension := (Def
+      .task {
+        val scalaExtensionDir = (baseDirectory in VscodeScala).value./("scala")
+        sys.process.Process(Seq("vsce", "package"), scalaExtensionDir).!!
+      })
+      .dependsOn(publishLocal)
+      .value
   )
 
 lazy val profilingSbtPlugin = project
@@ -121,9 +130,8 @@ lazy val profilingSbtPlugin = project
   .settings(
     name := "sbt-profiling",
     sbtPlugin := true,
-    sbtVersion := "0.13.16",
-    scalaVersion := "2.10.6",
-    crossSbtVersions := List("0.13.16", "1.0.0"),
+    crossSbtVersions := List("0.13.16", "1.1.0"),
+    scalaVersion := BuildDefaults.fixScalaVersionForSbtPlugin.value,
     ScriptedPlugin.scriptedSettings,
     scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", s"-Dplugin.version=${version.value}"),
     scriptedBufferLog := false
@@ -134,19 +142,22 @@ lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe)
   .settings(
+    scalaHome := BuildDefaults.setUpScalaHome.value,
     parallelExecution in Test := false,
-    scalacOptions in Compile ++=
-      (optionsForSourceCompilerPlugin in plugin).value,
-    clean := Def.sequential(
-      clean,
-      (clean in Test in CirceTests),
-      (clean in Test in MonocleTests),
-      (clean in Test in MonocleExample),
-      (clean in Compile in ScalatestCore),
-      (clean in Compile in MagnoliaTests),
-      (clean in ScalacCompiler)
-    ).value,
-    test := Def.sequential(
+    scalacOptions ++= BuildDefaults.scalacProfilingScalacOptions.value,
+    clean := Def
+      .sequential(
+        clean,
+        (clean in Test in CirceTests),
+        (clean in Test in MonocleTests),
+        (clean in Test in MonocleExample),
+        (clean in Compile in ScalatestCore),
+        (clean in Compile in MagnoliaTests),
+        (clean in ScalacCompiler)
+      )
+      .value,
+    test := Def
+      .sequential(
         (showScalaInstances in ThisBuild),
         (profilingWarmupCompiler in Compile), // Warmup example, classloader is the same for all
         (compile in Compile),
@@ -156,58 +167,83 @@ lazy val integrations = project
         (compile in Compile in ScalatestCore),
         (compile in Compile in MagnoliaTests),
         (compile in ScalacCompiler)
-    ).value,
+      )
+      .value,
     testOnly := Def.inputTaskDyn {
       val keywords = keywordsSetting.parsed
       val emptyAnalysis = Def.task(sbt.inc.Analysis.Empty)
       val CirceTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Circe)) Def.sequential(
-          (compile in Test in CirceTests)
-        ) else emptyAnalysis
+        if (keywords.contains(Keywords.Circe))
+          Def.sequential(
+            (compile in Test in CirceTests)
+          )
+        else emptyAnalysis
       }
       val IntegrationTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Integration)) Def.sequential(
-          (compile in Compile)
-        ) else emptyAnalysis
+        if (keywords.contains(Keywords.Integration))
+          Def.sequential(
+            (compile in Compile)
+          )
+        else emptyAnalysis
       }
       val MonocleTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Monocle)) Def.sequential(
-          (compile in Test in MonocleTests),
-          (compile in Test in MonocleExample)
-        ) else emptyAnalysis
+        if (keywords.contains(Keywords.Monocle))
+          Def.sequential(
+            (compile in Test in MonocleTests),
+            (compile in Test in MonocleExample)
+          )
+        else emptyAnalysis
       }
       val ScalatestTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Scalatest)) Def.sequential(
-          (compile in Compile in ScalatestCore)
-        ) else emptyAnalysis
+        if (keywords.contains(Keywords.Scalatest))
+          Def.sequential(
+            (compile in Compile in ScalatestCore),
+            (compile in Compile in ScalatestTests)
+          )
+        else emptyAnalysis
       }
       val ScalacTask = Def.taskDyn {
-         if (keywords.contains(Keywords.Scalac)) Def.sequential(
-          (compile in Compile in ScalacCompiler),
-          (compile in Compile in ScalatestTests)
-        ) else emptyAnalysis
+        if (keywords.contains(Keywords.Scalac))
+          Def.sequential(
+            (compile in Compile in ScalacCompiler)
+          )
+        else emptyAnalysis
       }
       val BetterFilesTask = Def.taskDyn {
-        if (keywords.contains(Keywords.BetterFiles)) Def.sequential(
-          (compile in Compile in BetterFilesCore)
-        ) else emptyAnalysis
+        if (keywords.contains(Keywords.BetterFiles))
+          Def.sequential(
+            (compile in Compile in BetterFilesCore)
+          )
+        else emptyAnalysis
       }
       val ShapelessTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Shapeless)) Def.sequential(
-          (compile in Compile in ShapelessCore),
-          (compile in Test in ShapelessCore)
-        ) else emptyAnalysis
+        if (keywords.contains(Keywords.Shapeless))
+          Def.sequential(
+            (compile in Compile in ShapelessCore),
+            (compile in Test in ShapelessCore)
+          )
+        else emptyAnalysis
       }
       val MagnoliaTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Magnolia)) Def.sequential(
-          (compile in Compile in MagnoliaTests)
-        ) else emptyAnalysis
+        if (keywords.contains(Keywords.Magnolia))
+          Def.sequential(
+            (compile in Compile in MagnoliaTests)
+          )
+        else emptyAnalysis
       }
-      Def.sequential(CirceTask, MonocleTask, IntegrationTask, ScalatestTask, ScalacTask, BetterFilesTask, ShapelessTask, MagnoliaTask)
+      Def.sequential(
+        CirceTask,
+        MonocleTask,
+        IntegrationTask,
+        ScalatestTask,
+        ScalacTask,
+        BetterFilesTask,
+        ShapelessTask,
+        MagnoliaTask
+      )
     }.evaluated
   )
 
 val proxy = project
   .in(file(".proxy"))
-  .dependsOn(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless, Magnolia)
-  .settings(overridingProjectSettings)
+  .aggregate(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless, Magnolia)

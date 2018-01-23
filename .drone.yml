@@ -10,7 +10,6 @@ clone:
     tags: true
     recursive: true
     depth: 50
-    submodule_update_remote: true
     submodule_override:
       scalac: https://github.com/scalacenter/scala.git
       vscode-scala: https://github.com/scalacenter/vscode-scala-profiledb.git

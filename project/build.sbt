@@ -8,8 +8,11 @@ lazy val root = project
     addSbtPlugin("ch.epfl.scala" % "sbt-release-early" % "1.2.0"),
     addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.11"),
     addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.5"),
-    unmanagedSourceDirectories in Compile +=
-      baseDirectory.value.getParentFile /  "sbt-plugin" / "src" / "main" / "scala",
+    // Let's add our sbt plugin to the sbt too ;)
+    unmanagedSourceDirectories in Compile ++= {
+      val pluginMainDir = baseDirectory.value.getParentFile / "sbt-plugin" / "src" / "main"
+      List(pluginMainDir / "scala", pluginMainDir / s"scala-sbt-${Keys.sbtBinaryVersion.value}")
+    },
     libraryDependencies += "com.trueaccord.scalapb" %% "compilerplugin" % "0.6.2",
     libraryDependencies += "org.scala-sbt" % "scripted-plugin" % sbtVersion.value
   )
