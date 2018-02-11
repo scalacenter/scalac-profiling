@@ -319,11 +319,10 @@ object BuildImplementation {
 
     def setUpScalaHome: Def.Initialize[Option[sbt.File]] = Def.setting {
       val pathToHome = new java.io.File(s"${BuildKeys.Scalac.build.toURL().getFile()}build/pack")
-      if (pathToHome.exists()) Some(pathToHome)
-      else {
-        Keys.sLog.value.warn(s"Scala home $pathToHome didn't exist.")
-        None
+      if (!pathToHome.exists()) {
+        Keys.sLog.value.warn(s"Scala home $pathToHome didn't exist yet.")
       }
+      Some(pathToHome)
     }
 
     def setUpUnmanagedJars: Def.Initialize[sbt.Task[Def.Classpath]] = Def.task {
