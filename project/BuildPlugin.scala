@@ -61,7 +61,7 @@ object BuildKeys {
     uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9")
   )
   val Monocle = RootProject(
-    uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596")
+    uri("git://github.com/jvican/Monocle.git#5da7c1ac8ffd3942a843dca9cd1fbb281ff08412")
   )
   val Scalatest = RootProject(
     uri("git://github.com/jvican/scalatest.git#2bc97995612c467e4248a33b2ad0025c003a0fcb")
@@ -70,7 +70,7 @@ object BuildKeys {
     uri("git://github.com/jvican/better-files.git#29270d200bdc5715be0fb6875b00718de2996641")
   )
   val Shapeless = RootProject(
-    uri("git://github.com/jvican/shapeless.git#11e473058a02ccda408d937cb0e35aec9d3a4a66")
+    uri("git://github.com/jvican/shapeless.git#a42cd4c1c99e4a7be36e0239d3ee944a6355e321")
   )
   val Magnolia = RootProject(
     uri("git://github.com/jvican/magnolia.git#249eb311a78b2967dcdf388576bd5eaa7c55c8fa")
