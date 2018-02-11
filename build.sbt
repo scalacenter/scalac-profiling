@@ -198,7 +198,7 @@ lazy val integrations = project
         if (keywords.contains(Keywords.Scalatest))
           Def.sequential(
             (compile in Compile in ScalatestCore),
-            (compile in Compile in ScalatestTests)
+            (compile in Test in ScalatestTests)
           )
         else emptyAnalysis
       }
