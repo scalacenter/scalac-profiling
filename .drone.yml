@@ -1,6 +1,6 @@
 matrix:
   SBT_RUN:
-    - sbt "plugin/test" "^0.13.16 profilingSbtPlugin/scripted" "^1.0.4 profilingSbtPlugin/scripted"
+    - sbt "plugin/test" "^^0.13.16 profilingSbtPlugin/scripted" "^^1.0.4 profilingSbtPlugin/scripted"
     - sbt "showScalaInstances" "integrations/testOnly circe integration monocle better-files scalac"
     - sbt "showScalaInstances" "integrations/testOnly scalatest shapeless"
 
