@@ -130,7 +130,7 @@ lazy val profilingSbtPlugin = project
   .settings(
     name := "sbt-profiling",
     sbtPlugin := true,
-    crossSbtVersions := List("0.13.16", "1.1.0"),
+    crossSbtVersions := List("0.13.17", "1.1.1"),
     scalaVersion := BuildDefaults.fixScalaVersionForSbtPlugin.value,
     ScriptedPlugin.scriptedSettings,
     scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", s"-Dplugin.version=${version.value}"),
