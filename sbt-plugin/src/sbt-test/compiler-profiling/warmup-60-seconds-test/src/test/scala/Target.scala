@@ -164,28 +164,6 @@ object Test extends App {
       Int ::
       Int ::
       //
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      //
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      Int ::
-      //
       Boolean ::
       HNil
 }
