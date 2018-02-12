@@ -117,8 +117,8 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   def generateGraphData(outputDir: AbsolutePath): List[AbsolutePath] = {
     Files.createDirectories(outputDir.underlying)
     val graphName = s"implicit-searches-${java.lang.Long.toString(System.currentTimeMillis())}"
-/*    val dotFile = outputDir.resolve(s"$graphName.dot")
-    ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)*/
+    //val dotFile = outputDir.resolve(s"$graphName.dot")
+    //ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)
     val flamegraphFile = outputDir.resolve(s"$graphName.flamegraph")
     ProfilingAnalyzerPlugin.foldStacks(flamegraphFile.underlying)
     List(flamegraphFile)
@@ -130,11 +130,10 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       (global.analyzer.ImplicitSearch, statistics.TimerSnapshot, statistics.TimerSnapshot)
 
     private var implicitsStack: List[Entry] = Nil
-    private val implicitsTimers = new mutable.HashMap[Type, statistics.Timer]()
-    private val searchIdsToStackedNames = new mutable.HashMap[Int, String]()
-    private val stackedTimers = new mutable.HashMap[String, statistics.Timer]()
-    private val stackedNanos = new mutable.HashMap[String, Long]()
-    private val implicitsDependants = new mutable.HashMap[Type, mutable.HashSet[Type]]()
+    private val implicitsTimers = new mutable.AnyRefMap[Type, statistics.Timer]()
+    private val searchIdsToStackedNames = new mutable.HashMap[Int, (String, Type)]()
+    private val stackedNanos = new mutable.AnyRefMap[String, (Long, Type)]()
+    private val implicitsDependants = new mutable.AnyRefMap[Type, mutable.HashSet[Type]]()
     private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
     private val searchIdsToTimers = new mutable.HashMap[Int, statistics.Timer]()
 
@@ -144,7 +143,9 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     import java.nio.charset.StandardCharsets.UTF_8
     def foldStacks(outputPath: Path): Unit = {
       val stackLines = stackedNanos.toList.map {
-        case (name, nanos) => s"$name ${nanos / 1000000}"
+        case (name, (nanos, tpe)) =>
+          val count = implicitSearchesByType.getOrElse(tpe, sys.error(s"No counter for ${tpe}"))
+          s"$name [total $count] ${nanos / 1000000}"
       }.sorted
       val allStacks = stackLines.mkString("\n").getBytes(UTF_8)
       Files.write(outputPath, allStacks, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
@@ -241,7 +242,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         val stackedName = search.context.openImplicits.foldLeft(typeToString(targetType)) {
           case (stackedName, dependant) => s"${typeToString(dependant.pt)};$stackedName"
         }
-        searchIdsToStackedNames.+=(search.searchId -> stackedName)
+        searchIdsToStackedNames.+=((search.searchId, (stackedName, targetType)))
 
         // Add dependants once we hit a concrete node
         search.context.openImplicits.headOption.foreach { dependant =>
@@ -270,10 +271,10 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         val searchId = search.searchId
         val searchTimer = getSearchTimerFor(searchId)
         statistics.stopTimer(searchTimer, searchStart)
-        val stackedName = searchIdsToStackedNames
+        val (stackedName, stackedType) = searchIdsToStackedNames
           .getOrElse(searchId, sys.error(s"Missing stacked name for $searchId ($targetType)."))
-        val previousNanos = stackedNanos.getOrElse(stackedName, 0L)
-        stackedNanos.+=(stackedName -> (searchTimer.nanos + previousNanos))
+        val (previousNanos, _) = stackedNanos.getOrElse(stackedName, (0L, stackedType))
+        stackedNanos.+=((stackedName, ((searchTimer.nanos + previousNanos), stackedType)))
 
         // 3. Reset the stack and stop timer if there is a dependant search
         val previousImplicits = implicitsStack.tail

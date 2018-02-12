@@ -22,10 +22,21 @@ lazy val root = project
     )
   )
 
+val metalsSettings = List(
+  scalacOptions ++= List(
+    "-Yrangepos",
+    "-Xplugin-require:semanticdb"
+  ),
+  libraryDependencies += compilerPlugin(
+    "org.scalameta" % "semanticdb-scalac" % "2.1.5" cross CrossVersion.full
+  )
+)
+
 import _root_.ch.epfl.scala.profiling.build.BuildImplementation.BuildDefaults
 import com.trueaccord.scalapb.compiler.Version.scalapbVersion
 lazy val profiledb = project
   .in(file("profiledb"))
+  .settings(metalsSettings)
   .settings(
     // Specify scala version to allow third-party software to use this module
     scalaVersion := "2.12.4",
@@ -38,6 +49,7 @@ lazy val profiledb = project
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
   .dependsOn(profiledb)
+  .settings(metalsSettings)
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
