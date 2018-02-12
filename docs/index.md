@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <title>Scalac-profiling: profile Scala compile times</title>
 <style type="text/css">
-  body          { font-family: Times New Roman; font-size: 16px;
+  body          { font-family: Helvetica Neue, Helvetica, Times New Roman; font-size: 16px;
                   line-height: 125%; width: 36em; margin: 2em; }
   code, pre     { font-family: Input Mono Sans, Courier New, Courier, monospace; }
   blockquote    { font-size: 14px; line-height: 130%; }

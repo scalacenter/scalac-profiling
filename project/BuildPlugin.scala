@@ -64,7 +64,7 @@ object BuildKeys {
     uri("git://github.com/jvican/Monocle.git#5da7c1ac8ffd3942a843dca9cd1fbb281ff08412")
   )
   val Scalatest = RootProject(
-    uri("git://github.com/jvican/scalatest.git#2bc97995612c467e4248a33b2ad0025c003a0fcb")
+    uri("git://github.com/jvican/scalatest.git#c5fcbe35097a152a6595aa63ea25b15f237a7970")
   )
   val BetterFiles = RootProject(
     uri("git://github.com/jvican/better-files.git#29270d200bdc5715be0fb6875b00718de2996641")
