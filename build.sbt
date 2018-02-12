@@ -23,13 +23,17 @@ lazy val root = project
   )
 
 val metalsSettings = List(
-  scalacOptions ++= List(
-    "-Yrangepos",
-    "-Xplugin-require:semanticdb"
-  ),
-  libraryDependencies += compilerPlugin(
-    "org.scalameta" % "semanticdb-scalac" % "2.1.5" cross CrossVersion.full
-  )
+  scalacOptions ++= {
+    val version = Keys.scalaBinaryVersion.value
+    val toAdd = List( "-Yrangepos", "-Xplugin-require:semanticdb")
+    if (version == "2.12") toAdd else Nil
+  },
+  libraryDependencies ++= {
+    val version = Keys.scalaBinaryVersion.value
+    if (version == "2.12")
+      List(compilerPlugin("org.scalameta" % "semanticdb-scalac" % "2.1.5" cross CrossVersion.full))
+    else Nil
+  }
 )
 
 import _root_.ch.epfl.scala.profiling.build.BuildImplementation.BuildDefaults
@@ -139,9 +143,11 @@ lazy val vscodeIntegration = project
 
 lazy val profilingSbtPlugin = project
   .in(file("sbt-plugin"))
+  .settings(metalsSettings)
   .settings(
     name := "sbt-profiling",
     sbtPlugin := true,
+    sbtVersion := "1.1.1",
     crossSbtVersions := List("0.13.17", "1.1.1"),
     scalaVersion := BuildDefaults.fixScalaVersionForSbtPlugin.value,
     ScriptedPlugin.scriptedSettings,
