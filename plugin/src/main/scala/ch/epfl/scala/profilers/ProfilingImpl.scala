@@ -138,7 +138,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     private val searchIdsToTimers = new mutable.HashMap[Int, statistics.Timer]()
 
     private def typeToString(`type`: Type): String =
-      global.exitingTyper(`type`.toLongString)
+      global.exitingTyper(`type`.toLongString).trim
 
     import java.nio.charset.StandardCharsets.UTF_8
     def foldStacks(outputPath: Path): Unit = {
