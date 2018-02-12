@@ -110,6 +110,7 @@ lazy val plugin = project
 lazy val profiledb211 = profiledb
   .copy(id = "profiledb-211")
   .settings(
+    moduleName := "profiledb",
     scalaVersion := (scalaVersion in VscodeImplementation).value,
     // Redefining target so that sbt doesn't clash at runtime
     // This makes sense, but we should get a more sensible error message.
