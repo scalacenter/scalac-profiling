@@ -216,10 +216,16 @@ object BuildImplementation {
     Keys.publishMavenStyle := true,
     Keys.homepage := Some(ThisRepo),
     Keys.publishArtifact in Test := false,
-    Keys.licenses := Seq("BSD" -> url("http://opensource.org/licenses/BSD-3-Clause")),
+    Keys.licenses := Seq("Apache-2.0" -> url("https://opensource.org/licenses/Apache-2.0")),
     Keys.developers := List(GitHubDev("jvican", "Jorge Vicente Cantero", "jorge@vican.me")),
-    PgpKeys.pgpPublicRing := file("/drone/.gnupg/pubring.asc"),
-    PgpKeys.pgpSecretRing := file("/drone/.gnupg/secring.asc"),
+    PgpKeys.pgpPublicRing := {
+      if (sys.env.get("CI").isDefined) file("/drone/.gnupg/pubring.asc")
+      else PgpKeys.pgpPublicRing.value
+    },
+    PgpKeys.pgpSecretRing := {
+      if (sys.env.get("CI").isDefined) file("/drone/.gnupg/secring.asc")
+      else PgpKeys.pgpSecretRing.value
+    },
     ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.SonatypePublisher
   )
 
