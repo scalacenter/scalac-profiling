@@ -15,6 +15,7 @@ lazy val root = project
       name := "profiling-root",
       publish := {},
       publishLocal := {},
+      crossSbtVersions := List("0.13.17", "1.1.1"),
       watchSources ++=
         (watchSources in plugin).value ++
           (watchSources in profiledb).value ++
@@ -103,7 +104,8 @@ lazy val plugin = project
     test in assembly := {},
     assemblyOption in assembly :=
       (assemblyOption in assembly).value
-        .copy(includeScala = false, includeDependency = true)
+        .copy(includeScala = false, includeDependency = true),
+    pomExtra := scala.xml.NodeSeq.Empty
   )
 
 // Trick to copy profiledb with Scala 2.11.11 so that vscode can depend on it
@@ -148,8 +150,6 @@ lazy val profilingSbtPlugin = project
   .settings(
     name := "sbt-profiling",
     sbtPlugin := true,
-    sbtVersion := "1.1.1",
-    crossSbtVersions := List("0.13.17", "1.1.1"),
     scalaVersion := BuildDefaults.fixScalaVersionForSbtPlugin.value,
     ScriptedPlugin.scriptedSettings,
     scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", s"-Dplugin.version=${version.value}"),
