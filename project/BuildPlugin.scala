@@ -226,7 +226,8 @@ object BuildImplementation {
       if (sys.env.get("CI").isDefined) file("/drone/.gnupg/secring.asc")
       else PgpKeys.pgpSecretRing.value
     },
-    ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.SonatypePublisher
+    ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.SonatypePublisher,
+    Keys.pomExtra := scala.xml.NodeSeq.Empty
   )
 
   // Paranoid level: removes doc generation by all means

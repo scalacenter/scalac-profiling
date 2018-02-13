@@ -104,8 +104,7 @@ lazy val plugin = project
     test in assembly := {},
     assemblyOption in assembly :=
       (assemblyOption in assembly).value
-        .copy(includeScala = false, includeDependency = true),
-    pomExtra := scala.xml.NodeSeq.Empty
+        .copy(includeScala = false, includeDependency = true)
   )
 
 // Trick to copy profiledb with Scala 2.11.11 so that vscode can depend on it
