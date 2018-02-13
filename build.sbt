@@ -148,7 +148,7 @@ lazy val profilingSbtPlugin = project
   .in(file("sbt-plugin"))
   .settings(metalsSettings)
   .settings(
-    name := "sbt-profiling",
+    name := "sbt-scalac-profiling",
     sbtPlugin := true,
     scalaVersion := BuildDefaults.fixScalaVersionForSbtPlugin.value,
     ScriptedPlugin.scriptedSettings,
