@@ -402,8 +402,7 @@ object BuildImplementation {
     Keys.scalaVersion := BuildKeys.ScalacScalaVersion.value,
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := true,
-    BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value,
-    Keys.publishArtifact in Compile in Keys.packageDoc := false
+    BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value
   ) ++ publishSettings ++ commandAliases
 
   final val projectSettings: Seq[Def.Setting[_]] = Seq(

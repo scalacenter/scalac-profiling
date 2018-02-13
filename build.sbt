@@ -115,8 +115,7 @@ lazy val profiledb211 = profiledb
     scalaVersion := (scalaVersion in VscodeImplementation).value,
     // Redefining target so that sbt doesn't clash at runtime
     // This makes sense, but we should get a more sensible error message.
-    target := (baseDirectory in profiledb).value./("target_211"),
-    publishArtifact in (Compile, packageDoc) := false
+    target := (baseDirectory in profiledb).value./("target_211")
   )
 
 // This is the task to publish the vscode integration
