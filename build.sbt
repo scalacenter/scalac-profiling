@@ -26,7 +26,7 @@ lazy val root = project
 val metalsSettings = List(
   scalacOptions ++= {
     val version = Keys.scalaBinaryVersion.value
-    val toAdd = List( "-Yrangepos", "-Xplugin-require:semanticdb")
+    val toAdd = List("-Yrangepos", "-Xplugin-require:semanticdb")
     if (version == "2.12") toAdd else Nil
   },
   libraryDependencies ++= {
@@ -161,7 +161,11 @@ lazy val integrations = project
   .settings(
     scalaHome := BuildDefaults.setUpScalaHome.value,
     parallelExecution in Test := false,
-    scalacOptions in Compile ++= BuildDefaults.scalacProfilingScalacOptions.value,
+    scalacOptions in Compile := (Def.taskDyn {
+      val options = (Keys.scalacOptions in Compile).value
+      val ref = Keys.thisProjectRef.value
+      Def.task(options ++ BuildDefaults.scalacProfilingScalacOptions(ref).value)
+    }).value,
     clean := Def
       .sequential(
         clean,

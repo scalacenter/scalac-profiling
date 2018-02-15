@@ -9,7 +9,7 @@
 
 package ch.epfl.scala.profiling.build
 
-import sbt.{AutoPlugin, Def, Keys, PluginTrigger, Plugins}
+import sbt.{AutoPlugin, Def, Keys, PluginTrigger, Plugins, ProjectRef}
 
 object BuildPlugin extends AutoPlugin {
   override def trigger: PluginTrigger = allRequirements
@@ -310,12 +310,14 @@ object BuildImplementation {
       else Def.setting("2.12.3")
     }
 
-    def scalacProfilingScalacOptions: Def.Initialize[sbt.Task[Seq[String]]] = Def.task {
-      val projectBuild = Keys.thisProjectRef.value.build
-      val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
-      val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
-      val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
-      sourceRoot +: pluginOpts
+    def scalacProfilingScalacOptions(ref: ProjectRef): Def.Initialize[sbt.Task[Seq[String]]] = {
+      Def.task {
+        val projectBuild = ref.build
+        val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
+        val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
+        val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
+        sourceRoot +: pluginOpts
+      }
     }
 
     def setUpScalaHome: Def.Initialize[Option[sbt.File]] = Def.setting {
@@ -334,8 +336,8 @@ object BuildImplementation {
 
     object MethodRefs {
       private final val build = "_root_.ch.epfl.scala.profiling.build"
-      final val scalacProfilingScalacOptionsRef: String =
-        s"${build}.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions"
+      def scalacProfilingScalacOptionsRef(ref: String): String =
+        s"${build}.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions($ref)"
       final val setUpScalaHomeRef: String =
         s"${build}.BuildImplementation.BuildDefaults.setUpScalaHome"
       final val setUpUnmanagedJarsRef: String =
@@ -348,7 +350,7 @@ object BuildImplementation {
         def setScalaVersion(ref: String) =
           s"""${Keys.scalaVersion.key.label} in $ref := "$scalaVersion""""
         def setScalacOptions(ref: String) =
-          s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef}.value"""
+          s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef(ref)}.value""".stripMargin
         def setScalaHome(ref: String) =
           s"""${Keys.scalaHome.key.label} in $ref := ${MethodRefs.setUpScalaHomeRef}.value"""
         def setUnmanagedJars(ref: String, config: String) =
