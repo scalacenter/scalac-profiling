@@ -1,4 +1,3 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><!--*-markdown-*-->
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -31,12 +30,57 @@
 
 #### Jorge Vicente Cantero ([jvican][]), [Scala Center][]
 
-`scalac-profiling` aims at providing the tools to understand and profile your
-Scala projects. In this document, I dive into how you can use `scalac-profiling`
-to profile implicit search.
+`scalac-profiling` is a tool to profile the compilation of your Scala
+projects and identify bottlenecks with implicit search and macro expansion.
 
-**Note** that `scalac-profiling` is not released yet, so the installation steps
-in this document are shallow on purpose.
+## Motivation
+
+Scala codebases grow over time, and so do compile times. When compile times
+become slow, they can affect both your team's productivity.
+
+How to battle slow compile times? The first and most important step is to
+measure them.
+
+A common cause of slow compile times is a misuse of macros or implicits.
+`scalac-profiling` helps you chase down compilations bottlenecks, with a
+special focus on macro expansions and implicit search.
+
+In this guide, we go on a journey to analyze slow compile times in several
+real-world Scala codebases. In every case study, I walk you through an array
+of techniques you can apply to speed up the compilation of your projects.
+
+At the end of this document, you will be able to replicate some of my
+experiments in your own projects and find solutions to increase the
+productivity of your team. There are many other ways of scaling up big
+codebases, but in this document we only look into ways to alleviate the price
+of expensive features in the Scala language.
+
+## Case studies
+
+### [scalatest/scalatest](https://github.com/scalatest/scalatest)
+
+Scalatest is the most popular testing framework in the Scala community and is
+widely used in the communities of other JVM-based programming languages like
+Java.
+
+In this case study, we're going to compile the test suite of Scalatest. This
+test suite is **300.000 LOC** and makes a heavy use of Scalatest macros (for
+example, to get the position of a certain assertion, or to make typesafe
+comparisons between numeric values) and implicits.
+
+This test suite is an extreme case of what your project's test suite could
+look like , but it's a good example to test our skills identifying
+bottlenecks in implicit search and macro expansions.
+
+#### First compilation
+
+| Total typer time | Total compilation time |
+| ---------------- | ---------------------- |
+| asdf | asdf |
+
+### [circe/circe](https://github.com/circe/circe)
+
+### [guardian/frontend](https://github.com/guardian/frontend)
 
 ## Profiling implicit search
 
@@ -53,14 +97,14 @@ search. Libraries that provide generic typeclass derivation are an example.
 ### Graphs
 
 `scalac-profiling` generates several graph representations of all the implicit
-searches happened during compilation.  The supported graph representations are
+searches happened during compilation. The supported graph representations are
 [graphviz][] (aka dot) and [flamegraph][].
 
 The compiler plugin does not generate the graphs for you; instead, it persists
 the graph data in a format that allows you to generate the graphs yourself
 without touching or transforming the data.
 
-These graphs are present under the *profiledb META-INF directory*, located in
+These graphs are present under the _profiledb META-INF directory_, located in
 your classes directory. For example, a flamegraph data file can be located at
 `target/scala-2.12/classes/META-INF/profiledb/graphs/$name.flamegraph`.
 
@@ -70,7 +114,7 @@ If this is the first time you hear about flamegraphs, have a look at the
 [official website][flamegraph] and the [ACM article][flamegraph-acm].
 
 Flamegraphs are graphs that allow you to see the stack of all the implicit
-search calls that have happened during a concrete compilation.  They are
+search calls that have happened during a concrete compilation. They are
 intuitive to inspect and to browse, and stand out because:
 
 * They allow you to selectively choose what things to profile. Click on every
@@ -109,7 +153,7 @@ And it will generate something like [this](circe-integration-flamegraph.svg).
 ### Dot graphs
 
 The process to generate dot graphs is similar to Flamegraph. Dot graph files are
-files that declare a graph and tell Graphviz how it should be rendered.  They
+files that declare a graph and tell Graphviz how it should be rendered. They
 can then be visualized in several ways: a `png` file, a pdf, a svg, et cetera.
 
 #### Dot graph generation
@@ -136,7 +180,7 @@ the edges for a given node (by clicking on the node).
 
 A graph is a set of nodes and edges. A node represent an implicit search for a
 given type. Every node tells you how many implicit searches have been triggered
-in total, and how much time they took in total.  An edge represents the
+in total, and how much time they took in total. An edge represents the
 dependency between an implicit search and another one.
 
 > <span class="smaller">
@@ -145,7 +189,7 @@ implicit search in the program. That means that often the amount of times a node
 has been searched for will not be equal to the sum of the nodes that depend on
 it.
 
-#### Examples
+#### Dot graph examples
 
 * [circe website example dot graph](circe-integration.html)
 * [circe test suite dot graph](circe-test-suite.html)
@@ -158,5 +202,5 @@ it.
 [flamegraph]: https://github.com/brendangregg/FlameGraph
 [flamegraph-acm]: http://queue.acm.org/detail.cfm?id=2927301
 [jvican]: https://github.com/jvican
-[Scala Center]: https://scala.epfl.ch
+[scala center]: https://scala.epfl.ch
 [jquery.graphviz.svg]: https://github.com/jvican/jquery.graphviz.svg

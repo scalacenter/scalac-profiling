@@ -1,5 +1,3 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<!--*-markdown-*-->
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -7,8 +5,8 @@
 Scalac-profiling: profile Scala compile times
 </title>
 <style type="text/css">
-  body          { font-family: Times New Roman; font-size: 16px;
-                  line-height: 125%; width: 36em; margin: 2em; }
+  body          { font-family: Helvetica Neue, Helvetica, Times New Roman; font-size: 16px;
+                  line-height: 125%; width: 40em; margin: 2em auto; }
   code, pre     { font-family: Input Mono Sans, Courier New, Courier, monospace; }
   blockquote    { font-size: 14px; line-height: 130%; }
   pre           { font-size: 14px; line-height: 120%; }
@@ -31,11 +29,24 @@ Scalac-profiling: profile Scala compile times
 <body>
 <h1 id="scalac-profiling">Scalac-profiling</h1>
 <h4 id="jorge-vicente-cantero-jvican-scala-center">Jorge Vicente Cantero (<a href="https://github.com/jvican">jvican</a>), <a href="https://scala.epfl.ch">Scala Center</a></h4>
-<p><code>scalac-profiling</code> aims at providing the tools to understand and profile your Scala projects. In this document, I dive into how you can use <code>scalac-profiling</code> to profile implicit search.</p>
-<p><strong>Note</strong> that <code>scalac-profiling</code> is not released yet, so the installation steps in this document are shallow on purpose.</p>
+<p><code>scalac-profiling</code> is a tool to profile the compilation of your Scala projects and identify bottlenecks with implicit search and macro expansion.</p>
+<h2 id="motivation">Motivation</h2>
+<p>Scala codebases grow over time, and so do compile times. When compile times become unbearable, they can affect both your developer and team’s productivity.</p>
+<p>How to battle slow compile times? The first and most important step is to measure them.</p>
+<p>A common cause of slow compile times is a misuse of macros or implicits. <code>scalac-profiling</code> helps you chase down compilations bottlenecks, with a special focus on macro expansions and implicit search.</p>
+<p>In this guide, we go on a journey to analyze slow compile times in several real-world Scala codebases. In every case study, I walk you through an array of techniques you can apply to speed up the compilation of your projects.</p>
+<p>At the end of this document, you will be able to replicate some of my experiments in your own projects and find solutions to increase the productivity of your team. There are many other ways of scaling up big codebases, but in this document we only look into ways to alleviate the price of expensive features in the Scala language.</p>
+<h2 id="case-studies">Case studies</h2>
+<h3 id="scalatestscalatest"><a href="https://github.com/scalatest/scalatest">scalatest/scalatest</a></h3>
+<p>Scalatest is the most popular testing framework in the Scala community and is widely used in the communities of other JVM-based programming languages like Java.</p>
+<p>In this case study, we’re going to compile the test suite of Scalatest. This test suite is <strong>300.000 LOC</strong> and makes a heavy use of Scalatest macros (for example, to get the position of a certain assertion, or to make typesafe comparisons between numeric values) and implicits.</p>
+<p>This test suite is an extreme case of what a big test suite could look like in your project, but it’s a good example to test our skills identifying bottlenecks in implicit search and macro expansions.</p>
+<h4 id="first-compilation">First compilation</h4>
+<h3 id="circecirce"><a href="https://github.com/circe/circe">circe/circe</a></h3>
+<h3 id="guardianfrontend"><a href="https://github.com/guardian/frontend">guardian/frontend</a></h3>
 <h2 id="profiling-implicit-search">Profiling implicit search</h2>
 <p>Profiling implicit search is useful to answer the following questions:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>What implicit searches happen in my project?</li>
 <li>How do all implicit searches interact with each other?</li>
 <li>Are implicit searches the main bottleneck of my compile times?</li>
@@ -83,7 +94,7 @@ Scalac-profiling: profile Scala compile times
 <blockquote>
 <p><span class="smaller"> Note that every node can be depended upon by others and be the start of the implicit search in the program. That means that often the amount of times a node has been searched for will not be equal to the sum of the nodes that depend on it.</p>
 </blockquote>
-<h4 id="examples-1">Examples</h4>
+<h4 id="dot-graph-examples">Dot graph examples</h4>
 <ul>
 <li><a href="circe-integration.html">circe website example dot graph</a></li>
 <li><a href="circe-test-suite.html">circe test suite dot graph</a></li>
