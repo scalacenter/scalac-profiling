@@ -161,7 +161,7 @@ lazy val integrations = project
   .settings(
     scalaHome := BuildDefaults.setUpScalaHome.value,
     parallelExecution in Test := false,
-    scalacOptions ++= BuildDefaults.scalacProfilingScalacOptions.value,
+    scalacOptions in Compile ++= BuildDefaults.scalacProfilingScalacOptions.value,
     clean := Def
       .sequential(
         clean,
