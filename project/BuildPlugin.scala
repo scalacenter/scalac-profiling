@@ -315,8 +315,9 @@ object BuildImplementation {
         val projectBuild = ref.build
         val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
         val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
+        val noProfileDb = s"-P:scalac-profiling:no-profiledb"
         val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
-        sourceRoot +: pluginOpts
+        noProfileDb +: sourceRoot +: pluginOpts
       }
     }
 

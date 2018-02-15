@@ -74,8 +74,8 @@ bottlenecks in implicit search and macro expansions.
 
 #### First compilation
 
-| Total typer time | Total compilation time |
-| ---------------- | ---------------------- |
+| Time in typer | Total compilation time |
+| ------------- | ---------------------- |
 | asdf | asdf |
 
 ### [circe/circe](https://github.com/circe/circe)

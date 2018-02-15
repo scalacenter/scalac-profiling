@@ -260,7 +260,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
             dbPathFor(currentSourceFile) match {
               case Some(profileDbPath) =>
                 val canonicalTarget = profileDbPath.target.underlying.normalize()
-                logger.debug(s"Creating compilation unit for ${canonicalTarget}")
+                logger.debug(s"Creating profiledb for ${canonicalTarget}")
                 val freshDatabase =
                   schema.Database(`type` = PerCompilationUnit, entries = List(compilationUnitEntry))
                 writeDatabase(freshDatabase, profileDbPath).failed
@@ -281,6 +281,8 @@ class ProfilingPlugin(val global: Global) extends Plugin {
             val globalDatabase = toGlobalDatabase(global.statistics)
             val globalRelativePath = ProfileDbPath.GlobalProfileDbRelativePath
             val globalProfileDbPath = ProfileDbPath(globalOutputDir, globalRelativePath)
+            val pathToWrite = globalProfileDbPath.target.underlying.toAbsolutePath
+            logger.info(s"Creating global statistics information at $pathToWrite.")
             writeDatabase(globalDatabase, globalProfileDbPath)
           }
         }
