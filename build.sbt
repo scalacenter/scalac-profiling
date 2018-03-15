@@ -100,7 +100,7 @@ lazy val plugin = project
         case (2, y) if y >= 12 => new File(scalaSource.value.getPath + "-2.12")
       }.toList
     }),
-    Keys.`package` in Compile := (assembly in Compile).value,
+    Keys.packageBin in Compile := (assembly in Compile).value,
     test in assembly := {},
     assemblyOption in assembly :=
       (assemblyOption in assembly).value

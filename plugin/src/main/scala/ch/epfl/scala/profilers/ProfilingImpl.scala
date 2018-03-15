@@ -10,12 +10,14 @@
 package ch.epfl.scala.profilers
 
 import java.nio.file.{Files, Path, StandardOpenOption}
+import java.util
 
 import ch.epfl.scala.profiledb.utils.AbsolutePath
 
 import scala.tools.nsc.Global
 import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker}
 
+import scala.collection.mutable.ArrayBuffer
 import scala.reflect.internal.util.StatisticsStatics
 
 final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G])
@@ -130,28 +132,29 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       (global.analyzer.ImplicitSearch, statistics.TimerSnapshot, statistics.TimerSnapshot)
 
     private var implicitsStack: List[Entry] = Nil
-    private val implicitsTimers = new mutable.AnyRefMap[Type, statistics.Timer]()
-    private val searchIdsToStackedNames = new mutable.HashMap[Int, (String, Type)]()
-    private val stackedNanos = new mutable.AnyRefMap[String, (Long, Type)]()
-    private val implicitsDependants = new mutable.AnyRefMap[Type, mutable.HashSet[Type]]()
+    private val implicitsTimers = perRunCaches.newAnyRefMap[Type, statistics.Timer]()
+    private val searchIdsToStackedNames = perRunCaches.newMap[Int, (String, Type)]()
+    private val stackedNanos = perRunCaches.newAnyRefMap[String, (Long, Type)]()
     private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
-    private val searchIdsToTimers = new mutable.HashMap[Int, statistics.Timer]()
+    private val searchIdsToTimers = perRunCaches.newMap[Int, statistics.Timer]()
+    //private val implicitsDependants = new mutable.AnyRefMap[Type, mutable.HashSet[Type]]()
 
     private def typeToString(`type`: Type): String =
       global.exitingTyper(`type`.toLongString).trim
 
-    import java.nio.charset.StandardCharsets.UTF_8
     def foldStacks(outputPath: Path): Unit = {
-      val stackLines = stackedNanos.toList.map {
+      // This part is memory intensive and hence the use of java collections
+      val stacksJavaList = new java.util.ArrayList[String]()
+      val allStacks = stackedNanos.foreach {
         case (name, (nanos, tpe)) =>
           val count = implicitSearchesByType.getOrElse(tpe, sys.error(s"No counter for ${tpe}"))
-          s"$name [total $count] ${nanos / 1000000}"
-      }.sorted
-      val allStacks = stackLines.mkString("\n").getBytes(UTF_8)
-      Files.write(outputPath, allStacks, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
+          stacksJavaList.add(s"$name [total $count] ${nanos / 1000000}")
+      }
+      java.util.Collections.sort(stacksJavaList)
+      Files.write(outputPath, stacksJavaList, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
     }
 
-    def dottify(graphName: String, outputPath: Path): Unit = {
+/*    def dottify(graphName: String, outputPath: Path): Unit = {
       def clean(`type`: Type) = typeToString(`type`).replace("\"", "\'")
       def qualify(node: String, timing: Long, counter: Int): String = {
         val nodeName = node.stripPrefix("\"").stripSuffix("\"")
@@ -195,7 +198,7 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         |${connections.mkString("  ", "\n  ", "\n  ")}
         |}""".stripMargin.getBytes(UTF_8)
       Files.write(outputPath, graph, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
-    }
+    }*/
 
     private def getImplicitTimerFor(candidate: Type): statistics.Timer =
       implicitsTimers.getOrElse(candidate, sys.error(s"Timer for ${candidate} doesn't exist"))
@@ -240,16 +243,17 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
 
         // Add stacked names and timer for the flamegraph generation
         val stackedName = search.context.openImplicits.foldLeft(typeToString(targetType)) {
-          case (stackedName, dependant) => s"${typeToString(dependant.pt)};$stackedName"
+          case (stackedName, dependant) => s"${typeToString(dependant.pt)};$stackedName".trim
         }
+
         searchIdsToStackedNames.+=((search.searchId, (stackedName, targetType)))
 
-        // Add dependants once we hit a concrete node
+/*        // Add dependants once we hit a concrete node
         search.context.openImplicits.headOption.foreach { dependant =>
           implicitsDependants
             .getOrElseUpdate(targetType, new mutable.HashSet())
             .+=(dependant.pt)
-        }
+        }*/
 
         // Start the timer at the end to factor out the cost of our analysis
         val implicitTypeStart = statistics.startTimer(perTypeTimer)

@@ -24,6 +24,7 @@ Scalac-profiling: profile Scala compile times
   a             { text-decoration: none; }
   div.smaller   { font-size: 85%; }
   span.smaller  { font-size: 95%; }
+  .sourceCode   { overflow: auto; }
 </style>
 </head>
 <body>
@@ -31,19 +32,56 @@ Scalac-profiling: profile Scala compile times
 <h4 id="jorge-vicente-cantero-jvican-scala-center">Jorge Vicente Cantero (<a href="https://github.com/jvican">jvican</a>), <a href="https://scala.epfl.ch">Scala Center</a></h4>
 <p><code>scalac-profiling</code> is a tool to profile the compilation of your Scala projects and identify bottlenecks with implicit search and macro expansion.</p>
 <h2 id="motivation">Motivation</h2>
-<p>Scala codebases grow over time, and so do compile times. When compile times become unbearable, they can affect both your developer and team’s productivity.</p>
+<p>Scala codebases grow over time, and so do compile times. Some of them are inherent to the size of your application, but some of them are not, and they they can affect both your team’s productivity.</p>
 <p>How to battle slow compile times? The first and most important step is to measure them.</p>
-<p>A common cause of slow compile times is a misuse of macros or implicits. <code>scalac-profiling</code> helps you chase down compilations bottlenecks, with a special focus on macro expansions and implicit search.</p>
+<p>A common cause of slow compile times is an abuse of macros or misuse of implicits. <code>scalac-profiling</code> helps you chase down compilations bottlenecks, with a focus on macro expansions and implicit search.</p>
 <p>In this guide, we go on a journey to analyze slow compile times in several real-world Scala codebases. In every case study, I walk you through an array of techniques you can apply to speed up the compilation of your projects.</p>
-<p>At the end of this document, you will be able to replicate some of my experiments in your own projects and find solutions to increase the productivity of your team. There are many other ways of scaling up big codebases, but in this document we only look into ways to alleviate the price of expensive features in the Scala language.</p>
-<h2 id="case-studies">Case studies</h2>
-<h3 id="scalatestscalatest"><a href="https://github.com/scalatest/scalatest">scalatest/scalatest</a></h3>
-<p>Scalatest is the most popular testing framework in the Scala community and is widely used in the communities of other JVM-based programming languages like Java.</p>
-<p>In this case study, we’re going to compile the test suite of Scalatest. This test suite is <strong>300.000 LOC</strong> and makes a heavy use of Scalatest macros (for example, to get the position of a certain assertion, or to make typesafe comparisons between numeric values) and implicits.</p>
-<p>This test suite is an extreme case of what a big test suite could look like in your project, but it’s a good example to test our skills identifying bottlenecks in implicit search and macro expansions.</p>
-<h4 id="first-compilation">First compilation</h4>
-<h3 id="circecirce"><a href="https://github.com/circe/circe">circe/circe</a></h3>
-<h3 id="guardianfrontend"><a href="https://github.com/guardian/frontend">guardian/frontend</a></h3>
+<p>At the end of this document, you will be able to replicate some of my experiments in your own projects and find solutions to increase the productivity of your team.</p>
+<p>There are many other ways of scaling up <em>big</em> codebases, but in this document we only look into ways to alleviate the price of expensive features in the Scala language.</p>
+<strong>Note</strong> <span class="smaller"> All the numbers in this guide have not been obtained directly from the build tool but from a JMH benchmark battery. This benchmarking facility enables us to get stabler results and does not take into account potential regressions that your build tool could introduce. Study those separately.
+</div>
+<h2 id="case-study-scalatestscalatest">Case study: <a href="https://github.com/scalatest/scalatest">scalatest/scalatest</a></h2>
+<p>Scalatest is the most popular testing framework in the Scala community. It is popular by supporting several idioms</p>
+<p>In this case study, we’re going to compile the test suite of Scalatest. This test suite is <strong>300.000 LOC</strong> and makes a heavy use of implicits and Scalatest macros (for example, to get the position of a certain assertion, or to make typesafe comparisons between numeric values).</p>
+<p>This test suite is an <em>extreme</em> case of how your project’s test suite would look like, but it’s a good example to test our skills identifying bottlenecks in implicit search and macro expansions.</p>
+<p>Let’s first learn more about the project we’re about to profile with <a href="https://github.com/cloc/cloc">cloc</a>.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ex">jvican</span> in /data/rw/code/scala/scalatest                                                 [10:51:09]</a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="op">&gt;</span> $ <span class="ex">loc</span> scalatest-test                                                              [±3.1.x-stats]</a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ex">--------------------------------------------------------------------------------</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"> <span class="ex">Language</span>             Files        Lines        Blank      Comment         Code</a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="ex">--------------------------------------------------------------------------------</span></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"> <span class="ex">Scala</span>                  775       380316        50629        29014       300673</a>
+<a class="sourceLine" id="cb1-7" data-line-number="7"> <span class="ex">Java</span>                    13          332           38          195           99</a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"> <span class="ex">XML</span>                      1            8            0            0            8</a>
+<a class="sourceLine" id="cb1-9" data-line-number="9"> <span class="ex">Plain</span> Text               1            9            5            0            4</a>
+<a class="sourceLine" id="cb1-10" data-line-number="10"><span class="ex">--------------------------------------------------------------------------------</span></a>
+<a class="sourceLine" id="cb1-11" data-line-number="11"> <span class="ex">Total</span>                  790       380665        50672        29209       300784</a>
+<a class="sourceLine" id="cb1-12" data-line-number="12"><span class="ex">--------------------------------------------------------------------------------</span></a></code></pre></div>
+<p>Scalatest’s test suite has about 300.000 LOC of pure Scala code.</p>
+<p>These lines do not take into account generated code; the code that gets compiled by scalac is <em>much bigger</em> after code generation and macros are expanded. But, how big?</p>
+<p>Before we proceed</p>
+<h4 id="taking-into-consideration-expanded-code">Taking into consideration expanded code</h4>
+<p>When analyzing compile times, we must be aware of the <em>“hidden”</em> cost that we pay to compile the expanded and generated code. At first glance,</p>
+<p>Sometimes the compiler may spend more time compiling that code may be suboptimal. For example, if the macro generates high-level, poorly optimized code</p>
+<h3 id="compilation-without-any-changes">Compilation without any changes</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Time in typer</th>
+<th>Total compilation time</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>asdf</td>
+<td>asdf</td>
+</tr>
+</tbody>
+</table>
+<h3 id="compilation-without-the-position-macro">Compilation without the position macro</h3>
+<h3 id="compilation-without-the-position-macro-and-caching-implicits">Compilation without the position macro and caching implicits</h3>
+<h2 id="case-study-circecirce">Case study: <a href="https://github.com/circe/circe">circe/circe</a></h2>
+<h2 id="case-study-guardianfrontend">Case study: <a href="https://github.com/guardian/frontend">guardian/frontend</a></h2>
 <h2 id="profiling-implicit-search">Profiling implicit search</h2>
 <p>Profiling implicit search is useful to answer the following questions:</p>
 <ol type="1">
@@ -103,3 +141,11 @@ Scalac-profiling: profile Scala compile times
 <li><a href="monocle-test-suite.html">monocle test suite dot graph</a></li>
 <li><a href="scalatest-core.html">scalatest dot graph</a></li>
 </ul>
+<h1 id="appendix">Appendix</h1>
+<h2 id="a-notes-on-lines-of-code-in-scala">A: Notes on lines of code in Scala</h2>
+<p>Scala’s LOC do not have a direct translation to other programming languages because of the conciseness of Scala syntax and its metaprogramming facilities. A one-to-one comparison to other programming languages is most likely going to be misleading.</p>
+<p>The best way to <em>compare compiler speed</em> across different programming languages is to compare end applications or libraries with feature parity and implemented in the same programming paradigm.</p>
+<h2 id="b-metaprogramming-facilities-in-scala">B: Metaprogramming facilities in Scala</h2>
+<p>Using macros is easy, and it won’t be the first time developers use them without noticing. It is important that, if you want to reduce compile times, you carefully have a look at the scalac profiles and your dependency graph.</p>
+<p>The cost of macros depend on how important the use case they solve is to you. Consider this when optimizing your compile times.</p>
+<p>Sometimes, the cost of macros can be reduced by optimizing the implementation. But the first step is to know, in advance, that a macro is expensive. Thus, bring the numbers up with the macro implementors so that they think of ways to make macros more lightweight.</p>
