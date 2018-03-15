@@ -9,7 +9,7 @@
 
 package ch.epfl.scala.profiling.build
 
-import sbt.{AutoPlugin, Def, Keys, PluginTrigger, Plugins}
+import sbt.{AutoPlugin, Def, Keys, PluginTrigger, Plugins, ProjectRef}
 
 object BuildPlugin extends AutoPlugin {
   override def trigger: PluginTrigger = allRequirements
@@ -61,16 +61,16 @@ object BuildKeys {
     uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9")
   )
   val Monocle = RootProject(
-    uri("git://github.com/jvican/Monocle.git#93e72ed4db8217a872ab8770fbf3cba504489596")
+    uri("git://github.com/jvican/Monocle.git#5da7c1ac8ffd3942a843dca9cd1fbb281ff08412")
   )
   val Scalatest = RootProject(
-    uri("git://github.com/jvican/scalatest.git#2bc97995612c467e4248a33b2ad0025c003a0fcb")
+    uri("git://github.com/jvican/scalatest.git#c5fcbe35097a152a6595aa63ea25b15f237a7970")
   )
   val BetterFiles = RootProject(
     uri("git://github.com/jvican/better-files.git#29270d200bdc5715be0fb6875b00718de2996641")
   )
   val Shapeless = RootProject(
-    uri("git://github.com/jvican/shapeless.git#11e473058a02ccda408d937cb0e35aec9d3a4a66")
+    uri("git://github.com/jvican/shapeless.git#a42cd4c1c99e4a7be36e0239d3ee944a6355e321")
   )
   val Magnolia = RootProject(
     uri("git://github.com/jvican/magnolia.git#249eb311a78b2967dcdf388576bd5eaa7c55c8fa")
@@ -226,7 +226,8 @@ object BuildImplementation {
       if (sys.env.get("CI").isDefined) file("/drone/.gnupg/secring.asc")
       else PgpKeys.pgpSecretRing.value
     },
-    ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.SonatypePublisher
+    ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.SonatypePublisher,
+    Keys.pomExtra := scala.xml.NodeSeq.Empty
   )
 
   // Paranoid level: removes doc generation by all means
@@ -309,21 +310,23 @@ object BuildImplementation {
       else Def.setting("2.12.3")
     }
 
-    def scalacProfilingScalacOptions: Def.Initialize[sbt.Task[Seq[String]]] = Def.task {
-      val projectBuild = Keys.thisProjectRef.value.build
-      val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
-      val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
-      val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
-      sourceRoot +: pluginOpts
+    def scalacProfilingScalacOptions(ref: ProjectRef): Def.Initialize[sbt.Task[Seq[String]]] = {
+      Def.task {
+        val projectBuild = ref.build
+        val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
+        val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
+        val noProfileDb = s"-P:scalac-profiling:no-profiledb"
+        val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
+        noProfileDb +: sourceRoot +: pluginOpts
+      }
     }
 
     def setUpScalaHome: Def.Initialize[Option[sbt.File]] = Def.setting {
       val pathToHome = new java.io.File(s"${BuildKeys.Scalac.build.toURL().getFile()}build/pack")
-      if (pathToHome.exists()) Some(pathToHome)
-      else {
-        Keys.sLog.value.warn(s"Scala home $pathToHome didn't exist.")
-        None
+      if (!pathToHome.exists()) {
+        Keys.sLog.value.warn(s"Scala home $pathToHome didn't exist yet.")
       }
+      Some(pathToHome)
     }
 
     def setUpUnmanagedJars: Def.Initialize[sbt.Task[Def.Classpath]] = Def.task {
@@ -334,8 +337,8 @@ object BuildImplementation {
 
     object MethodRefs {
       private final val build = "_root_.ch.epfl.scala.profiling.build"
-      final val scalacProfilingScalacOptionsRef: String =
-        s"${build}.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions"
+      def scalacProfilingScalacOptionsRef(ref: String): String =
+        s"${build}.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions($ref)"
       final val setUpScalaHomeRef: String =
         s"${build}.BuildImplementation.BuildDefaults.setUpScalaHome"
       final val setUpUnmanagedJarsRef: String =
@@ -348,7 +351,7 @@ object BuildImplementation {
         def setScalaVersion(ref: String) =
           s"""${Keys.scalaVersion.key.label} in $ref := "$scalaVersion""""
         def setScalacOptions(ref: String) =
-          s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef}.value"""
+          s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef(ref)}.value""".stripMargin
         def setScalaHome(ref: String) =
           s"""${Keys.scalaHome.key.label} in $ref := ${MethodRefs.setUpScalaHomeRef}.value"""
         def setUnmanagedJars(ref: String, config: String) =
@@ -402,8 +405,7 @@ object BuildImplementation {
     Keys.scalaVersion := BuildKeys.ScalacScalaVersion.value,
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := true,
-    BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value,
-    Keys.publishArtifact in Compile in Keys.packageDoc := false
+    BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value
   ) ++ publishSettings ++ commandAliases
 
   final val projectSettings: Seq[Def.Setting[_]] = Seq(

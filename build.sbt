@@ -15,6 +15,7 @@ lazy val root = project
       name := "profiling-root",
       publish := {},
       publishLocal := {},
+      crossSbtVersions := List("0.13.17", "1.1.1"),
       watchSources ++=
         (watchSources in plugin).value ++
           (watchSources in profiledb).value ++
@@ -22,10 +23,25 @@ lazy val root = project
     )
   )
 
+val metalsSettings = List(
+  scalacOptions ++= {
+    val version = Keys.scalaBinaryVersion.value
+    val toAdd = List("-Yrangepos", "-Xplugin-require:semanticdb")
+    if (version == "2.12") toAdd else Nil
+  },
+  libraryDependencies ++= {
+    val version = Keys.scalaBinaryVersion.value
+    if (version == "2.12")
+      List(compilerPlugin("org.scalameta" % "semanticdb-scalac" % "2.1.5" cross CrossVersion.full))
+    else Nil
+  }
+)
+
 import _root_.ch.epfl.scala.profiling.build.BuildImplementation.BuildDefaults
 import com.trueaccord.scalapb.compiler.Version.scalapbVersion
 lazy val profiledb = project
   .in(file("profiledb"))
+  .settings(metalsSettings)
   .settings(
     // Specify scala version to allow third-party software to use this module
     scalaVersion := "2.12.4",
@@ -38,6 +54,7 @@ lazy val profiledb = project
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
   .dependsOn(profiledb)
+  .settings(metalsSettings)
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
@@ -83,7 +100,7 @@ lazy val plugin = project
         case (2, y) if y >= 12 => new File(scalaSource.value.getPath + "-2.12")
       }.toList
     }),
-    Keys.`package` in Compile := (assembly in Compile).value,
+    Keys.packageBin in Compile := (assembly in Compile).value,
     test in assembly := {},
     assemblyOption in assembly :=
       (assemblyOption in assembly).value
@@ -94,11 +111,11 @@ lazy val plugin = project
 lazy val profiledb211 = profiledb
   .copy(id = "profiledb-211")
   .settings(
+    moduleName := "profiledb",
     scalaVersion := (scalaVersion in VscodeImplementation).value,
     // Redefining target so that sbt doesn't clash at runtime
     // This makes sense, but we should get a more sensible error message.
-    target := (baseDirectory in profiledb).value./("target_211"),
-    publishArtifact in (Compile, packageDoc) := false
+    target := (baseDirectory in profiledb).value./("target_211")
   )
 
 // This is the task to publish the vscode integration
@@ -127,10 +144,10 @@ lazy val vscodeIntegration = project
 
 lazy val profilingSbtPlugin = project
   .in(file("sbt-plugin"))
+  .settings(metalsSettings)
   .settings(
-    name := "sbt-profiling",
+    name := "sbt-scalac-profiling",
     sbtPlugin := true,
-    crossSbtVersions := List("0.13.17", "1.1.1"),
     scalaVersion := BuildDefaults.fixScalaVersionForSbtPlugin.value,
     ScriptedPlugin.scriptedSettings,
     scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", s"-Dplugin.version=${version.value}"),
@@ -144,7 +161,11 @@ lazy val integrations = project
   .settings(
     scalaHome := BuildDefaults.setUpScalaHome.value,
     parallelExecution in Test := false,
-    scalacOptions ++= BuildDefaults.scalacProfilingScalacOptions.value,
+    scalacOptions in Compile := (Def.taskDyn {
+      val options = (Keys.scalacOptions in Compile).value
+      val ref = Keys.thisProjectRef.value
+      Def.task(options ++ BuildDefaults.scalacProfilingScalacOptions(ref).value)
+    }).value,
     clean := Def
       .sequential(
         clean,
@@ -198,7 +219,7 @@ lazy val integrations = project
         if (keywords.contains(Keywords.Scalatest))
           Def.sequential(
             (compile in Compile in ScalatestCore),
-            (compile in Compile in ScalatestTests)
+            (compile in Test in ScalatestTests)
           )
         else emptyAnalysis
       }

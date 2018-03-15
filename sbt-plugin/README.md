@@ -8,7 +8,7 @@ that users of this plugin must take into account to get reliable data.
 
 ```scala
 // project/plugins.sbt
-addSbtPlugin("ch.epfl.scala" % "sbt-profiling" % "0.1")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalac-profiling" % "unknown")
 ```
 
 ### Use

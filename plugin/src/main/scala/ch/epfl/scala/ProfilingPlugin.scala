@@ -31,8 +31,9 @@ class ProfilingPlugin(val global: Global) extends Plugin {
 
   private final val ShowProfiles = "show-profiles"
   private final val SourceRoot = "sourceroot"
+  private final val NoProfileDb = "no-profiledb"
   private final val SourceRootRegex = s"sourceroot:(.*)".r
-  case class PluginConfig(showProfiles: Boolean, sourceRoot: Option[AbsolutePath])
+  case class PluginConfig(showProfiles: Boolean, noDb: Boolean, sourceRoot: Option[AbsolutePath])
 
   def findOption(name: String, pattern: Regex): Option[String] = {
     super.options.find(_.startsWith(name)).flatMap {
@@ -43,6 +44,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
 
   private final val config = PluginConfig(
     super.options.contains(ShowProfiles),
+    super.options.contains(NoProfileDb),
     findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply)
   )
 
@@ -251,13 +253,14 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       new StdPhase(prev) {
         override def apply(unit: global.CompilationUnit): Unit = {
           if (StatisticsStatics.areSomeColdStatsEnabled() &&
-            global.statistics.areStatisticsLocallyEnabled) {
+            global.statistics.areStatisticsLocallyEnabled &&
+            !config.noDb) {
             val currentSourceFile = unit.source
             val compilationUnitEntry = profileDbEntryFor(currentSourceFile)
             dbPathFor(currentSourceFile) match {
               case Some(profileDbPath) =>
                 val canonicalTarget = profileDbPath.target.underlying.normalize()
-                logger.info(s"Creating compilation unit for ${canonicalTarget}")
+                logger.debug(s"Creating profiledb for ${canonicalTarget}")
                 val freshDatabase =
                   schema.Database(`type` = PerCompilationUnit, entries = List(compilationUnitEntry))
                 writeDatabase(freshDatabase, profileDbPath).failed
@@ -274,10 +277,14 @@ class ProfilingPlugin(val global: Global) extends Plugin {
           val graphsDir = globalOutputDir.resolve(graphsRelativePath)
           reportStatistics(graphsDir)
 
-          val globalDatabase = toGlobalDatabase(global.statistics)
-          val globalRelativePath = ProfileDbPath.GlobalProfileDbRelativePath
-          val globalProfileDbPath = ProfileDbPath(globalOutputDir, globalRelativePath)
-          writeDatabase(globalDatabase, globalProfileDbPath)
+          if (!config.noDb) {
+            val globalDatabase = toGlobalDatabase(global.statistics)
+            val globalRelativePath = ProfileDbPath.GlobalProfileDbRelativePath
+            val globalProfileDbPath = ProfileDbPath(globalOutputDir, globalRelativePath)
+            val pathToWrite = globalProfileDbPath.target.underlying.toAbsolutePath
+            logger.info(s"Creating global statistics information at $pathToWrite.")
+            writeDatabase(globalDatabase, globalProfileDbPath)
+          }
         }
       }
     }
