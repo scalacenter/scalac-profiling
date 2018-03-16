@@ -13,7 +13,7 @@ import java.lang.{Long => BoxedLong}
 import java.util.concurrent.ConcurrentHashMap
 import sbt.{ExecuteProgress, Result, Task, ScopedKey, Def}
 
-class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong])
+class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], isDebugEnabled: Boolean)
     extends ExecuteProgress[Task] {
 
   override type S = Unit
@@ -46,9 +46,12 @@ class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong])
             case null => timers.put(scopedKey, duration)
           }
         case null =>
-          println(
-            s"[sbt-scalac-profiling] ${task.info} finished, but its start wasn't recorded"
-          )
+          if (isDebugEnabled) {
+            // We cannot use sLog here because the logger gets garbage collected and throws NPE after `set` commands are run
+            println(
+              s"[sbt-scalac-profiling] ${task.info} finished, but its start wasn't recorded"
+            )
+          }
       }
     }
 
