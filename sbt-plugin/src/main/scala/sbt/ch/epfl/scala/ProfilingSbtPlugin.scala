@@ -45,8 +45,9 @@ object ProfilingPluginImplementation {
     Keys.commands += BuildDefaults.profilingWarmupCommand,
     BuildKeys.profilingWarmupDuration := BuildDefaults.profilingWarmupDuration.value,
     Keys.concurrentRestrictions += Tags.limit(WarmupTag, 1),
-    Keys.executeProgress :=
-      (_ => new Keys.TaskProgress(new SbtTaskTimer(timingsForKeys, Keys.sLog.value)))
+    Keys.executeProgress := { _ =>
+      new Keys.TaskProgress(new SbtTaskTimer(timingsForKeys))
+    }
   )
 
   val buildSettings: Seq[Def.Setting[_]] = Nil

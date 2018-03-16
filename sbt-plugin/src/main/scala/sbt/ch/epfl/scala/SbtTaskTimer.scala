@@ -11,9 +11,9 @@ package sbt.ch.epfl.scala
 
 import java.lang.{Long => BoxedLong}
 import java.util.concurrent.ConcurrentHashMap
-import sbt.{ExecuteProgress, Result, Task, ScopedKey, Logger, Def}
+import sbt.{ExecuteProgress, Result, Task, ScopedKey, Def}
 
-class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], logger: Logger)
+class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong])
     extends ExecuteProgress[Task] {
 
   override type S = Unit
@@ -45,7 +45,10 @@ class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], logger: L
             case currentDuration: BoxedLong => timers.put(scopedKey, currentDuration + duration)
             case null => timers.put(scopedKey, duration)
           }
-        case null => logger.debug(s"${task.info} finished, but its start wasn't recorded")
+        case null =>
+          println(
+            s"[sbt-scalac-profiling] ${task.info} finished, but its start wasn't recorded"
+          )
       }
     }
 
