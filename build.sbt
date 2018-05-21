@@ -173,7 +173,7 @@ lazy val integrations = project
         (clean in Test in MonocleTests),
         (clean in Test in MonocleExample),
         (clean in Compile in ScalatestCore),
-        (clean in Compile in MagnoliaTests),
+        //(clean in Compile in MagnoliaTests),
         (clean in ScalacCompiler)
       )
       .value,
@@ -186,7 +186,7 @@ lazy val integrations = project
         (compile in Test in MonocleTests),
         (compile in Test in MonocleExample),
         (compile in Compile in ScalatestCore),
-        (compile in Compile in MagnoliaTests),
+        //(compile in Compile in MagnoliaTests),
         (compile in ScalacCompiler)
       )
       .value,
@@ -259,12 +259,11 @@ lazy val integrations = project
         ScalatestTask,
         ScalacTask,
         BetterFilesTask,
-        ShapelessTask,
-        MagnoliaTask
+        ShapelessTask//,MagnoliaTask
       )
     }.evaluated
   )
 
 val proxy = project
   .in(file(".proxy"))
-  .aggregate(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless, Magnolia)
+  .aggregate(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless)//, Magnolia)
