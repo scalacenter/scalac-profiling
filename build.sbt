@@ -44,7 +44,7 @@ lazy val profiledb = project
   //.settings(metalsSettings)
   .settings(
     // Specify scala version to allow third-party software to use this module
-    scalaVersion := "2.12.4",
+    scalaVersion := "2.12.6",
     crossScalaVersions := List(scalaVersion.value, "2.11.11"),
     libraryDependencies +=
       "com.trueaccord.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
