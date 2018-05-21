@@ -41,10 +41,10 @@ import _root_.ch.epfl.scala.profiling.build.BuildImplementation.BuildDefaults
 import com.trueaccord.scalapb.compiler.Version.scalapbVersion
 lazy val profiledb = project
   .in(file("profiledb"))
-  .settings(metalsSettings)
+  //.settings(metalsSettings)
   .settings(
     // Specify scala version to allow third-party software to use this module
-    scalaVersion := "2.12.4",
+    scalaVersion := "2.12.6",
     crossScalaVersions := List(scalaVersion.value, "2.11.11"),
     libraryDependencies +=
       "com.trueaccord.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
@@ -54,7 +54,7 @@ lazy val profiledb = project
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
   .dependsOn(profiledb)
-  .settings(metalsSettings)
+  //.settings(metalsSettings)
   .settings(
     name := "scalac-profiling",
     libraryDependencies ++= List(
@@ -144,7 +144,7 @@ lazy val vscodeIntegration = project
 
 lazy val profilingSbtPlugin = project
   .in(file("sbt-plugin"))
-  .settings(metalsSettings)
+  //.settings(metalsSettings)
   .settings(
     name := "sbt-scalac-profiling",
     sbtPlugin := true,
@@ -173,7 +173,7 @@ lazy val integrations = project
         (clean in Test in MonocleTests),
         (clean in Test in MonocleExample),
         (clean in Compile in ScalatestCore),
-        (clean in Compile in MagnoliaTests),
+        //(clean in Compile in MagnoliaTests),
         (clean in ScalacCompiler)
       )
       .value,
@@ -186,7 +186,7 @@ lazy val integrations = project
         (compile in Test in MonocleTests),
         (compile in Test in MonocleExample),
         (compile in Compile in ScalatestCore),
-        (compile in Compile in MagnoliaTests),
+        //(compile in Compile in MagnoliaTests),
         (compile in ScalacCompiler)
       )
       .value,
@@ -259,12 +259,11 @@ lazy val integrations = project
         ScalatestTask,
         ScalacTask,
         BetterFilesTask,
-        ShapelessTask,
-        MagnoliaTask
+        ShapelessTask//,MagnoliaTask
       )
     }.evaluated
   )
 
 val proxy = project
   .in(file(".proxy"))
-  .aggregate(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless, Magnolia)
+  .aggregate(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless)//, Magnolia)

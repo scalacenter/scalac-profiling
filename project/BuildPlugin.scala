@@ -303,7 +303,7 @@ object BuildImplementation {
       }
     }
 
-    private[build] val MinimumScalaVersion = "2.12.4"
+    private[build] val MinimumScalaVersion = "2.12.6"
     def pickScalaVersion: Def.Initialize[String] = Def.settingDyn {
       if (!BuildKeys.useScalacFork.value) Def.setting(MinimumScalaVersion)
       // 2.12.3 has no statistics, so if scalaHome isn't used it will fail to compile
@@ -322,11 +322,14 @@ object BuildImplementation {
     }
 
     def setUpScalaHome: Def.Initialize[Option[sbt.File]] = Def.setting {
-      val pathToHome = new java.io.File(s"${BuildKeys.Scalac.build.toURL().getFile()}build/pack")
-      if (!pathToHome.exists()) {
-        Keys.sLog.value.warn(s"Scala home $pathToHome didn't exist yet.")
+      if (!BuildKeys.useScalacFork.value) None
+      else {
+        val pathToHome = new java.io.File(s"${BuildKeys.Scalac.build.toURL().getFile()}build/pack")
+        if (!pathToHome.exists()) {
+          Keys.sLog.value.warn(s"Scala home $pathToHome didn't exist yet.")
+        }
+        Some(pathToHome)
       }
-      Some(pathToHome)
     }
 
     def setUpUnmanagedJars: Def.Initialize[sbt.Task[Def.Classpath]] = Def.task {
@@ -356,7 +359,9 @@ object BuildImplementation {
           s"""${Keys.scalaHome.key.label} in $ref := ${MethodRefs.setUpScalaHomeRef}.value"""
         def setUnmanagedJars(ref: String, config: String) =
           s"""${Keys.unmanagedJars.key.label} in $config in $ref := ${MethodRefs.setUpUnmanagedJarsRef}.value"""
-        val msg = s"The build integrations are using a local Scalac home."
+        val msg = 
+          if (!BuildKeys.useScalacFork.value) "The build integrations are set up."
+          else s"The build integrations are using a local Scalac home."
         val setLoadMessage = s"""${Keys.onLoadMessage.key.label} in sbt.Global := "$msg""""
         val allSettingsRedefinitions = refs.flatMap { ref =>
           val setsUnmanagedJars =
@@ -384,7 +389,7 @@ object BuildImplementation {
 
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
     Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
-    BuildKeys.useScalacFork := true,
+    BuildKeys.useScalacFork := false,
     Keys.commands ~= BuildDefaults.fixPluginCross _,
     Keys.onLoadMessage := Header.intro,
     Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value)
