@@ -10,14 +10,12 @@
 package ch.epfl.scala.profilers
 
 import java.nio.file.{Files, Path, StandardOpenOption}
-import java.util
 
 import ch.epfl.scala.profiledb.utils.AbsolutePath
 
 import scala.tools.nsc.Global
 import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker}
 
-import scala.collection.mutable.ArrayBuffer
 import scala.reflect.internal.util.StatisticsStatics
 
 final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G])
@@ -76,19 +74,21 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   }
 
   lazy val macroProfiler: MacroProfiler = {
-    import ProfilingMacroPlugin.{macroInfos, repeatedTrees}
+    import ProfilingMacroPlugin.macroInfos //, repeatedTrees}
     val perCallSite = macroInfos.toMap
     val perFile = groupPerFile(perCallSite)(MacroInfo.Empty, _ + _)
       .mapValues(i => i.copy(expansionNanos = toMillis(i.expansionNanos)))
     val inTotal = MacroInfo.aggregate(perFile.valuesIterator)
-    val repeated = repeatedTrees.toMap.valuesIterator
+
+    /*    val repeated = repeatedTrees.toMap.valuesIterator
       .filter(_.count > 1)
       .map(v => v.original -> v.count)
-      .toMap
+      .toMap*/
+
     // perFile and inTotal are already converted to millis
     val callSiteNanos = perCallSite
       .mapValues(i => i.copy(expansionNanos = toMillis(i.expansionNanos)))
-    MacroProfiler(callSiteNanos, perFile, inTotal, repeated)
+    MacroProfiler(callSiteNanos, perFile, inTotal, Map.empty) //repeated)
   }
 
   case class ImplicitInfo(count: Int) {
@@ -119,42 +119,49 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
   def generateGraphData(outputDir: AbsolutePath): List[AbsolutePath] = {
     Files.createDirectories(outputDir.underlying)
     val graphName = s"implicit-searches-${java.lang.Long.toString(System.currentTimeMillis())}"
-    //val dotFile = outputDir.resolve(s"$graphName.dot")
-    //ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)
+/*    val dotFile = outputDir.resolve(s"$graphName.dot")
+    ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)*/
     val flamegraphFile = outputDir.resolve(s"$graphName.flamegraph")
-    ProfilingAnalyzerPlugin.foldStacks(flamegraphFile.underlying)
+    ProfilingAnalyzerPlugin.foldImplicitStacks(flamegraphFile.underlying)
     List(flamegraphFile)
   }
 
+  // Moving this here so that it's accessible to the macro plugin
+  private type Entry =
+    (global.analyzer.ImplicitSearch, statistics.TimerSnapshot, statistics.TimerSnapshot)
+  private var implicitsStack: List[Entry] = Nil
+
   private object ProfilingAnalyzerPlugin extends global.analyzer.AnalyzerPlugin {
     import scala.collection.mutable
-    private type Entry =
-      (global.analyzer.ImplicitSearch, statistics.TimerSnapshot, statistics.TimerSnapshot)
-
-    private var implicitsStack: List[Entry] = Nil
     private val implicitsTimers = perRunCaches.newAnyRefMap[Type, statistics.Timer]()
-    private val searchIdsToStackedNames = perRunCaches.newMap[Int, (String, Type)]()
-    private val stackedNanos = perRunCaches.newAnyRefMap[String, (Long, Type)]()
+    private val searchIdsToTargetTypes = perRunCaches.newMap[Int, Type]()
+    private val stackedNanos = perRunCaches.newMap[Int, (Long, Type)]()
+    private val stackedNames = perRunCaches.newMap[Int, String]()
     private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
     private val searchIdsToTimers = perRunCaches.newMap[Int, statistics.Timer]()
-    //private val implicitsDependants = new mutable.AnyRefMap[Type, mutable.HashSet[Type]]()
+    private val implicitsDependants = new mutable.AnyRefMap[Type, mutable.HashSet[Type]]()
+    private val searchIdChildren = perRunCaches.newMap[Int, List[analyzer.ImplicitSearch]]()
 
     private def typeToString(`type`: Type): String =
       global.exitingTyper(`type`.toLongString).trim
+    def logType(t: Type): Unit =
+      logger.info(t.map(t => t.underlying.typeOfThis).toLongString)
 
-    def foldStacks(outputPath: Path): Unit = {
+    def foldImplicitStacks(outputPath: Path): Unit = {
       // This part is memory intensive and hence the use of java collections
       val stacksJavaList = new java.util.ArrayList[String]()
-      val allStacks = stackedNanos.foreach {
-        case (name, (nanos, tpe)) =>
-          val count = implicitSearchesByType.getOrElse(tpe, sys.error(s"No counter for ${tpe}"))
-          stacksJavaList.add(s"$name [total $count] ${nanos / 1000000}")
+      stackedNanos.foreach {
+        case (id, (nanos, tpe)) =>
+          val stackName =
+            stackedNames.getOrElse(id, sys.error(s"Stack name for search id ${id} doesn't exist!"))
+          //val count = implicitSearchesByType.getOrElse(tpe, sys.error(s"No counter for ${tpe}"))
+          stacksJavaList.add(s"$stackName ${nanos / 1000}")
       }
       java.util.Collections.sort(stacksJavaList)
       Files.write(outputPath, stacksJavaList, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
     }
 
-/*    def dottify(graphName: String, outputPath: Path): Unit = {
+    def dottify(graphName: String, outputPath: Path): Unit = {
       def clean(`type`: Type) = typeToString(`type`).replace("\"", "\'")
       def qualify(node: String, timing: Long, counter: Int): String = {
         val nodeName = node.stripPrefix("\"").stripSuffix("\"")
@@ -165,7 +172,9 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
       val nodes = implicitSearchesByType.keys
       val nodesIds = nodes.map(`type` => `type` -> s""""${clean(`type`)}"""").toMap
       def getNodeId(`type`: Type): String = {
-        nodesIds.getOrElse(`type`, sys.error {
+        nodesIds.getOrElse(
+          `type`,
+          sys.error {
             s"""Id for ${`type`} doesn't exist.
               |
               |  Information about the type:
@@ -174,7 +183,8 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
               |   - `toLongString` after typer -> ${typeToString(`type`)}
               |   - `typeSymbol` -> ${`type`.typeSymbol}
             """.stripMargin
-        })
+          }
+        )
       }
 
       val connections = for {
@@ -196,9 +206,9 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         | graph [ranksep=0, rankdir=LR];
         |${nodeInfos.mkString("  ", "\n  ", "\n  ")}
         |${connections.mkString("  ", "\n  ", "\n  ")}
-        |}""".stripMargin.getBytes(UTF_8)
+        |}""".stripMargin.getBytes
       Files.write(outputPath, graph, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
-    }*/
+    }
 
     private def getImplicitTimerFor(candidate: Type): statistics.Timer =
       implicitsTimers.getOrElse(candidate, sys.error(s"Timer for ${candidate} doesn't exist"))
@@ -220,6 +230,15 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
             statistics.stopTimer(searchTimer, searchStart)
         }
 
+        // We add ourselves to the child list of our parent implicit search
+        implicitsStack.headOption match {
+          case Some((prevSearch, _, _)) =>
+            val prevId = prevSearch.searchId
+            val prevChilds = searchIdChildren.getOrElse(prevId, Nil)
+            searchIdChildren.update(prevId, search :: prevChilds)
+          case None => ()
+        }
+
         // Create timer and unregister it so that it is invisible in console output
         val prefix = s"  $targetType"
         val perTypeTimer = implicitsTimers
@@ -233,6 +252,10 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         registeredQuantities.remove(s"/$searchPrefix")
         searchIdsToTimers.+=(searchId -> searchTimer)
 
+        // Start the timer as soon as possible
+        val implicitTypeStart = statistics.startTimer(perTypeTimer)
+        val searchStart = statistics.startTimer(searchTimer)
+
         // Update all timers and counters
         val typeCounter = implicitSearchesByType.getOrElse(targetType, 0)
         implicitSearchesByType.update(targetType, typeCounter + 1)
@@ -241,53 +264,101 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
         if (global.analyzer.openMacros.nonEmpty)
           statistics.incCounter(implicitSearchesByMacrosCount)
 
-        // Add stacked names and timer for the flamegraph generation
-        val stackedName = search.context.openImplicits.foldLeft(typeToString(targetType)) {
-          case (stackedName, dependant) => s"${typeToString(dependant.pt)};$stackedName".trim
-        }
+        searchIdsToTargetTypes.+=((search.searchId, targetType))
 
-        searchIdsToStackedNames.+=((search.searchId, (stackedName, targetType)))
-
-/*        // Add dependants once we hit a concrete node
+        // Add dependants once we hit a concrete node
         search.context.openImplicits.headOption.foreach { dependant =>
           implicitsDependants
             .getOrElseUpdate(targetType, new mutable.HashSet())
             .+=(dependant.pt)
-        }*/
+        }
 
-        // Start the timer at the end to factor out the cost of our analysis
-        val implicitTypeStart = statistics.startTimer(perTypeTimer)
-        val searchStart = statistics.startTimer(searchTimer)
         implicitsStack = (search, implicitTypeStart, searchStart) :: implicitsStack
+      }
+    }
+
+    def concreteTypeFromSearch(result: analyzer.SearchResult, default: Type): Type = {
+      result.subst(result.tree) match {
+        case EmptyTree => default
+        case Block(_, expr) => expr.tpe
+        case Try(block, _, _) =>
+          block match {
+            case Block(_, expr) => expr.tpe
+            case t => t.tpe
+          }
+        case t =>
+          val treeType = t.tpe
+          if (treeType == null || treeType == NoType) default else treeType
       }
     }
 
     override def pluginsNotifyImplicitSearchResult(result: global.analyzer.SearchResult): Unit = {
       super.pluginsNotifyImplicitSearchResult(result)
       if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
-        // 1. Stop timer for the running search.
+        // 1. Get timer of the running search
         val (search, implicitTypeStart, searchStart) = implicitsStack.head
         val targetType = search.pt
         val timer = getImplicitTimerFor(targetType)
-        statistics.stopTimer(timer, implicitTypeStart)
 
         // 2. Register the timing diff for every stacked name.
-        val searchId = search.searchId
-        val searchTimer = getSearchTimerFor(searchId)
-        statistics.stopTimer(searchTimer, searchStart)
-        val (stackedName, stackedType) = searchIdsToStackedNames
-          .getOrElse(searchId, sys.error(s"Missing stacked name for $searchId ($targetType)."))
-        val (previousNanos, _) = stackedNanos.getOrElse(stackedName, (0L, stackedType))
-        stackedNanos.+=((stackedName, ((searchTimer.nanos + previousNanos), stackedType)))
+        def stopTimerFlamegraph(prev: Option[analyzer.ImplicitSearch]): Unit = {
+          val searchId = search.searchId
+          def missing(name: String): Nothing =
+            sys.error(s"Missing $name for $searchId ($targetType).")
+
+          val searchTimer = getSearchTimerFor(searchId)
+          statistics.stopTimer(searchTimer, searchStart)
+          val stackedType =
+            searchIdsToTargetTypes.getOrElse(searchId, missing("stack type"))
+          //searchIdsToStackedNames.remove(searchId)
+
+          // Save the nanos for this implicit search
+          val (previousNanos, _) = stackedNanos.getOrElse(searchId, (0L, stackedType))
+          stackedNanos.+=((searchId, ((searchTimer.nanos + previousNanos), stackedType)))
+
+          // Detect macro name if the type we get comes from a macro to add it to the stack
+          val macroName = {
+            result.tree.attachments.get[analyzer.MacroExpansionAttachment] match {
+              case Some(analyzer.MacroExpansionAttachment(expandee: Tree, _)) =>
+                val expandeeSymbol = treeInfo.dissectApplied(expandee).core.symbol
+                analyzer.loadMacroImplBinding(expandeeSymbol) match {
+                  case Some(a) => s" from `${a.className}.${a.methName}` _[i]"
+                  case None => ""
+                }
+              case None => ""
+            }
+          }
+
+          // Complete stack names of triggered implicit searches
+          val children = searchIdChildren.getOrElse(searchId, Nil)
+          prev.foreach { p =>
+            val current = searchIdChildren.getOrElse(p.searchId, Nil)
+            searchIdChildren.update(p.searchId, children ::: current)
+          }
+
+          val thisStackName = s"${typeToString(targetType)}$macroName"
+          stackedNames.update(searchId, thisStackName)
+          children.foreach { childSearch =>
+            val id = childSearch.searchId
+            val childrenStackName = stackedNames.getOrElse(id, missing("stack name"))
+            stackedNames.update(id, s"$thisStackName;$childrenStackName")
+          }
+        }
 
         // 3. Reset the stack and stop timer if there is a dependant search
         val previousImplicits = implicitsStack.tail
         implicitsStack = previousImplicits.headOption match {
-          case Some((prevSearch, implicitTypeStart, _)) =>
-            val newSearchStart = statistics.startTimer(getSearchTimerFor(prevSearch.searchId))
-            (prevSearch, implicitTypeStart, newSearchStart) :: previousImplicits.tail
-          case None => previousImplicits
+          case Some((prevSearch, prevImplicitTypeStart, _)) =>
+            stopTimerFlamegraph(Some(prevSearch))
+            statistics.stopTimer(timer, implicitTypeStart)
+            val newPrevStart = statistics.startTimer(getSearchTimerFor(prevSearch.searchId))
+            (prevSearch, prevImplicitTypeStart, newPrevStart) :: previousImplicits.tail
+          case None =>
+            stopTimerFlamegraph(None)
+            statistics.stopTimer(timer, implicitTypeStart)
+            previousImplicits
         }
+
       }
     }
   }
@@ -299,9 +370,9 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
 
     type RepeatedKey = (String, String)
     case class RepeatedValue(original: Tree, result: Tree, count: Int)
-    private[ProfilingImpl] val repeatedTrees = perRunCaches.newMap[RepeatedKey, RepeatedValue]
+    //private[ProfilingImpl] val repeatedTrees = perRunCaches.newMap[RepeatedKey, RepeatedValue]
     private[ProfilingImpl] val macroInfos = perRunCaches.newMap[Position, MacroInfo]
-    private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
+    //private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
 
     import scala.tools.nsc.Mode
     override def pluginsMacroExpand(t: Typer, expandee: Tree, md: Mode, pt: Type): Option[Tree] = {
@@ -349,20 +420,23 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
           super.onDelayed(expanded)
         }
 
-        override def onSuccess(expanded: Tree) = {
+        override def onSuccess(expanded0: Tree) = {
+          val expanded = super.onSuccess(expanded0)
+
           val callSitePos = expandee.pos
-          val printedExpandee = showRaw(expandee)
+          /*          val printedExpandee = showRaw(expandee)
           val printedExpanded = showRaw(expanded)
           val key = (printedExpandee, printedExpanded)
           val currentValue = repeatedTrees.getOrElse(key, EmptyRepeatedValue)
           val newValue = RepeatedValue(expandee, expanded, currentValue.count + 1)
-          repeatedTrees.put(key, newValue)
+          repeatedTrees.put(key, newValue)*/
           val macroInfo = macroInfos.getOrElse(callSitePos, MacroInfo.Empty)
           val expandedMacros = macroInfo.expandedMacros + 1
-          val treeSize = macroInfo.expandedNodes + guessTreeSize(expanded)
+          val treeSize = 0 //macroInfo.expandedNodes + guessTreeSize(expanded)
+
           // Use 0L for the timer because it will be filled in by the caller `apply`
           macroInfos.put(callSitePos, MacroInfo(expandedMacros, treeSize, 0L))
-          super.onSuccess(expanded)
+          expanded
         }
       }
       Some(expander(expandee))
