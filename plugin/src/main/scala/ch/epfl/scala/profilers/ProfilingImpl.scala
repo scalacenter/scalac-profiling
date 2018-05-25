@@ -11,6 +11,7 @@ package ch.epfl.scala.profilers
 
 import java.nio.file.{Files, Path, StandardOpenOption}
 
+import ch.epfl.scala.PluginConfig
 import ch.epfl.scala.profiledb.utils.AbsolutePath
 
 import scala.tools.nsc.Global
@@ -18,8 +19,11 @@ import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker}
 
 import scala.reflect.internal.util.StatisticsStatics
 
-final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G])
-    extends ProfilingStats {
+final class ProfilingImpl[G <: Global](
+    override val global: G,
+    config: PluginConfig,
+    logger: Logger[G]
+) extends ProfilingStats {
   import global._
 
   def registerProfilers(): Unit = {
@@ -27,6 +31,8 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     analyzer.addMacroPlugin(ProfilingMacroPlugin)
     analyzer.addAnalyzerPlugin(ProfilingAnalyzerPlugin)
   }
+
+  case class MacroExpansion(tree: Tree, tpe: Type)
 
   /**
     * Represents the profiling information about expanded macros.
@@ -116,10 +122,34 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     ImplicitProfiler(perCallSite, perFile, perType, inTotal)
   }
 
+  // Copied from `TypeDiagnostics` to have expanded types in implicit search
+  private object DealiasedType extends TypeMap {
+    def apply(tp: Type): Type = tp match {
+      case TypeRef(pre, sym, _) if sym.isAliasType && !sym.isInDefaultNamespace =>
+        mapOver(tp.dealias)
+      case _ => mapOver(tp)
+    }
+  }
+
+  def concreteTypeFromSearch(tree: Tree, default: Type): Type = {
+    tree match {
+      case EmptyTree => default
+      case Block(_, expr) => expr.tpe
+      case Try(block, _, _) =>
+        block match {
+          case Block(_, expr) => expr.tpe
+          case t => t.tpe
+        }
+      case t =>
+        val treeType = t.tpe
+        if (treeType == null || treeType == NoType) default else treeType
+    }
+  }
+
   def generateGraphData(outputDir: AbsolutePath): List[AbsolutePath] = {
     Files.createDirectories(outputDir.underlying)
     val graphName = s"implicit-searches-${java.lang.Long.toString(System.currentTimeMillis())}"
-/*    val dotFile = outputDir.resolve(s"$graphName.dot")
+    /*    val dotFile = outputDir.resolve(s"$graphName.dot")
     ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)*/
     val flamegraphFile = outputDir.resolve(s"$graphName.flamegraph")
     ProfilingAnalyzerPlugin.foldImplicitStacks(flamegraphFile.underlying)
@@ -266,29 +296,14 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
 
         searchIdsToTargetTypes.+=((search.searchId, targetType))
 
-        // Add dependants once we hit a concrete node
+/*        // Add dependants once we hit a concrete node
         search.context.openImplicits.headOption.foreach { dependant =>
           implicitsDependants
             .getOrElseUpdate(targetType, new mutable.HashSet())
             .+=(dependant.pt)
-        }
+        }*/
 
         implicitsStack = (search, implicitTypeStart, searchStart) :: implicitsStack
-      }
-    }
-
-    def concreteTypeFromSearch(result: analyzer.SearchResult, default: Type): Type = {
-      result.subst(result.tree) match {
-        case EmptyTree => default
-        case Block(_, expr) => expr.tpe
-        case Try(block, _, _) =>
-          block match {
-            case Block(_, expr) => expr.tpe
-            case t => t.tpe
-          }
-        case t =>
-          val treeType = t.tpe
-          if (treeType == null || treeType == NoType) default else treeType
       }
     }
 
@@ -306,26 +321,18 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
           def missing(name: String): Nothing =
             sys.error(s"Missing $name for $searchId ($targetType).")
 
-          val searchTimer = getSearchTimerFor(searchId)
-          statistics.stopTimer(searchTimer, searchStart)
-          val stackedType =
-            searchIdsToTargetTypes.getOrElse(searchId, missing("stack type"))
-          //searchIdsToStackedNames.remove(searchId)
-
-          // Save the nanos for this implicit search
-          val (previousNanos, _) = stackedNanos.getOrElse(searchId, (0L, stackedType))
-          stackedNanos.+=((searchId, ((searchTimer.nanos + previousNanos), stackedType)))
-
           // Detect macro name if the type we get comes from a macro to add it to the stack
           val macroName = {
+            val errorTag = if (result.isFailure) " _[j]" else ""
             result.tree.attachments.get[analyzer.MacroExpansionAttachment] match {
               case Some(analyzer.MacroExpansionAttachment(expandee: Tree, _)) =>
                 val expandeeSymbol = treeInfo.dissectApplied(expandee).core.symbol
                 analyzer.loadMacroImplBinding(expandeeSymbol) match {
-                  case Some(a) => s" from `${a.className}.${a.methName}` _[i]"
-                  case None => ""
+                  case Some(a) =>
+                    s"(id ${searchId}) from `${a.className}.${a.methName}` _[i]"
+                  case None => errorTag
                 }
-              case None => ""
+              case None => errorTag
             }
           }
 
@@ -336,13 +343,44 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
             searchIdChildren.update(p.searchId, children ::: current)
           }
 
-          val thisStackName = s"${typeToString(targetType)}$macroName"
+          val typeForStack = DealiasedType {
+            if (!config.concreteTypeParamsInImplicits) targetType
+            else concreteTypeFromSearch(result.subst(result.tree), targetType)
+          }
+
+          if (config.printSearchIds.contains(searchId)) {
+            logger.info(
+              s"""Showing tree of implicit search ${searchId} of type `${typeForStack}`:
+                 |${showCode(result.tree)}
+                 |""".stripMargin)
+          }
+
+          val cause = {
+            if (result.isAmbiguousFailure) "ambiguous"
+            else if (result.isDivergent) "divergent"
+            else if (result.isFailure) "failure"
+            else ""
+          }
+
+          if (!cause.isEmpty) {
+            val forcedExpansions = searchesToMacros.getOrElse(searchId, Nil)
+            logger.info(s"$cause search forced ${forcedExpansions.mkString(", ")}")
+          }
+
+          val thisStackName = s"${typeToString(typeForStack)}$macroName"
           stackedNames.update(searchId, thisStackName)
           children.foreach { childSearch =>
             val id = childSearch.searchId
             val childrenStackName = stackedNames.getOrElse(id, missing("stack name"))
             stackedNames.update(id, s"$thisStackName;$childrenStackName")
           }
+
+          // Save the nanos for this implicit search
+          val searchTimer = getSearchTimerFor(searchId)
+          val stackedType = searchIdsToTargetTypes.getOrElse(searchId, missing("stack type"))
+          statistics.stopTimer(searchTimer, searchStart)
+          val (previousNanos, _) = stackedNanos.getOrElse(searchId, (0L, stackedType))
+          stackedNanos.+=((searchId, ((searchTimer.nanos + previousNanos), stackedType)))
         }
 
         // 3. Reset the stack and stop timer if there is a dependant search
@@ -363,16 +401,18 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
     }
   }
 
+  private[ProfilingImpl] val searchesToMacros = perRunCaches.newMap[Int, List[MacroExpansion]]
   object ProfilingMacroPlugin extends global.analyzer.MacroPlugin {
     type Typer = analyzer.Typer
     private def guessTreeSize(tree: Tree): Int =
       1 + tree.children.map(guessTreeSize).sum
 
     type RepeatedKey = (String, String)
-    case class RepeatedValue(original: Tree, result: Tree, count: Int)
-    //private[ProfilingImpl] val repeatedTrees = perRunCaches.newMap[RepeatedKey, RepeatedValue]
-    private[ProfilingImpl] val macroInfos = perRunCaches.newMap[Position, MacroInfo]
+    //case class RepeatedValue(original: Tree, result: Tree, count: Int)
     //private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
+    //private[ProfilingImpl] val repeatedTrees = perRunCaches.newMap[RepeatedKey, RepeatedValue]
+
+    private[ProfilingImpl] val macroInfos = perRunCaches.newAnyRefMap[Position, MacroInfo]
 
     import scala.tools.nsc.Mode
     override def pluginsMacroExpand(t: Typer, expandee: Tree, md: Mode, pt: Type): Option[Tree] = {
@@ -410,18 +450,36 @@ final class ProfilingImpl[G <: Global](override val global: G, logger: Logger[G]
           }
         }
 
+        def mapToSearch(exp: MacroExpansion): Unit = {
+          implicitsStack.headOption match {
+            case Some(i) =>
+              val id = i._1.searchId
+              val currentMacros = searchesToMacros.getOrElse(id, Nil)
+              searchesToMacros.update(id, exp :: currentMacros)
+            case None => ()
+          }
+        }
+
         override def onFailure(expanded: Tree) = {
+          mapToSearch(MacroExpansion(expanded, NoType))
           statistics.incCounter(failedMacros)
           super.onFailure(expanded)
         }
 
         override def onDelayed(expanded: Tree) = {
+          mapToSearch(MacroExpansion(expanded, NoType))
           statistics.incCounter(delayedMacros)
           super.onDelayed(expanded)
         }
 
         override def onSuccess(expanded0: Tree) = {
           val expanded = super.onSuccess(expanded0)
+          val expandedType = concreteTypeFromSearch(expanded, pt)
+          mapToSearch(MacroExpansion(expanded, expandedType))
+
+          // Update macro counter per type returned
+          val macroTypeCounter = macrosByType.getOrElse(expandedType, 0)
+          macrosByType.update(expandedType, macroTypeCounter + 1)
 
           val callSitePos = expandee.pos
           /*          val printedExpandee = showRaw(expandee)
@@ -456,6 +514,7 @@ trait ProfilingStats {
   final val implicitSearchesByMacrosCount = newSubCounter("  from macros", implicitSearchCount)
 
   import scala.reflect.internal.util.Position
+  final val macrosByType = new scala.collection.mutable.HashMap[global.Type, Int]()
   final val implicitSearchesByType = global.perRunCaches.newMap[global.Type, Int]()
   final val implicitSearchesByPos = global.perRunCaches.newMap[Position, Int]()
 }
