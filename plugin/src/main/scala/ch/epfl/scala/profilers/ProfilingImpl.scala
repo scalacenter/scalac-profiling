@@ -32,8 +32,6 @@ final class ProfilingImpl[G <: Global](
     analyzer.addAnalyzerPlugin(ProfilingAnalyzerPlugin)
   }
 
-  case class MacroExpansion(tree: Tree, tpe: Type)
-
   /**
     * Represents the profiling information about expanded macros.
     *
@@ -148,13 +146,27 @@ final class ProfilingImpl[G <: Global](
 
   def generateGraphData(outputDir: AbsolutePath): List[AbsolutePath] = {
     Files.createDirectories(outputDir.underlying)
-    val graphName = s"implicit-searches-${java.lang.Long.toString(System.currentTimeMillis())}"
+    val randomId = java.lang.Long.toString(System.currentTimeMillis())
+    val implicitGraphName = s"implicit-searches-$randomId"
+    val macroGraphName = s"macros-$randomId"
     /*    val dotFile = outputDir.resolve(s"$graphName.dot")
     ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)*/
-    val flamegraphFile = outputDir.resolve(s"$graphName.flamegraph")
-    ProfilingAnalyzerPlugin.foldImplicitStacks(flamegraphFile.underlying)
-    List(flamegraphFile)
+    val implicitFlamegraphFile = outputDir.resolve(s"$implicitGraphName.flamegraph")
+    ProfilingAnalyzerPlugin.foldImplicitStacks(implicitFlamegraphFile.underlying)
+    val macroFlamegraphFile = outputDir.resolve(s"$macroGraphName.flamegraph")
+    ProfilingMacroPlugin.foldMacroStacks(macroFlamegraphFile.underlying)
+    List(implicitFlamegraphFile, macroFlamegraphFile)
   }
+
+  private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
+  def registerTyperTimerFor(prefix: String): statistics.Timer = {
+    val typerTimer = statistics.newTimer(prefix, "typer")
+    registeredQuantities.remove(s"/$prefix")
+    typerTimer
+  }
+
+  private def typeToString(`type`: Type): String =
+    global.exitingTyper(`type`.toLongString).trim
 
   // Moving this here so that it's accessible to the macro plugin
   private type Entry =
@@ -167,15 +179,9 @@ final class ProfilingImpl[G <: Global](
     private val searchIdsToTargetTypes = perRunCaches.newMap[Int, Type]()
     private val stackedNanos = perRunCaches.newMap[Int, (Long, Type)]()
     private val stackedNames = perRunCaches.newMap[Int, String]()
-    private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
     private val searchIdsToTimers = perRunCaches.newMap[Int, statistics.Timer]()
     private val implicitsDependants = new mutable.AnyRefMap[Type, mutable.HashSet[Type]]()
     private val searchIdChildren = perRunCaches.newMap[Int, List[analyzer.ImplicitSearch]]()
-
-    private def typeToString(`type`: Type): String =
-      global.exitingTyper(`type`.toLongString).trim
-    def logType(t: Type): Unit =
-      logger.info(t.map(t => t.underlying.typeOfThis).toLongString)
 
     def foldImplicitStacks(outputPath: Path): Unit = {
       // This part is memory intensive and hence the use of java collections
@@ -278,8 +284,7 @@ final class ProfilingImpl[G <: Global](
         // Create non-cumulative timer for the search and unregister it too
         val searchId = search.searchId
         val searchPrefix = s"  implicit search ${searchId}"
-        val searchTimer = statistics.newTimer(searchPrefix, "typer")
-        registeredQuantities.remove(s"/$searchPrefix")
+        val searchTimer = registerTyperTimerFor(searchPrefix)
         searchIdsToTimers.+=(searchId -> searchTimer)
 
         // Start the timer as soon as possible
@@ -296,7 +301,7 @@ final class ProfilingImpl[G <: Global](
 
         searchIdsToTargetTypes.+=((search.searchId, targetType))
 
-/*        // Add dependants once we hit a concrete node
+        /*        // Add dependants once we hit a concrete node
         search.context.openImplicits.headOption.foreach { dependant =>
           implicitsDependants
             .getOrElseUpdate(targetType, new mutable.HashSet())
@@ -321,6 +326,10 @@ final class ProfilingImpl[G <: Global](
           def missing(name: String): Nothing =
             sys.error(s"Missing $name for $searchId ($targetType).")
 
+          val forcedExpansions =
+            ProfilingMacroPlugin.searchIdsToMacroStates.getOrElse(searchId, Nil).size
+          val expandedStr = s"(expanded macros $forcedExpansions)"
+
           // Detect macro name if the type we get comes from a macro to add it to the stack
           val macroName = {
             val errorTag = if (result.isFailure) " _[j]" else ""
@@ -329,10 +338,11 @@ final class ProfilingImpl[G <: Global](
                 val expandeeSymbol = treeInfo.dissectApplied(expandee).core.symbol
                 analyzer.loadMacroImplBinding(expandeeSymbol) match {
                   case Some(a) =>
-                    s"(id ${searchId}) from `${a.className}.${a.methName}` _[i]"
-                  case None => errorTag
+                    val l = if (errorTag.isEmpty) " _[i]" else errorTag
+                    s" (id ${searchId}) $expandedStr (tree from `${a.className}.${a.methName}`)$l"
+                  case None => s" $expandedStr $errorTag"
                 }
-              case None => errorTag
+              case None => s" $expandedStr $errorTag"
             }
           }
 
@@ -349,22 +359,9 @@ final class ProfilingImpl[G <: Global](
           }
 
           if (config.printSearchIds.contains(searchId)) {
-            logger.info(
-              s"""Showing tree of implicit search ${searchId} of type `${typeForStack}`:
+            logger.info(s"""Showing tree of implicit search ${searchId} of type `${typeForStack}`:
                  |${showCode(result.tree)}
                  |""".stripMargin)
-          }
-
-          val cause = {
-            if (result.isAmbiguousFailure) "ambiguous"
-            else if (result.isDivergent) "divergent"
-            else if (result.isFailure) "failure"
-            else ""
-          }
-
-          if (!cause.isEmpty) {
-            val forcedExpansions = searchesToMacros.getOrElse(searchId, Nil)
-            logger.info(s"$cause search forced ${forcedExpansions.mkString(", ")}")
           }
 
           val thisStackName = s"${typeToString(typeForStack)}$macroName"
@@ -401,7 +398,28 @@ final class ProfilingImpl[G <: Global](
     }
   }
 
-  private[ProfilingImpl] val searchesToMacros = perRunCaches.newMap[Int, List[MacroExpansion]]
+  sealed trait MacroState {
+    def pt: Type
+    def tree: Tree
+  }
+
+  case class DelayedMacro(pt: Type, tree: Tree) extends MacroState
+  case class SkippedMacro(pt: Type, tree: Tree) extends MacroState
+  case class SuppressedMacro(pt: Type, tree: Tree) extends MacroState
+  case class FallbackMacro(pt: Type, tree: Tree) extends MacroState
+  case class FailedMacro(pt: Type, tree: Tree) extends MacroState
+  case class SucceededMacro(pt: Type, tree: Tree) extends MacroState
+
+  case class MacroEntry(
+      id: Int,
+      originalPt: Type,
+      start: statistics.TimerSnapshot,
+      state: Option[MacroState]
+  )
+
+  private var macrosStack: List[MacroEntry] = Nil
+  private var macroCounter: Int = 0
+
   object ProfilingMacroPlugin extends global.analyzer.MacroPlugin {
     type Typer = analyzer.Typer
     private def guessTreeSize(tree: Tree): Int =
@@ -412,70 +430,177 @@ final class ProfilingImpl[G <: Global](
     //private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
     //private[ProfilingImpl] val repeatedTrees = perRunCaches.newMap[RepeatedKey, RepeatedValue]
 
-    private[ProfilingImpl] val macroInfos = perRunCaches.newAnyRefMap[Position, MacroInfo]
+    val macroInfos = perRunCaches.newAnyRefMap[Position, MacroInfo]
+    val searchIdsToMacroStates = perRunCaches.newMap[Int, List[MacroState]]
+    private val macroIdsToTimers = perRunCaches.newMap[Int, statistics.Timer]()
+    private val macroChildren = perRunCaches.newMap[Int, List[MacroEntry]]()
+    private val stackedNanos = perRunCaches.newMap[Int, Long]()
+    private val stackedNames = perRunCaches.newMap[Int, String]()
+
+    def foldMacroStacks(outputPath: Path): Unit = {
+      // This part is memory intensive and hence the use of java collections
+      val stacksJavaList = new java.util.ArrayList[String]()
+      stackedNanos.foreach {
+        case (id, nanos) =>
+          val stackName =
+            stackedNames.getOrElse(id, sys.error(s"Stack name for macro id ${id} doesn't exist!"))
+          stacksJavaList.add(s"$stackName ${nanos / 1000}")
+      }
+      java.util.Collections.sort(stacksJavaList)
+      Files.write(outputPath, stacksJavaList, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
+    }
 
     import scala.tools.nsc.Mode
     override def pluginsMacroExpand(t: Typer, expandee: Tree, md: Mode, pt: Type): Option[Tree] = {
+      val macroId = macroCounter
+      macroCounter = macroCounter + 1
+
       object expander extends analyzer.DefMacroExpander(t, expandee, md, pt) {
-        private var alreadyTracking: Boolean = false
 
-        /**
-          * Overrides the default method that expands all macros.
-          *
-          * We perform this because we need our own timer and access to the first timer snapshot
-          * in order to obtain the expansion time for every expanded tree.
-          */
+        /** The default method that expands all macros. */
         override def apply(desugared: Tree): Tree = {
-          val shouldTrack = statistics.enabled && !alreadyTracking
-          val start = if (shouldTrack) {
-            alreadyTracking = true
-            statistics.startTimer(preciseMacroTimer)
-          } else null
-          try super.apply(desugared)
-          finally if (shouldTrack) {
-            alreadyTracking = false
-            updateExpansionTime(desugared, start)
-          } else ()
-        }
+          val prevData = macrosStack.headOption.map { prev =>
+            macroIdsToTimers.getOrElse(
+              prev.id,
+              sys.error(s"fatal error: missing timer for ${prev.id}")
+            ) -> prev
+          }
 
-        def updateExpansionTime(desugared: Tree, start: statistics.TimerSnapshot): Unit = {
-          statistics.stopTimer(preciseMacroTimer, start)
-          val (nanos0, _) = start
-          val timeNanos = (preciseMacroTimer.nanos - nanos0)
-          val callSitePos = desugared.pos
-          // Those that are not present failed to expand
-          macroInfos.get(callSitePos).foreach { found =>
-            val updatedInfo = found.copy(expansionNanos = timeNanos)
-            macroInfos(callSitePos) = updatedInfo
+          // Let's first stop the previous timer to have consistent times for the flamegraph
+          prevData.foreach {
+            case (prevTimer, prev) => statistics.stopTimer(prevTimer, prev.start)
+          }
+
+          // Let's create our own timer
+          val searchPrefix = s"  macro ${macroId}"
+          val macroTimer = registerTyperTimerFor(searchPrefix)
+          macroIdsToTimers += ((macroId, macroTimer))
+          val start = statistics.startTimer(macroTimer)
+
+          val entry = MacroEntry(macroId, pt, start, None)
+
+          // We add ourselves to the child list of our parent implicit search
+          prevData.foreach {
+            case (_, entry) =>
+              val prevId = entry.id
+              val prevChilds = macroChildren.getOrElse(prevId, Nil)
+              macroChildren.update(prevId, entry :: prevChilds)
+          }
+
+          macrosStack = entry :: macrosStack
+          try super.apply(desugared)
+          finally {
+            // Complete stack names of triggered implicit searches
+            val children = macroChildren.getOrElse(macroId, Nil)
+            prevData.foreach {
+              case (_, p) =>
+                val prevChildren = macroChildren.getOrElse(p.id, Nil)
+                macroChildren.update(p.id, children ::: prevChildren)
+            }
+
+            // We need to fetch the entry from the stack as it can be modified
+            val parents = macrosStack.tail
+            macrosStack.headOption match {
+              case Some(head) =>
+                val thisStackName = head.state match {
+                  case Some(FailedMacro(pt, _)) => s"${typeToString(pt)} [failed]"
+                  case Some(DelayedMacro(pt, _)) => s"${typeToString(pt)} [delayed]"
+                  case Some(SucceededMacro(pt, _)) => s"${typeToString(pt)}"
+                  case Some(SuppressedMacro(pt, _)) => s"${typeToString(pt)} [suppressed]"
+                  case Some(SkippedMacro(pt, _)) => s"${typeToString(pt)} [skipped]"
+                  case Some(FallbackMacro(pt, _)) => s"${typeToString(pt)} [fallback]"
+                  case None => sys.error("Fatal error: macro has no state!")
+                }
+
+                stackedNames.update(macroId, thisStackName)
+                children.foreach { childSearch =>
+                  val id = childSearch.id
+                  val childrenStackName = stackedNames.getOrElse(id, sys.error("no stack name"))
+                  stackedNames.update(id, s"$thisStackName;$childrenStackName")
+                }
+
+                statistics.stopTimer(macroTimer, head.start)
+                // TODO: Why are we getting the previous nanos first?
+                val previousNanos = stackedNanos.getOrElse(macroId, 0L)
+                stackedNanos.+=((macroId, macroTimer.nanos + previousNanos))
+                prevData match {
+                  case Some((prevTimer, prev)) =>
+                    // Let's restart the timer of the previous macro expansion
+                    val newStart = statistics.startTimer(prevTimer)
+                    // prev is the head of `parents`, so let's replace it on stack with the new start
+                    macrosStack = prev.copy(start = newStart) :: parents.tail
+                  case None => macrosStack = parents
+                }
+              case None => sys.error(s"fatal error: expected macro entry for macro id $macroId")
+            }
           }
         }
 
-        def mapToSearch(exp: MacroExpansion): Unit = {
+        def mapToCurrentImplicitSearch(exp: MacroState): Unit = {
           implicitsStack.headOption match {
             case Some(i) =>
               val id = i._1.searchId
-              val currentMacros = searchesToMacros.getOrElse(id, Nil)
-              searchesToMacros.update(id, exp :: currentMacros)
+              val currentMacros = searchIdsToMacroStates.getOrElse(id, Nil)
+              searchIdsToMacroStates.update(id, exp :: currentMacros)
             case None => ()
           }
         }
 
+        def updateStack(state: MacroState): Unit = {
+          macrosStack.headOption match {
+            case Some(entry) =>
+              macrosStack = entry.copy(state = Some(state)) :: macrosStack.tail
+            case None => sys.error("fatal error: stack cannot be empty while updating!")
+          }
+        }
+
         override def onFailure(expanded: Tree) = {
-          mapToSearch(MacroExpansion(expanded, NoType))
+          val state = FailedMacro(pt, expanded)
+          mapToCurrentImplicitSearch(state)
           statistics.incCounter(failedMacros)
+          updateStack(state)
           super.onFailure(expanded)
         }
 
+
+        override def onSkipped(expanded: Tree) = {
+          val state = SkippedMacro(pt, expanded)
+          mapToCurrentImplicitSearch(state)
+          statistics.incCounter(skippedMacros)
+          updateStack(state)
+          super.onDelayed(expanded)
+        }
+
+        override def onFallback(expanded: Tree) = {
+          val state = FallbackMacro(pt, expanded)
+          mapToCurrentImplicitSearch(state)
+          statistics.incCounter(fallbackMacros)
+          updateStack(state)
+          super.onFallback(expanded)
+        }
+
+        override def onSuppressed(expanded: Tree) = {
+          val state = SuppressedMacro(pt, expanded)
+          mapToCurrentImplicitSearch(state)
+          statistics.incCounter(suppressedMacros)
+          updateStack(state)
+          super.onSuppressed(expanded)
+        }
+
         override def onDelayed(expanded: Tree) = {
-          mapToSearch(MacroExpansion(expanded, NoType))
+          val state = DelayedMacro(pt, expanded)
+          mapToCurrentImplicitSearch(state)
           statistics.incCounter(delayedMacros)
+          updateStack(state)
           super.onDelayed(expanded)
         }
 
         override def onSuccess(expanded0: Tree) = {
           val expanded = super.onSuccess(expanded0)
           val expandedType = concreteTypeFromSearch(expanded, pt)
-          mapToSearch(MacroExpansion(expanded, expandedType))
+          val state = SucceededMacro(expandedType, expanded)
+          mapToCurrentImplicitSearch(state)
+          updateStack(state)
 
           // Update macro counter per type returned
           val macroTypeCounter = macrosByType.getOrElse(expandedType, 0)
@@ -504,13 +629,14 @@ final class ProfilingImpl[G <: Global](
 
 trait ProfilingStats {
   val global: Global
-  import global.statistics.{newTimer, newSubCounter, macroExpandCount, implicitSearchCount}
+  import global.statistics.{newSubCounter, macroExpandCount, implicitSearchCount}
   macroExpandCount.children.clear()
 
-  final val preciseMacroTimer = newTimer("precise time in macroExpand")
   final val failedMacros = newSubCounter("  of which failed macros", macroExpandCount)
   final val delayedMacros = newSubCounter("  of which delayed macros", macroExpandCount)
-
+  final val suppressedMacros = newSubCounter("  of which suppressed macros", macroExpandCount)
+  final val fallbackMacros = newSubCounter("  of which fallback macros", macroExpandCount)
+  final val skippedMacros = newSubCounter("  of which skipped macros", macroExpandCount)
   final val implicitSearchesByMacrosCount = newSubCounter("  from macros", implicitSearchCount)
 
   import scala.reflect.internal.util.Position
