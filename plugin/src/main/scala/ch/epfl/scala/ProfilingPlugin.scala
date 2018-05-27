@@ -25,15 +25,18 @@ import scala.util.Try
 import scala.util.matching.Regex
 
 class ProfilingPlugin(val global: Global) extends Plugin {
+  // Every definition used at init needs to be lazy otherwise it slays the compiler
   val name = "scalac-profiling"
   val description = "Adds instrumentation to keep an eye on Scalac performance."
   val components = List[PluginComponent](ProfilingComponent)
 
-  private final val ShowProfiles = "show-profiles"
-  private final val SourceRoot = "sourceroot"
-  private final val NoProfileDb = "no-profiledb"
-  private final val SourceRootRegex = s"sourceroot:(.*)".r
-  case class PluginConfig(showProfiles: Boolean, noDb: Boolean, sourceRoot: Option[AbsolutePath])
+  private final lazy val ShowProfiles = "show-profiles"
+  private final lazy val SourceRoot = "sourceroot"
+  private final lazy val PrintSearchResult = "print-search-result"
+  private final lazy val NoProfileDb = "no-profiledb"
+  private final lazy val ShowConcreteImplicitTparams = "show-concrete-implicit-tparams"
+  private final lazy val PrintSearchRegex = s"$PrintSearchResult:(.*)".r
+  private final lazy val SourceRootRegex = s"$SourceRoot:(.*)".r
 
   def findOption(name: String, pattern: Regex): Option[String] = {
     super.options.find(_.startsWith(name)).flatMap {
@@ -42,10 +45,19 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     }
   }
 
-  private final val config = PluginConfig(
+  def findSearchIds(userOption: Option[String]): Set[Int] = {
+    userOption match {
+      case Some(value) => value.split(",", Int.MaxValue).map(_.toInt).toSet
+      case None => Set.empty
+    }
+  }
+
+  private final lazy val config = PluginConfig(
     super.options.contains(ShowProfiles),
     super.options.contains(NoProfileDb),
-    findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply)
+    findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply),
+    findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
+    super.options.contains(ShowConcreteImplicitTparams)
   )
 
   private lazy val logger = new Logger(global)
@@ -53,12 +65,13 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   private def pad20(option: String): String = option + (" " * (20 - option.length))
   override def init(ops: List[String], e: (String) => Unit): Boolean = true
   override val optionsHelp: Option[String] = Some(s"""
-       |-P:$name:${pad20(SourceRoot)} Sets the source root for this project.
+       |-P:$name:${pad20(SourceRoot)}:_ Sets the source root for this project.
        |-P:$name:${pad20(ShowProfiles)} Logs profile information for every call-site.
+       |-P:$name:${pad20(ShowConcreteImplicitTparams)} Shows types in flamegraphs of implicits with concrete type params.
+       |-P:$name:${pad20(PrintSearchResult)}:_ Print implicit search result trees for a list of search ids separated by a comma.
     """.stripMargin)
 
-  // Make it not `lazy` and it will slay the compiler :)
-  lazy val implementation = new ProfilingImpl(ProfilingPlugin.this.global, logger)
+  lazy val implementation = new ProfilingImpl(ProfilingPlugin.this.global, config, logger)
   implementation.registerProfilers()
 
   private object ProfilingComponent extends PluginComponent {
@@ -88,6 +101,10 @@ class ProfilingPlugin(val global: Global) extends Plugin {
         logger.info("Macro data in total", macroProfiler.inTotal)
         val expansions = macroProfiler.repeatedExpansions.map(showExpansion)
         logger.info("Macro repeated expansions", expansions)
+
+        val macrosType = implementation.macrosByType.toList.sortBy(_._2)
+        val macrosTypeLines = global.exitingTyper(macrosType.map(kv => kv._1.toString -> kv._2))
+        logger.info("Macro expansions by type", toLinkedHashMap(macrosTypeLines))
 
         import implementation.{implicitSearchesByPos, implicitSearchesByType}
         val implicitSearchesPosition = toLinkedHashMap(implicitSearchesByPos.toList.sortBy(_._2))
