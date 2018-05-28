@@ -7,5 +7,6 @@ case class PluginConfig(
     noDb: Boolean,
     sourceRoot: Option[AbsolutePath],
     printSearchIds: Set[Int],
+    generateMacroFlamegraph: Boolean,
     concreteTypeParamsInImplicits: Boolean
 )

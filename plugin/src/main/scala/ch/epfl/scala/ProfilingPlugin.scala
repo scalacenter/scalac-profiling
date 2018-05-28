@@ -33,6 +33,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   private final lazy val ShowProfiles = "show-profiles"
   private final lazy val SourceRoot = "sourceroot"
   private final lazy val PrintSearchResult = "print-search-result"
+  private final lazy val GenerateMacroFlamegraph = "generate-macro-flamegraph"
   private final lazy val NoProfileDb = "no-profiledb"
   private final lazy val ShowConcreteImplicitTparams = "show-concrete-implicit-tparams"
   private final lazy val PrintSearchRegex = s"$PrintSearchResult:(.*)".r
@@ -57,6 +58,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     super.options.contains(NoProfileDb),
     findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply),
     findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
+    super.options.contains(GenerateMacroFlamegraph),
     super.options.contains(ShowConcreteImplicitTparams)
   )
 

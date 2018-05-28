@@ -153,9 +153,11 @@ final class ProfilingImpl[G <: Global](
     ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)*/
     val implicitFlamegraphFile = outputDir.resolve(s"$implicitGraphName.flamegraph")
     ProfilingAnalyzerPlugin.foldImplicitStacks(implicitFlamegraphFile.underlying)
-    val macroFlamegraphFile = outputDir.resolve(s"$macroGraphName.flamegraph")
-    ProfilingMacroPlugin.foldMacroStacks(macroFlamegraphFile.underlying)
-    List(implicitFlamegraphFile, macroFlamegraphFile)
+    if (config.generateMacroFlamegraph) {
+      val macroFlamegraphFile = outputDir.resolve(s"$macroGraphName.flamegraph")
+      ProfilingMacroPlugin.foldMacroStacks(macroFlamegraphFile.underlying)
+      List(implicitFlamegraphFile, macroFlamegraphFile)
+    } else List(implicitFlamegraphFile)
   }
 
   private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
@@ -178,7 +180,7 @@ final class ProfilingImpl[G <: Global](
     private val implicitsTimers = perRunCaches.newAnyRefMap[Type, statistics.Timer]()
     private val searchIdsToTargetTypes = perRunCaches.newMap[Int, Type]()
     private val stackedNanos = perRunCaches.newMap[Int, (Long, Type)]()
-    private val stackedNames = perRunCaches.newMap[Int, String]()
+    private val stackedNames = perRunCaches.newMap[Int, List[String]]()
     private val searchIdsToTimers = perRunCaches.newMap[Int, statistics.Timer]()
     private val implicitsDependants = new mutable.AnyRefMap[Type, mutable.HashSet[Type]]()
     private val searchIdChildren = perRunCaches.newMap[Int, List[analyzer.ImplicitSearch]]()
@@ -188,8 +190,9 @@ final class ProfilingImpl[G <: Global](
       val stacksJavaList = new java.util.ArrayList[String]()
       stackedNanos.foreach {
         case (id, (nanos, tpe)) =>
-          val stackName =
+          val names =
             stackedNames.getOrElse(id, sys.error(s"Stack name for search id ${id} doesn't exist!"))
+          val stackName = names.mkString(";")
           //val count = implicitSearchesByType.getOrElse(tpe, sys.error(s"No counter for ${tpe}"))
           stacksJavaList.add(s"$stackName ${nanos / 1000}")
       }
@@ -331,7 +334,7 @@ final class ProfilingImpl[G <: Global](
           val expandedStr = s"(expanded macros $forcedExpansions)"
 
           // Detect macro name if the type we get comes from a macro to add it to the stack
-          val macroName = {
+          val suffix = {
             val errorTag = if (result.isFailure) " _[j]" else ""
             result.tree.attachments.get[analyzer.MacroExpansionAttachment] match {
               case Some(analyzer.MacroExpansionAttachment(expandee: Tree, _)) =>
@@ -364,12 +367,12 @@ final class ProfilingImpl[G <: Global](
                  |""".stripMargin)
           }
 
-          val thisStackName = s"${typeToString(typeForStack)}$macroName"
-          stackedNames.update(searchId, thisStackName)
+          val thisStackName = s"${typeToString(typeForStack)}$suffix"
+          stackedNames.update(searchId, List(thisStackName))
           children.foreach { childSearch =>
             val id = childSearch.searchId
             val childrenStackName = stackedNames.getOrElse(id, missing("stack name"))
-            stackedNames.update(id, s"$thisStackName;$childrenStackName")
+            stackedNames.update(id, thisStackName :: childrenStackName)
           }
 
           // Save the nanos for this implicit search
@@ -479,44 +482,50 @@ final class ProfilingImpl[G <: Global](
 
           val entry = MacroEntry(macroId, pt, start, None)
 
-          // We add ourselves to the child list of our parent implicit search
-          prevData.foreach {
-            case (_, entry) =>
-              val prevId = entry.id
-              val prevChilds = macroChildren.getOrElse(prevId, Nil)
-              macroChildren.update(prevId, entry :: prevChilds)
+          if (config.generateMacroFlamegraph) {
+            // We add ourselves to the child list of our parent macro
+            prevData.foreach {
+              case (_, entry) =>
+                val prevId = entry.id
+                val prevChilds = macroChildren.getOrElse(prevId, Nil)
+                macroChildren.update(prevId, entry :: prevChilds)
+            }
           }
 
           macrosStack = entry :: macrosStack
           try super.apply(desugared)
           finally {
-            // Complete stack names of triggered implicit searches
             val children = macroChildren.getOrElse(macroId, Nil)
-            prevData.foreach {
-              case (_, p) =>
-                val prevChildren = macroChildren.getOrElse(p.id, Nil)
-                macroChildren.update(p.id, children ::: prevChildren)
+            if (config.generateMacroFlamegraph) {
+              // Complete stack names of triggered implicit searches
+              prevData.foreach {
+                case (_, p) =>
+                  val prevChildren = macroChildren.getOrElse(p.id, Nil)
+                  macroChildren.update(p.id, children ::: prevChildren)
+              }
             }
 
             // We need to fetch the entry from the stack as it can be modified
             val parents = macrosStack.tail
             macrosStack.headOption match {
               case Some(head) =>
-                val thisStackName = head.state match {
-                  case Some(FailedMacro(pt, _)) => s"${typeToString(pt)} [failed]"
-                  case Some(DelayedMacro(pt, _)) => s"${typeToString(pt)} [delayed]"
-                  case Some(SucceededMacro(pt, _)) => s"${typeToString(pt)}"
-                  case Some(SuppressedMacro(pt, _)) => s"${typeToString(pt)} [suppressed]"
-                  case Some(SkippedMacro(pt, _)) => s"${typeToString(pt)} [skipped]"
-                  case Some(FallbackMacro(pt, _)) => s"${typeToString(pt)} [fallback]"
-                  case None => sys.error("Fatal error: macro has no state!")
-                }
+                if (config.generateMacroFlamegraph) {
+                  val thisStackName = head.state match {
+                    case Some(FailedMacro(pt, _)) => s"${typeToString(pt)} [failed]"
+                    case Some(DelayedMacro(pt, _)) => s"${typeToString(pt)} [delayed]"
+                    case Some(SucceededMacro(pt, _)) => s"${typeToString(pt)}"
+                    case Some(SuppressedMacro(pt, _)) => s"${typeToString(pt)} [suppressed]"
+                    case Some(SkippedMacro(pt, _)) => s"${typeToString(pt)} [skipped]"
+                    case Some(FallbackMacro(pt, _)) => s"${typeToString(pt)} [fallback]"
+                    case None => sys.error("Fatal error: macro has no state!")
+                  }
 
-                stackedNames.update(macroId, thisStackName)
-                children.foreach { childSearch =>
-                  val id = childSearch.id
-                  val childrenStackName = stackedNames.getOrElse(id, sys.error("no stack name"))
-                  stackedNames.update(id, s"$thisStackName;$childrenStackName")
+                  stackedNames.update(macroId, thisStackName)
+                  children.foreach { childSearch =>
+                    val id = childSearch.id
+                    val childrenStackName = stackedNames.getOrElse(id, sys.error("no stack name"))
+                    stackedNames.update(id, s"$thisStackName;$childrenStackName")
+                  }
                 }
 
                 statistics.stopTimer(macroTimer, head.start)
