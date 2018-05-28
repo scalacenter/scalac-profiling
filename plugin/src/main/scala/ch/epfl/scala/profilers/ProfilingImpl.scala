@@ -327,8 +327,8 @@ final class ProfilingImpl[G <: Global](
             sys.error(s"Missing $name for $searchId ($targetType).")
 
           val forcedExpansions =
-            ProfilingMacroPlugin.searchIdsToMacroStates.getOrElse(searchId, Nil).size
-          val expandedStr = s"(expanded macros $forcedExpansions)"
+            ProfilingMacroPlugin.searchIdsToMacroStates.getOrElse(searchId, Nil)
+          val expandedStr = s"(expanded macros ${forcedExpansions.size})"
 
           // Detect macro name if the type we get comes from a macro to add it to the stack
           val macroName = {
@@ -358,10 +358,19 @@ final class ProfilingImpl[G <: Global](
             else concreteTypeFromSearch(result.subst(result.tree), targetType)
           }
 
-          if (config.printSearchIds.contains(searchId)) {
-            logger.info(s"""Showing tree of implicit search ${searchId} of type `${typeForStack}`:
+          if (config.printSearchIds.contains(searchId) || (result.isFailure && config.printFailedMacroImplicits)) {
+            logger.info(
+              s"""implicit search ${searchId}:
+                 |  -> valid ${result.isSuccess}
+                 |  -> type `${typeForStack}`
+                 |  -> ${search.undet_s}
+                 |  -> ${search.ctx_s}
+                 |  -> tree:
                  |${showCode(result.tree)}
-                 |""".stripMargin)
+                 |  -> forced expansions:
+                 |${forcedExpansions.mkString("  ", "  \n", "\n")}
+                 |""".stripMargin
+            )
           }
 
           val thisStackName = s"${typeToString(typeForStack)}$macroName"
@@ -561,7 +570,6 @@ final class ProfilingImpl[G <: Global](
           updateStack(state)
           super.onFailure(expanded)
         }
-
 
         override def onSkipped(expanded: Tree) = {
           val state = SkippedMacro(pt, expanded)

@@ -1,4 +1,4 @@
-import io.circe._
+/*import io.circe._
 import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
@@ -16,4 +16,4 @@ object WebsiteExample extends App {
   import io.circe.generic.semiauto._
   implicit val fooDecoder: Decoder[Foo] = deriveDecoder[Foo]
   implicit val fooEncoder: Encoder[Foo] = deriveEncoder[Foo]*/
-}
+}*/

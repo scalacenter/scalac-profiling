@@ -159,6 +159,7 @@ lazy val integrations = project
   .in(file("integrations"))
   .dependsOn(Circe)
   .settings(
+    libraryDependencies += "com.github.alexarchambault" %% "case-app" % "1.2.0",
     scalaHome := BuildDefaults.setUpScalaHome.value,
     parallelExecution in Test := false,
     scalacOptions in Compile := (Def.taskDyn {
