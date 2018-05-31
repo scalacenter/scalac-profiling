@@ -8,5 +8,6 @@ case class PluginConfig(
     sourceRoot: Option[AbsolutePath],
     printSearchIds: Set[Int],
     generateMacroFlamegraph: Boolean,
+    printFailedMacroImplicits: Boolean,
     concreteTypeParamsInImplicits: Boolean
 )

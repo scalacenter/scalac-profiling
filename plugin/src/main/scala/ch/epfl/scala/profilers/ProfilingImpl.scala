@@ -330,8 +330,8 @@ final class ProfilingImpl[G <: Global](
             sys.error(s"Missing $name for $searchId ($targetType).")
 
           val forcedExpansions =
-            ProfilingMacroPlugin.searchIdsToMacroStates.getOrElse(searchId, Nil).size
-          val expandedStr = s"(expanded macros $forcedExpansions)"
+            ProfilingMacroPlugin.searchIdsToMacroStates.getOrElse(searchId, Nil)
+          val expandedStr = s"(expanded macros ${forcedExpansions.size})"
 
           // Detect macro name if the type we get comes from a macro to add it to the stack
           val suffix = {
@@ -361,10 +361,19 @@ final class ProfilingImpl[G <: Global](
             else concreteTypeFromSearch(result.subst(result.tree), targetType)
           }
 
-          if (config.printSearchIds.contains(searchId)) {
-            logger.info(s"""Showing tree of implicit search ${searchId} of type `${typeForStack}`:
+          if (config.printSearchIds.contains(searchId) || (result.isFailure && config.printFailedMacroImplicits)) {
+            logger.info(
+              s"""implicit search ${searchId}:
+                 |  -> valid ${result.isSuccess}
+                 |  -> type `${typeForStack}`
+                 |  -> ${search.undet_s}
+                 |  -> ${search.ctx_s}
+                 |  -> tree:
                  |${showCode(result.tree)}
-                 |""".stripMargin)
+                 |  -> forced expansions:
+                 |${forcedExpansions.mkString("  ", "  \n", "\n")}
+                 |""".stripMargin
+            )
           }
 
           val thisStackName = s"${typeToString(typeForStack)}$suffix"
@@ -438,15 +447,16 @@ final class ProfilingImpl[G <: Global](
     private val macroIdsToTimers = perRunCaches.newMap[Int, statistics.Timer]()
     private val macroChildren = perRunCaches.newMap[Int, List[MacroEntry]]()
     private val stackedNanos = perRunCaches.newMap[Int, Long]()
-    private val stackedNames = perRunCaches.newMap[Int, String]()
+    private val stackedNames = perRunCaches.newMap[Int, List[String]]()
 
     def foldMacroStacks(outputPath: Path): Unit = {
       // This part is memory intensive and hence the use of java collections
       val stacksJavaList = new java.util.ArrayList[String]()
       stackedNanos.foreach {
         case (id, nanos) =>
-          val stackName =
+          val names =
             stackedNames.getOrElse(id, sys.error(s"Stack name for macro id ${id} doesn't exist!"))
+          val stackName = names.mkString(";")
           stacksJavaList.add(s"$stackName ${nanos / 1000}")
       }
       java.util.Collections.sort(stacksJavaList)
@@ -520,16 +530,15 @@ final class ProfilingImpl[G <: Global](
                     case None => sys.error("Fatal error: macro has no state!")
                   }
 
-                  stackedNames.update(macroId, thisStackName)
+                  stackedNames.update(macroId, thisStackName :: Nil)
                   children.foreach { childSearch =>
                     val id = childSearch.id
                     val childrenStackName = stackedNames.getOrElse(id, sys.error("no stack name"))
-                    stackedNames.update(id, s"$thisStackName;$childrenStackName")
+                    stackedNames.update(id, thisStackName :: childrenStackName)
                   }
                 }
 
                 statistics.stopTimer(macroTimer, head.start)
-                // TODO: Why are we getting the previous nanos first?
                 val previousNanos = stackedNanos.getOrElse(macroId, 0L)
                 stackedNanos.+=((macroId, macroTimer.nanos + previousNanos))
                 prevData match {
@@ -570,7 +579,6 @@ final class ProfilingImpl[G <: Global](
           updateStack(state)
           super.onFailure(expanded)
         }
-
 
         override def onSkipped(expanded: Tree) = {
           val state = SkippedMacro(pt, expanded)
