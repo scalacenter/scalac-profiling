@@ -12,7 +12,7 @@ import caseapp.{Name, ValueDescription, HelpMessage, Hidden, Recurse}
 
 import scala.util.Try
 
-/*trait CachedImplicits {
+trait CachedImplicits {
     implicit val inputStreamRead: ArgParser[InputStream] =
     ArgParser.instance[InputStream]("stdin")(_ => Right(System.in))
   implicit val printStreamRead: ArgParser[PrintStream] =
@@ -92,4 +92,4 @@ object Main extends App {
 /*  assert(CommandsParser != null)
   assert(CommandsMessages != null)*/
   println("Hello World!")
-}*/
+}
