@@ -6,6 +6,35 @@ Status](https://platform-ci.scala-lang.org/api/badges/scalacenter/scalac-profili
 When compile times become a problem, how can Scala developers reason about
 the relation between their code and compile times?
 
+## Use
+
+Add `scalac-profiling` in any sbt project by specifying the following project
+setting.
+
+```scala
+addCompilerPlugin("ch.epfl.scala" % "scalac-profiling" % "1.0.0")
+```
+
+### Compiler plugin options
+
+All the compiler plugin options are prepended by `-P:scalac-profiling:`.
+
+* `show-profiles`: Show implicit searches and macro expansions by type and
+  call-site.
+* `sourceroot`: Tell the plugin what is the source directory of the project.
+  Example: `-P:scalac-profiling:sourceroot:$PROJECT_BASE_DIR`.
+* `print-search-result`: Print the result retrieved by an implicit search.
+  Example: `-P:scalac-profiling:print-search-result:$MACRO_ID`.
+* `generate-macro-flamegraph`: Generate a flamegraph for macro expansions. The
+  flamegraph for implicit searches is enabled by default.
+* `print-failed-implicit-macro-candidates`: Print trees of all failed implicit
+  searches that triggered a macro expansion.
+* `no-profiledb`: Recommended. Don't generate profiledb (will be on by default
+  in a future release).
+* `show-concrete-implicit-tparams`: Use more concrete type parameters in the
+  implicit search flamegraph. Note that it may change the shape of the
+  flamegraph.
+
 ## Goal of the project
 
 The goal of this proposal is to allow Scala developers to optimize their
