@@ -447,15 +447,16 @@ final class ProfilingImpl[G <: Global](
     private val macroIdsToTimers = perRunCaches.newMap[Int, statistics.Timer]()
     private val macroChildren = perRunCaches.newMap[Int, List[MacroEntry]]()
     private val stackedNanos = perRunCaches.newMap[Int, Long]()
-    private val stackedNames = perRunCaches.newMap[Int, String]()
+    private val stackedNames = perRunCaches.newMap[Int, List[String]]()
 
     def foldMacroStacks(outputPath: Path): Unit = {
       // This part is memory intensive and hence the use of java collections
       val stacksJavaList = new java.util.ArrayList[String]()
       stackedNanos.foreach {
         case (id, nanos) =>
-          val stackName =
+          val names =
             stackedNames.getOrElse(id, sys.error(s"Stack name for macro id ${id} doesn't exist!"))
+          val stackName = names.mkString(";")
           stacksJavaList.add(s"$stackName ${nanos / 1000}")
       }
       java.util.Collections.sort(stacksJavaList)
@@ -529,16 +530,15 @@ final class ProfilingImpl[G <: Global](
                     case None => sys.error("Fatal error: macro has no state!")
                   }
 
-                  stackedNames.update(macroId, thisStackName)
+                  stackedNames.update(macroId, thisStackName :: Nil)
                   children.foreach { childSearch =>
                     val id = childSearch.id
                     val childrenStackName = stackedNames.getOrElse(id, sys.error("no stack name"))
-                    stackedNames.update(id, s"$thisStackName;$childrenStackName")
+                    stackedNames.update(id, thisStackName :: childrenStackName)
                   }
                 }
 
                 statistics.stopTimer(macroTimer, head.start)
-                // TODO: Why are we getting the previous nanos first?
                 val previousNanos = stackedNanos.getOrElse(macroId, 0L)
                 stackedNanos.+=((macroId, macroTimer.nanos + previousNanos))
                 prevData match {
