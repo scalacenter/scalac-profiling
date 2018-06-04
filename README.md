@@ -12,7 +12,7 @@ Add `scalac-profiling` in any sbt project by specifying the following project
 setting.
 
 ```scala
-addCompilerPlugin("ch.epfl.scala" % "scalac-profiling" % "1.0.0")
+addCompilerPlugin("ch.epfl.scala" %% "scalac-profiling" % "1.0.0")
 ```
 
 ### Compiler plugin options
