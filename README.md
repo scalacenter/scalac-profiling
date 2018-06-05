@@ -6,7 +6,7 @@ Status](https://platform-ci.scala-lang.org/api/badges/scalacenter/scalac-profili
 When compile times become a problem, how can Scala developers reason about
 the relation between their code and compile times?
 
-## Use
+## Install
 
 Add `scalac-profiling` in any sbt project by specifying the following project
 setting.
@@ -15,9 +15,13 @@ setting.
 addCompilerPlugin("ch.epfl.scala" %% "scalac-profiling" % "1.0.0")
 ```
 
+## How to use
+
+To learn how to use the plugin, read [Speeding Up Compilation Time with `scalac-profiling`](https://www.scala-lang.org/blog/2018/06/04/scalac-profiling.html) in the scala-lang blog.
+
 ### Compiler plugin options
 
-All the compiler plugin options are prepended by `-P:scalac-profiling:`.
+All the compiler plugin options are **prepended by `-P:scalac-profiling:`**.
 
 * `show-profiles`: Show implicit searches and macro expansions by type and
   call-site.
@@ -84,7 +88,8 @@ compiler plugin and a forked scalac).
 #### Project structure
 
 1. [A forked scalac](scalac/) with patches to collect profiling information.
-   All changes are expected to be ported upstream.
+   <s>All changes are expected to be ported upstream.</s> This fork is not required
+   anymore because all the changes are already present in Scala 2.12.5.
 1. [A compiler plugin](plugin/) to get information from the macro infrastructure independently
    of the used Scalac version.
 1. [Profiledb readers and writers](profiledb/) to allow IDEs and editors to read and write profiledb's.
@@ -174,22 +179,18 @@ original proposal.
 #### What the proposal wants
 
 - [x] Compilation time totally (*this is provided by `-Ystatistics`*)
-- [ ] Compilation time per file (*this is provided by `-Ystatistics`*)
-  - [ ] Total
-  - [ ] Broken down by phase<br>
-  **Note**: As of now, the collection of this data has been delayed because it is unknown how it can be
-  properly profiled. Because of pecularities of the typechecker, that jumps from compilation units
-  to compilation units depending on symbol initialization, collecting this data is difficult and it
-  still has to be assessed whether it's possible.
-- [x] Times per macro (*this is provided by the macro plugin*)
-  - [x] Per file
-  - [x] Per macro
+- [x] Macro details
+  - [x] Time per file
+  - [x] Time per macro
     - [x] Invocations
+    - [x] Per type
     - [x] Total time
+  - [x] Flamegraph of all macros
 - [x] Implicit search details (time and number)
   - [x] By type
   - [x] By invocation (only number for now)
   - [x] By file (can be aggregated from the "by invocation" data)
+  - [x] Flamegraph of all the implicit searches
 - [x] User time, kernel time, wall clock, I/O time.<br>
       This feature was **already provided by Scalac**, implemented in [this PR](https://github.com/scala/scala/pull/5848).
 - [x] Time for flagged features (for certain features – e.g. optimisation)
@@ -197,12 +198,3 @@ original proposal.
   and without optimization, and compare the profiles. There are also some extra counters.
 - [x] Time resolving types from classpath
   - [x] Total
-  - [ ] By jar: this has been deemed **not possible** as of the current scalac infrastructure.
-- [ ] Imports – unused/wildcard timings?<br>
-      Assessing the impact of unused and wildcard imports boils down to measuring the cost
-      of creating contexts and scopes in typer and the cost of completing unused symbols. Some
-      informal benchmarks have shown that this cost is actually small, and no compile time
-      difference has been perceived in projects that feature significant amount of unused and
-      wildcard imports. However, in order to enable large-scale examples, our PR to scalac adds
-      counters to Scalac scopes.
-  
