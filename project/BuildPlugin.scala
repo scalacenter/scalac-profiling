@@ -34,8 +34,6 @@ object BuildKeys {
   final val allDepsForCompilerPlugin =
     taskKey[Def.Classpath]("Return all dependencies for the source compiler plugin.")
   final val showScalaInstances = taskKey[Unit]("Show versions of all integration tests")
-  final val useScalacFork =
-    settingKey[Boolean]("Make every module use the Scala fork instead latest Scala 2.12.x.")
 
   // Refer to setting via reference because there is no dependency to the scalac build here.
   final val scalacVersionSuffix = sbt.SettingKey[String]("baseVersionSuffix")
@@ -44,17 +42,8 @@ object BuildKeys {
   final val AbsolutePath = file(".").getCanonicalFile.getAbsolutePath
   final val HomeBuild = BuildRef(RootProject(file(AbsolutePath)).build)
 
-  // Source dependency is a submodule that we modify
-  final val Scalac = RootProject(file(s"$AbsolutePath/scalac"))
-  final val ScalacBuild = BuildRef(Scalac.build)
-  final val ScalacCompiler = ProjectRef(Scalac.build, "compiler")
-  final val ScalacLibrary = ProjectRef(Scalac.build, "library")
-  final val ScalacReflect = ProjectRef(Scalac.build, "reflect")
-  final val ScalacDist = ProjectRef(Scalac.build, "dist")
-  final val AllScalacProjects = List(ScalacCompiler, ScalacLibrary, ScalacReflect)
-
-  final val VscodeScala = RootProject(file(s"$AbsolutePath/vscode-scala"))
-  final val VscodeImplementation = ProjectRef(VscodeScala.build, "ensime-lsp")
+  // final val VscodeScala = RootProject(file(s"$AbsolutePath/vscode-scala"))
+  // final val VscodeImplementation = ProjectRef(VscodeScala.build, "ensime-lsp")
 
   // Source dependencies from git are cached by sbt
   val Circe = RootProject(
@@ -103,8 +92,8 @@ object BuildKeys {
   val AllIntegrationProjects = IntegrationProjectsAndReferences.map(_._1)
 
   // Assumes that the previous scala version is the last bincompat version
-  final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
-  final val ScalacScalaVersion = Keys.scalaVersion in BuildKeys.ScalacCompiler
+  // final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
+  // final val ScalacScalaVersion = Keys.scalaVersion in BuildKeys.ScalacCompiler
 
   final val testDependencies = List(
     "junit" % "junit" % "4.12" % "test",
@@ -157,9 +146,6 @@ object BuildKeys {
   def inProjectRefs(refs: Seq[Reference])(ss: Setting[_]*): Seq[Setting[_]] =
     refs.flatMap(inProject(_)(ss))
 
-  private[build] def inScalacProjects(ss: Setting[_]*): Seq[Setting[_]] =
-    inProjectRefs(AllScalacProjects)(ss: _*)
-
   def inCompileAndTest(ss: Setting[_]*): Seq[Setting[_]] =
     Seq(sbt.Compile, sbt.Test).flatMap(sbt.inConfig(_)(ss))
 
@@ -168,7 +154,6 @@ object BuildKeys {
     val Monocle = " monocle"
     val Integration = " integration"
     val Scalatest = " scalatest"
-    val Scalac = " scalac"
     val BetterFiles = " better-files"
     val Shapeless = " shapeless"
     val Magnolia = " magnolia"
@@ -180,7 +165,7 @@ object BuildKeys {
     Keywords.Monocle,
     Keywords.Integration,
     Keywords.Scalatest,
-    Keywords.Scalac,
+    // Keywords.Scalac,
     Keywords.BetterFiles,
     Keywords.Shapeless,
     Keywords.Magnolia
@@ -230,22 +215,7 @@ object BuildImplementation {
     Keys.pomExtra := scala.xml.NodeSeq.Empty
   )
 
-  // Paranoid level: removes doc generation by all means
-  final val scalacSettings: Seq[Def.Setting[_]] = BuildKeys.inScalacProjects(
-    Keys.aggregate in Keys.doc := false,
-    Keys.sources in Compile in Keys.doc := Seq.empty,
-    Keys.scalacOptions in Compile in Keys.doc := Seq.empty,
-    Keys.publishArtifact in Compile in Keys.packageDoc := false,
-    // Use snapshot only for local development plz.
-    // If placed in global settings, it's not applied. Sbt bug? Ordinary order init in sourcedeps bug.
-    BuildKeys.scalacVersionSuffix in BuildKeys.Scalac := BuildDefaults.scalacVersionSuffix.value
-  )
-
   object BuildDefaults {
-    final val scalacVersionSuffix = Def.setting {
-      val previousSuffix = (BuildKeys.scalacVersionSuffix in BuildKeys.Scalac).value
-      if (!previousSuffix.contains("stats")) s"stats-${previousSuffix}" else previousSuffix
-    }
     final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
       val logger = Keys.streams.value.log
       logger.info((Keys.name in Test in BuildKeys.CirceTests).value)
@@ -256,8 +226,6 @@ object BuildImplementation {
       logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleExample).value.toString)
       logger.info((Keys.name in Test in BuildKeys.ScalatestCore).value)
       logger.info((Keys.scalaInstance in Test in BuildKeys.ScalatestCore).value.toString)
-      logger.info((Keys.name in BuildKeys.ScalacCompiler).value)
-      logger.info((Keys.scalaInstance in BuildKeys.ScalacCompiler).value.toString)
       logger.info((Keys.name in Test in BuildKeys.BetterFilesCore).value)
       logger.info((Keys.scalaInstance in Test in BuildKeys.BetterFilesCore).value.toString)
       ()
@@ -269,45 +237,20 @@ object BuildImplementation {
       sbt.WorkingPluginCross.pluginSwitch +: pruned
     }
 
-    val fixScalaVersionForSbtPlugin: Def.Initialize[String] = Def.setting {
-      val orig = Keys.scalaVersion.value
-      val is013 = (Keys.sbtVersion in Keys.pluginCrossBuild).value.startsWith("0.13")
-      if (is013) "2.10.6" else orig
-    }
+    // val fixScalaVersionForSbtPlugin: Def.Initialize[String] = Def.setting {
+    //   val orig = Keys.scalaVersion.value
+    //   val is013 = (Keys.sbtVersion in Keys.pluginCrossBuild).value.startsWith("0.13")
+    //   if (is013) "2.10.6" else orig
+    // }
 
     type Hook = Def.Initialize[State => State]
 
-    private final val UnknownHash = "UNKNOWN"
-    final val publishForkScalac: Hook = Def.setting { (state: State) =>
-      import sbt.IO
-      import com.typesafe.sbt.git.JGit
-      // Only publish scalac if file doesn't exist
-      val baseDirectory = (Keys.baseDirectory in ThisBuild).value
-      val scalacHashFile = baseDirectory./(".scalac-hash")
-      val repository = JGit(baseDirectory./("scalac"))
-      // If sha cannot be fetched, always force publishing of fork.
-      val currentHash = repository.headCommitSha.getOrElse(UnknownHash)
-      if (!repository.hasUncommittedChanges &&
-        scalacHashFile.exists() &&
-        currentHash == IO.read(scalacHashFile)) {
-        state
-      } else {
-        val logger = Keys.sLog.value
-        val extracted = sbt.Project.extract(state)
-        val buildData = extracted.structure.data
-        val maybeVersion = BuildKeys.ScalacVersion.get(buildData).get
-        val newState = publishCustomScalaFork(state, maybeVersion, logger)
-        if (currentHash != UnknownHash)
-          IO.write(scalacHashFile, currentHash)
-        newState
-      }
-    }
 
     private[build] val MinimumScalaVersion = "2.12.6"
     def pickScalaVersion: Def.Initialize[String] = Def.settingDyn {
-      if (!BuildKeys.useScalacFork.value) Def.setting(MinimumScalaVersion)
+      // if (!BuildKeys.useScalacFork.value) Def.setting(MinimumScalaVersion)
       // 2.12.3 has no statistics, so if scalaHome isn't used it will fail to compile
-      else Def.setting("2.12.3")
+      Def.setting("2.12.6")
     }
 
     def scalacProfilingScalacOptions(ref: ProjectRef): Def.Initialize[sbt.Task[Seq[String]]] = {
@@ -321,17 +264,6 @@ object BuildImplementation {
       }
     }
 
-    def setUpScalaHome: Def.Initialize[Option[sbt.File]] = Def.setting {
-      if (!BuildKeys.useScalacFork.value) None
-      else {
-        val pathToHome = new java.io.File(s"${BuildKeys.Scalac.build.toURL().getFile()}build/pack")
-        if (!pathToHome.exists()) {
-          Keys.sLog.value.warn(s"Scala home $pathToHome didn't exist yet.")
-        }
-        Some(pathToHome)
-      }
-    }
-
     def setUpUnmanagedJars: Def.Initialize[sbt.Task[Def.Classpath]] = Def.task {
       val previousJars = Keys.unmanagedJars.in(Compile).value
       val allPluginDeps = BuildKeys.allDepsForCompilerPlugin.in(PluginProject).value
@@ -342,8 +274,6 @@ object BuildImplementation {
       private final val build = "_root_.ch.epfl.scala.profiling.build"
       def scalacProfilingScalacOptionsRef(ref: String): String =
         s"${build}.BuildImplementation.BuildDefaults.scalacProfilingScalacOptions($ref)"
-      final val setUpScalaHomeRef: String =
-        s"${build}.BuildImplementation.BuildDefaults.setUpScalaHome"
       final val setUpUnmanagedJarsRef: String =
         s"${build}.BuildImplementation.BuildDefaults.setUpUnmanagedJars"
     }
@@ -355,18 +285,14 @@ object BuildImplementation {
           s"""${Keys.scalaVersion.key.label} in $ref := "$scalaVersion""""
         def setScalacOptions(ref: String) =
           s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef(ref)}.value""".stripMargin
-        def setScalaHome(ref: String) =
-          s"""${Keys.scalaHome.key.label} in $ref := ${MethodRefs.setUpScalaHomeRef}.value"""
         def setUnmanagedJars(ref: String, config: String) =
           s"""${Keys.unmanagedJars.key.label} in $config in $ref := ${MethodRefs.setUpUnmanagedJarsRef}.value"""
-        val msg = 
-          if (!BuildKeys.useScalacFork.value) "The build integrations are set up."
-          else s"The build integrations are using a local Scalac home."
+        val msg = "The build integrations are set up."
         val setLoadMessage = s"""${Keys.onLoadMessage.key.label} in sbt.Global := "$msg""""
         val allSettingsRedefinitions = refs.flatMap { ref =>
           val setsUnmanagedJars =
             List(setUnmanagedJars(ref, "Compile"), setUnmanagedJars(ref, "Test"))
-          List(setScalaVersion(ref), setScalacOptions(ref), setScalaHome(ref)) ++ setsUnmanagedJars
+          List(setScalaVersion(ref), setScalacOptions(ref)) ++ setsUnmanagedJars
         } ++ List(setLoadMessage)
 
         s"set List(${allSettingsRedefinitions.mkString(",")})"
@@ -382,32 +308,31 @@ object BuildImplementation {
     }
 
     final val customOnLoad: Hook = Def.settingDyn {
-      if (!BuildKeys.useScalacFork.value) Def.setting(hijackScalaVersions.value)
-      else Def.setting(publishForkScalac.value andThen hijackScalaVersions.value)
+      Def.setting(hijackScalaVersions.value)
     }
   }
 
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
     Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
-    BuildKeys.useScalacFork := false,
+    // BuildKeys.useScalacFork := false,
     Keys.commands ~= BuildDefaults.fixPluginCross _,
     Keys.onLoadMessage := Header.intro,
     Keys.onLoad := (Keys.onLoad in sbt.Global).value andThen (BuildDefaults.customOnLoad.value)
   )
 
   final val commandAliases: Seq[Def.Setting[sbt.State => sbt.State]] = {
-    val scalacRef = sbt.Reference.display(BuildKeys.ScalacBuild)
-    val scalac = sbt.addCommandAlias("scalac", s"project ${scalacRef}")
+    // val scalacRef = sbt.Reference.display(BuildKeys.ScalacBuild)
+    // val scalac = sbt.addCommandAlias("scalac", s"project ${scalacRef}")
     val homeRef = sbt.Reference.display(BuildKeys.HomeBuild)
     val home = sbt.addCommandAlias("home", s"project ${homeRef}")
-    scalac ++ home
+    home
   }
 
   final val buildSettings: Seq[Def.Setting[_]] = Seq(
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := BuildKeys.ScalacScalaVersion.value,
+    Keys.scalaVersion := "2.12.6",
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := true,
     BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value
@@ -418,27 +343,13 @@ object BuildImplementation {
     // Necessary because the scalac version has to be always SNAPSHOT to avoid caching issues
     // Scope here is wrong -- we put it here temporarily until this is fixed upstream
     ReleaseEarlyKeys.releaseEarlyBypassSnapshotCheck := true
-  ) ++ scalacSettings
+  )
 
   final val reasonableCompileOptions = (
     "-deprecation" :: "-encoding" :: "UTF-8" :: "-feature" :: "-language:existentials" ::
       "-language:higherKinds" :: "-language:implicitConversions" :: "-unchecked" ::
       "-Yno-adapted-args" :: "-Ywarn-numeric-widen" :: "-Xfuture" :: "-Xlint" :: Nil
   )
-
-  private final val mkPack = sbt.taskKey[java.io.File]("mkPack")
-  // This is only used when we use the fork instead of upstream. As of 2.12.4, we use upstream.
-  private def publishCustomScalaFork(state0: State, version: String, logger: Logger): State = {
-    import sbt.{Project, Value, Inc, Incomplete}
-    logger.warn(s"Publishing Scala version $version from the fork...")
-    // Bah, reuse the same state for everything.
-    Project.runTask(mkPack in BuildKeys.ScalacDist, state0) match {
-      case None => sys.error(s"Key for publishing is not defined?")
-      case Some((newState, Value(v))) => newState
-      case Some((newState, Inc(inc))) =>
-        sys.error(s"Got error when publishing the Scala fork: $inc")
-    }
-  }
 }
 
 object Header {

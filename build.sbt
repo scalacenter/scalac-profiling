@@ -9,7 +9,7 @@
 
 lazy val root = project
   .in(file("."))
-  .aggregate(profiledb, plugin, profilingSbtPlugin)
+  .aggregate(profiledb, plugin) //, profilingSbtPlugin)
   .settings(
     Seq(
       name := "profiling-root",
@@ -22,20 +22,6 @@ lazy val root = project
           (watchSources in integrations).value
     )
   )
-
-val metalsSettings = List(
-  scalacOptions ++= {
-    val version = Keys.scalaBinaryVersion.value
-    val toAdd = List("-Yrangepos", "-Xplugin-require:semanticdb")
-    if (version == "2.12") toAdd else Nil
-  },
-  libraryDependencies ++= {
-    val version = Keys.scalaBinaryVersion.value
-    if (version == "2.12")
-      List(compilerPlugin("org.scalameta" % "semanticdb-scalac" % "2.1.5" cross CrossVersion.full))
-    else Nil
-  }
-)
 
 import _root_.ch.epfl.scala.profiling.build.BuildImplementation.BuildDefaults
 import com.trueaccord.scalapb.compiler.Version.scalapbVersion
@@ -108,51 +94,53 @@ lazy val plugin = project
   )
 
 // Trick to copy profiledb with Scala 2.11.11 so that vscode can depend on it
-lazy val profiledb211 = profiledb
-  .copy(id = "profiledb-211")
-  .settings(
-    moduleName := "profiledb",
-    scalaVersion := (scalaVersion in VscodeImplementation).value,
-    // Redefining target so that sbt doesn't clash at runtime
-    // This makes sense, but we should get a more sensible error message.
-    target := (baseDirectory in profiledb).value./("target_211")
-  )
+// lazy val profiledb211 = profiledb
+//   .copy(id = "profiledb-211")
+//   .settings(
+//     moduleName := "profiledb",
+//     scalaVersion := (scalaVersion in VscodeImplementation).value,
+//     // Redefining target so that sbt doesn't clash at runtime
+//     // This makes sense, but we should get a more sensible error message.
+//     target := (baseDirectory in profiledb).value./("target_211")
+//   )
 
 // This is the task to publish the vscode integration
-val publishExtension = taskKey[Unit]("The task to publish the vscode extension.")
+// val publishExtension = taskKey[Unit]("The task to publish the vscode extension.")
+
+// DO NOT BUILD vscode integration and sbt plugin for now
 
 // Has to be in independent project because uses different Scala version
-lazy val vscodeIntegration = project
-  .in(file(".hidden"))
-  .dependsOn(VscodeImplementation, profiledb211)
-  .settings(
-    scalaVersion := (scalaVersion in VscodeImplementation).value,
-    libraryDependencies in VscodeImplementation += (projectID in profiledb211).value,
-    // Sbt bug: doing this for VscodeImplementation just doesn't work.
-    update := update.dependsOn(publishLocal in profiledb211).value,
-    publish := (publish in VscodeImplementation).dependsOn(publish in profiledb211).value,
-    publishLocal :=
-      (publishLocal in VscodeImplementation).dependsOn(publishLocal in profiledb211).value,
-    publishExtension := (Def
-      .task {
-        val scalaExtensionDir = (baseDirectory in VscodeScala).value./("scala")
-        sys.process.Process(Seq("vsce", "package"), scalaExtensionDir).!!
-      })
-      .dependsOn(publishLocal)
-      .value
-  )
-
-lazy val profilingSbtPlugin = project
-  .in(file("sbt-plugin"))
-  //.settings(metalsSettings)
-  .settings(
-    name := "sbt-scalac-profiling",
-    sbtPlugin := true,
-    scalaVersion := BuildDefaults.fixScalaVersionForSbtPlugin.value,
-    ScriptedPlugin.scriptedSettings,
-    scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", "-Xss8M", s"-Dplugin.version=${version.value}"),
-    scriptedBufferLog := false
-  )
+// lazy val vscodeIntegration = project
+//   .in(file(".hidden"))
+//   .dependsOn(VscodeImplementation, profiledb211)
+//   .settings(
+//     scalaVersion := (scalaVersion in VscodeImplementation).value,
+//     libraryDependencies in VscodeImplementation += (projectID in profiledb211).value,
+//     // Sbt bug: doing this for VscodeImplementation just doesn't work.
+//     update := update.dependsOn(publishLocal in profiledb211).value,
+//     publish := (publish in VscodeImplementation).dependsOn(publish in profiledb211).value,
+//     publishLocal :=
+//       (publishLocal in VscodeImplementation).dependsOn(publishLocal in profiledb211).value,
+//     publishExtension := (Def
+//       .task {
+//         val scalaExtensionDir = (baseDirectory in VscodeScala).value./("scala")
+//         sys.process.Process(Seq("vsce", "package"), scalaExtensionDir).!!
+//       })
+//       .dependsOn(publishLocal)
+//       .value
+//   )
+// 
+// lazy val profilingSbtPlugin = project
+//   .in(file("sbt-plugin"))
+//   //.settings(metalsSettings)
+//   .settings(
+//     name := "sbt-scalac-profiling",
+//     sbtPlugin := true,
+//     scalaVersion := BuildDefaults.fixScalaVersionForSbtPlugin.value,
+//     ScriptedPlugin.scriptedSettings,
+//     scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", "-Xss8M", s"-Dplugin.version=${version.value}"),
+//     scriptedBufferLog := false
+//   )
 
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
@@ -160,7 +148,7 @@ lazy val integrations = project
   .dependsOn(Circe)
   .settings(
     libraryDependencies += "com.github.alexarchambault" %% "case-app" % "1.2.0",
-    scalaHome := BuildDefaults.setUpScalaHome.value,
+    // scalaHome := BuildDefaults.setUpScalaHome.value,
     parallelExecution in Test := false,
     scalacOptions in Compile := (Def.taskDyn {
       val options = (Keys.scalacOptions in Compile).value
@@ -173,22 +161,22 @@ lazy val integrations = project
         (clean in Test in CirceTests),
         (clean in Test in MonocleTests),
         (clean in Test in MonocleExample),
-        (clean in Compile in ScalatestCore),
+        (clean in Compile in ScalatestCore)
         //(clean in Compile in MagnoliaTests),
-        (clean in ScalacCompiler)
+        // (clean in ScalacCompiler)
       )
       .value,
     test := Def
       .sequential(
         (showScalaInstances in ThisBuild),
-        (profilingWarmupCompiler in Compile), // Warmup example, classloader is the same for all
+        // (profilingWarmupCompiler in Compile), // Warmup example, classloader is the same for all
         (compile in Compile),
         (compile in Test in CirceTests),
         (compile in Test in MonocleTests),
         (compile in Test in MonocleExample),
-        (compile in Compile in ScalatestCore),
+        (compile in Compile in ScalatestCore)
         //(compile in Compile in MagnoliaTests),
-        (compile in ScalacCompiler)
+        // (compile in ScalacCompiler)
       )
       .value,
     testOnly := Def.inputTaskDyn {
@@ -224,13 +212,13 @@ lazy val integrations = project
           )
         else emptyAnalysis
       }
-      val ScalacTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Scalac))
-          Def.sequential(
-            (compile in Compile in ScalacCompiler)
-          )
-        else emptyAnalysis
-      }
+      // val ScalacTask = Def.taskDyn {
+      //   if (keywords.contains(Keywords.Scalac))
+      //     Def.sequential(
+      //       (compile in Compile in ScalacCompiler)
+      //     )
+      //   else emptyAnalysis
+      // }
       val BetterFilesTask = Def.taskDyn {
         if (keywords.contains(Keywords.BetterFiles))
           Def.sequential(
@@ -258,7 +246,7 @@ lazy val integrations = project
         MonocleTask,
         IntegrationTask,
         ScalatestTask,
-        ScalacTask,
+        // ScalacTask,
         BetterFilesTask,
         ShapelessTask//,MagnoliaTask
       )
@@ -267,4 +255,4 @@ lazy val integrations = project
 
 val proxy = project
   .in(file(".proxy"))
-  .aggregate(Circe, Monocle, Scalatest, Scalac, BetterFiles, Shapeless)//, Magnolia)
+  .aggregate(Circe, Monocle, Scalatest, BetterFiles, Shapeless)//, Scalac, Magnolia)

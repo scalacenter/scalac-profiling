@@ -25,3 +25,10 @@ project/plugins/project/
 .hidden
 .profiledb_211
 .proxy
+
+# metals vscode
+.bloop
+.bsp
+.metals
+.vscode
+metals.sbt

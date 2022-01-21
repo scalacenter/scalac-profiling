@@ -6,14 +6,14 @@ lazy val root = project
     // addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC8"),
     addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.9.3"),
     addSbtPlugin("ch.epfl.scala" % "sbt-release-early" % "1.2.0"),
-    addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.11"),
+    addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.23"),
     addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.5"),
-    addSbtPlugin("ch.epfl.scala" % "sbt-bloop" % "1.0.0-M10"),
-    // Let's add our sbt plugin to the sbt too ;)
-    unmanagedSourceDirectories in Compile ++= {
-      val pluginMainDir = baseDirectory.value.getParentFile / "sbt-plugin" / "src" / "main"
-      List(pluginMainDir / "scala", pluginMainDir / s"scala-sbt-${Keys.sbtBinaryVersion.value}")
-    },
-    libraryDependencies += "com.trueaccord.scalapb" %% "compilerplugin" % "0.6.2",
-    libraryDependencies += "org.scala-sbt" % "scripted-plugin" % sbtVersion.value
+    // addSbtPlugin("ch.epfl.scala" % "sbt-bloop" % "1.0.0-M10"),
+    // // Let's add our sbt plugin to the sbt too ;)
+    // unmanagedSourceDirectories in Compile ++= {
+    //   val pluginMainDir = baseDirectory.value.getParentFile / "sbt-plugin" / "src" / "main"
+    //   List(pluginMainDir / "scala", pluginMainDir / s"scala-sbt-${Keys.sbtBinaryVersion.value}")
+    // },
+    libraryDependencies += "com.trueaccord.scalapb" %% "compilerplugin" % "0.6.4"
+    // libraryDependencies += "org.scala-sbt" % "scripted-plugin" % sbtVersion.value
   )
