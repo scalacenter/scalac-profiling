@@ -14,9 +14,9 @@ import java.nio.file.Files
 import ch.epfl.scala.profiledb.{ProfileDb, ProfileDbPath}
 import ch.epfl.scala.profiledb.utils.AbsolutePath
 import ch.epfl.scala.profilers.ProfilingImpl
-import ch.epfl.scala.profilers.tools.Logger
+import ch.epfl.scala.profilers.tools.{Logger, SettingsOps}
 
-import scala.reflect.internal.util.{SourceFile, Statistics, StatisticsStatics}
+import scala.reflect.internal.util.{SourceFile, Statistics}
 import scala.reflect.io.Path
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.nsc.{Global, Phase}
@@ -273,8 +273,8 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     override def newPhase(prev: Phase): Phase = {
       new StdPhase(prev) {
         override def apply(unit: global.CompilationUnit): Unit = {
-          if (StatisticsStatics.areSomeColdStatsEnabled() &&
-            global.statistics.areStatisticsLocallyEnabled &&
+          if (
+            SettingsOps.areStatisticsEnabled(global) &&
             !config.noDb) {
             val currentSourceFile = unit.source
             val compilationUnitEntry = profileDbEntryFor(currentSourceFile)

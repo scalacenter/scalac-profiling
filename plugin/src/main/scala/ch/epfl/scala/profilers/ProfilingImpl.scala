@@ -15,9 +15,7 @@ import ch.epfl.scala.PluginConfig
 import ch.epfl.scala.profiledb.utils.AbsolutePath
 
 import scala.tools.nsc.Global
-import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker}
-
-import scala.reflect.internal.util.StatisticsStatics
+import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker, SettingsOps}
 
 final class ProfilingImpl[G <: Global](
     override val global: G,
@@ -258,7 +256,7 @@ final class ProfilingImpl[G <: Global](
     }
 
     override def pluginsNotifyImplicitSearch(search: global.analyzer.ImplicitSearch): Unit = {
-      if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
+      if (SettingsOps.areStatisticsEnabled(global)) {
         val targetType = search.pt
         val targetPos = search.pos
 
@@ -317,7 +315,7 @@ final class ProfilingImpl[G <: Global](
 
     override def pluginsNotifyImplicitSearchResult(result: global.analyzer.SearchResult): Unit = {
       super.pluginsNotifyImplicitSearchResult(result)
-      if (StatisticsStatics.areSomeColdStatsEnabled() && statistics.areStatisticsLocallyEnabled) {
+      if (SettingsOps.areStatisticsEnabled(global)) {
         // 1. Get timer of the running search
         val (search, implicitTypeStart, searchStart) = implicitsStack.head
         val targetType = search.pt

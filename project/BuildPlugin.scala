@@ -49,9 +49,9 @@ object BuildKeys {
   val Circe = RootProject(
     uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9")
   )
-  val Monocle = RootProject(
-    uri("git://github.com/jvican/Monocle.git#5da7c1ac8ffd3942a843dca9cd1fbb281ff08412")
-  )
+  // val Monocle = RootProject(
+  //   uri("git://github.com/jvican/Monocle.git#5da7c1ac8ffd3942a843dca9cd1fbb281ff08412")
+  // )
   val Scalatest = RootProject(
     uri("git://github.com/jvican/scalatest.git#c5fcbe35097a152a6595aa63ea25b15f237a7970")
   )
@@ -61,30 +61,27 @@ object BuildKeys {
   val Shapeless = RootProject(
     uri("git://github.com/jvican/shapeless.git#a42cd4c1c99e4a7be36e0239d3ee944a6355e321")
   )
-  val Magnolia = RootProject(
-    uri("git://github.com/jvican/magnolia.git#249eb311a78b2967dcdf388576bd5eaa7c55c8fa")
-  )
 
   val CirceTests = ProjectRef(Circe.build, "tests")
-  val MonocleExample = ProjectRef(Monocle.build, "example")
-  val MonocleTests = ProjectRef(Monocle.build, "testJVM")
+  // val MonocleExample = ProjectRef(Monocle.build, "example")
+  // val MonocleTests = ProjectRef(Monocle.build, "testJVM")
   val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
   val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")
   val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
   val ShapelessCore = ProjectRef(Shapeless.build, "coreJVM")
   val ShapelessExamples = ProjectRef(Shapeless.build, "examplesJVM")
-  val MagnoliaTests = ProjectRef(Magnolia.build, "tests")
+  // val MagnoliaTests = ProjectRef(Magnolia.build, "tests")
 
   val IntegrationProjectsAndReferences = List(
     CirceTests -> "CirceTests",
-    MonocleExample -> "MonocleExample",
-    MonocleTests -> "MonocleTests",
+    // MonocleExample -> "MonocleExample",
+    // MonocleTests -> "MonocleTests",
     ScalatestCore -> "ScalatestCore",
     ScalatestTests -> "ScalatestTests",
     BetterFilesCore -> "BetterFilesCore",
     ShapelessCore -> "ShapelessCore",
-    ShapelessExamples -> "ShapelessExamples",
-    MagnoliaTests -> "MagnoliaTests"
+    ShapelessExamples -> "ShapelessExamples"
+    // MagnoliaTests -> "MagnoliaTests"
     // Enable the scalac compiler when it's not used as a fork
     // ScalacCompiler,
   )
@@ -151,7 +148,7 @@ object BuildKeys {
 
   object Keywords {
     val Circe = " circe"
-    val Monocle = " monocle"
+    // val Monocle = " monocle"
     val Integration = " integration"
     val Scalatest = " scalatest"
     val BetterFiles = " better-files"
@@ -162,13 +159,13 @@ object BuildKeys {
   // Circe has to be always at the beginning
   private val AllKeywords = List(
     Keywords.Circe,
-    Keywords.Monocle,
+    // Keywords.Monocle,
     Keywords.Integration,
     Keywords.Scalatest,
     // Keywords.Scalac,
     Keywords.BetterFiles,
-    Keywords.Shapeless,
-    Keywords.Magnolia
+    Keywords.Shapeless
+    // Keywords.Magnolia
   )
 
   import sbt.complete.Parser
@@ -220,10 +217,10 @@ object BuildImplementation {
       val logger = Keys.streams.value.log
       logger.info((Keys.name in Test in BuildKeys.CirceTests).value)
       logger.info((Keys.scalaInstance in Test in BuildKeys.CirceTests).value.toString)
-      logger.info((Keys.name in Test in BuildKeys.MonocleTests).value)
-      logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleTests).value.toString)
-      logger.info((Keys.name in Test in BuildKeys.MonocleExample).value)
-      logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleExample).value.toString)
+      // logger.info((Keys.name in Test in BuildKeys.MonocleTests).value)
+      // logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleTests).value.toString)
+      // logger.info((Keys.name in Test in BuildKeys.MonocleExample).value)
+      // logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleExample).value.toString)
       logger.info((Keys.name in Test in BuildKeys.ScalatestCore).value)
       logger.info((Keys.scalaInstance in Test in BuildKeys.ScalatestCore).value.toString)
       logger.info((Keys.name in Test in BuildKeys.BetterFilesCore).value)
@@ -246,12 +243,12 @@ object BuildImplementation {
     type Hook = Def.Initialize[State => State]
 
 
-    private[build] val MinimumScalaVersion = "2.12.6"
-    def pickScalaVersion: Def.Initialize[String] = Def.settingDyn {
-      // if (!BuildKeys.useScalacFork.value) Def.setting(MinimumScalaVersion)
-      // 2.12.3 has no statistics, so if scalaHome isn't used it will fail to compile
-      Def.setting("2.12.6")
-    }
+    // private[build] val MinimumScalaVersion = "2.12.6"
+    // def pickScalaVersion: Def.Initialize[String] = Def.settingDyn {
+    //   // if (!BuildKeys.useScalacFork.value) Def.setting(MinimumScalaVersion)
+    //   // 2.12.3 has no statistics, so if scalaHome isn't used it will fail to compile
+    //   scalaVersion.value
+    // }
 
     def scalacProfilingScalacOptions(ref: ProjectRef): Def.Initialize[sbt.Task[Seq[String]]] = {
       Def.task {
@@ -280,9 +277,9 @@ object BuildImplementation {
 
     def setUpSourceDependenciesCmd(refs: List[String]): Def.Initialize[String] = {
       Def.setting {
-        val scalaVersion = BuildDefaults.pickScalaVersion.value
+        val scalaV = Keys.scalaVersion.value
         def setScalaVersion(ref: String) =
-          s"""${Keys.scalaVersion.key.label} in $ref := "$scalaVersion""""
+          s"""${Keys.scalaVersion.key.label} in $ref := "$scalaV""""
         def setScalacOptions(ref: String) =
           s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef(ref)}.value""".stripMargin
         def setUnmanagedJars(ref: String, config: String) =
@@ -332,7 +329,7 @@ object BuildImplementation {
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := "2.12.6",
+    Keys.scalaVersion := "2.12.15",
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := true,
     BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value
