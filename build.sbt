@@ -13,6 +13,7 @@ lazy val root = project
   .settings(
     Seq(
       name := "profiling-root",
+      crossScalaVersions := bin212 ++ bin213,
       publish := {},
       publishLocal := {},
       // crossSbtVersions := List("0.13.17", "1.1.1"),
