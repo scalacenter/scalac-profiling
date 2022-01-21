@@ -345,7 +345,7 @@ object BuildImplementation {
   final val reasonableCompileOptions = (
     "-deprecation" :: "-encoding" :: "UTF-8" :: "-feature" :: "-language:existentials" ::
       "-language:higherKinds" :: "-language:implicitConversions" :: "-unchecked" ::
-      "-Yno-adapted-args" :: "-Ywarn-numeric-widen" :: "-Xfuture" :: "-Xlint" :: Nil
+      "-Ywarn-numeric-widen" :: "-Xfuture" :: "-Xlint" :: Nil
   )
 }
 

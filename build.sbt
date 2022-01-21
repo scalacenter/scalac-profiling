@@ -24,12 +24,13 @@ lazy val root = project
   )
 
 val bin212 = Seq("2.12.15", "2.12.14", "2.12.13", "2.12.12", "2.12.11")
-// val bin213 = Seq("2.13.8", "2.13.7", "2.13.6")
+val bin213 = Seq("2.13.8", "2.13.7", "2.13.6")
 
 // Copied from
 // https://github.com/scalameta/scalameta/blob/370e304b0d10db1dd65fc79a5abc1f39004aeffd/build.sbt#L724-L737
 lazy val fullCrossVersionSettings = Seq(
   crossVersion := CrossVersion.full,
+  crossScalaVersions := bin212 ++ bin213,
   unmanagedSourceDirectories in Compile += {
     // NOTE: sbt 0.13.8 provides cross-version support for Scala sources
     // (http://www.scala-sbt.org/0.13/docs/sbt-0.13-Tech-Previews.html#Cross-version+support+for+Scala+sources).
@@ -43,17 +44,17 @@ lazy val fullCrossVersionSettings = Seq(
 )
 
 import _root_.ch.epfl.scala.profiling.build.BuildImplementation.BuildDefaults
-import com.trueaccord.scalapb.compiler.Version.scalapbVersion
+import scalapb.compiler.Version.scalapbVersion
 lazy val profiledb = project
   .in(file("profiledb"))
   //.settings(metalsSettings)
   .settings(
     // Specify scala version to allow third-party software to use this module
-    crossScalaVersions := bin212,
+    crossScalaVersions := bin212 ++ bin213,
     // scalaVersion := "2.12.12",
     crossScalaVersions := List(scalaVersion.value),
     libraryDependencies +=
-      "com.trueaccord.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
+      "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
     PB.targets in Compile := Seq(scalapb.gen() -> (sourceManaged in Compile).value)
   )
 
@@ -65,7 +66,7 @@ lazy val plugin = project
     fullCrossVersionSettings,
     name := "scalac-profiling",
     libraryDependencies ++= List(
-      "com.lihaoyi" %% "pprint" % "0.5.3",
+      "com.lihaoyi" %% "pprint" % "0.5.7",
       scalaOrganization.value % "scala-compiler" % scalaVersion.value
     ),
     libraryDependencies ++= testDependencies,
@@ -168,7 +169,7 @@ lazy val integrations = project
   .in(file("integrations"))
    // .dependsOn(Circe)
   .settings(
-    libraryDependencies += "com.github.alexarchambault" %% "case-app" % "1.2.0",
+    libraryDependencies += "com.github.alexarchambault" %% "case-app" % "2.0.6",
     // scalaHome := BuildDefaults.setUpScalaHome.value,
     parallelExecution in Test := false,
     scalacOptions in Compile := (Def.taskDyn {
