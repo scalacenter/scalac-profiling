@@ -9,11 +9,11 @@
 
 package ch.epfl.scala.profiling.build
 
-import sbt.{AutoPlugin, Def, Keys, PluginTrigger, Plugins, ProjectRef}
+import sbt._
 
 object BuildPlugin extends AutoPlugin {
   override def trigger: PluginTrigger = allRequirements
-  override def requires: Plugins = ch.epfl.scala.sbt.release.ReleaseEarlyPlugin
+  // override def requires: Plugins = ch.epfl.scala.sbt.release.ReleaseEarlyPlugin
   val autoImport = BuildKeys
 
   override def globalSettings: Seq[Def.Setting[_]] =
@@ -25,8 +25,6 @@ object BuildPlugin extends AutoPlugin {
 }
 
 object BuildKeys {
-  import sbt.{settingKey, taskKey, richFile, file, uri, toGroupID}
-  import sbt.{RootProject, ProjectRef, Setting, Compile, BuildRef, Reference}
   final val enableStatistics =
     settingKey[Boolean]("Enable performance debugging if true.")
   final val optionsForSourceCompilerPlugin =
@@ -46,41 +44,41 @@ object BuildKeys {
   // final val VscodeImplementation = ProjectRef(VscodeScala.build, "ensime-lsp")
 
   // Source dependencies from git are cached by sbt
-  val Circe = RootProject(
-    uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9")
-  )
+  // val Circe = RootProject(
+  //   uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9")
+  // )
   // val Monocle = RootProject(
   //   uri("git://github.com/jvican/Monocle.git#5da7c1ac8ffd3942a843dca9cd1fbb281ff08412")
   // )
-  val Scalatest = RootProject(
-    uri("git://github.com/jvican/scalatest.git#c5fcbe35097a152a6595aa63ea25b15f237a7970")
-  )
-  val BetterFiles = RootProject(
-    uri("git://github.com/jvican/better-files.git#29270d200bdc5715be0fb6875b00718de2996641")
-  )
-  val Shapeless = RootProject(
-    uri("git://github.com/jvican/shapeless.git#a42cd4c1c99e4a7be36e0239d3ee944a6355e321")
-  )
+  // val Scalatest = RootProject(
+  //   uri("git://github.com/jvican/scalatest.git#c5fcbe35097a152a6595aa63ea25b15f237a7970")
+  // )
+  // val BetterFiles = RootProject(
+  //   uri("git://github.com/jvican/better-files.git#29270d200bdc5715be0fb6875b00718de2996641")
+  // )
+  // val Shapeless = RootProject(
+  //   uri("git://github.com/jvican/shapeless.git#a42cd4c1c99e4a7be36e0239d3ee944a6355e321")
+  // )
 
-  val CirceTests = ProjectRef(Circe.build, "tests")
+  // val CirceTests = ProjectRef(Circe.build, "tests")
   // val MonocleExample = ProjectRef(Monocle.build, "example")
   // val MonocleTests = ProjectRef(Monocle.build, "testJVM")
-  val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
-  val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")
-  val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
-  val ShapelessCore = ProjectRef(Shapeless.build, "coreJVM")
-  val ShapelessExamples = ProjectRef(Shapeless.build, "examplesJVM")
+  // val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
+  // val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")
+  // val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
+  // val ShapelessCore = ProjectRef(Shapeless.build, "coreJVM")
+  // val ShapelessExamples = ProjectRef(Shapeless.build, "examplesJVM")
   // val MagnoliaTests = ProjectRef(Magnolia.build, "tests")
 
-  val IntegrationProjectsAndReferences = List(
-    CirceTests -> "CirceTests",
+  val IntegrationProjectsAndReferences = List[(ProjectRef, String)](
+    // CirceTests -> "CirceTests",
     // MonocleExample -> "MonocleExample",
     // MonocleTests -> "MonocleTests",
-    ScalatestCore -> "ScalatestCore",
-    ScalatestTests -> "ScalatestTests",
-    BetterFilesCore -> "BetterFilesCore",
-    ShapelessCore -> "ShapelessCore",
-    ShapelessExamples -> "ShapelessExamples"
+    // ScalatestCore -> "ScalatestCore",
+    // ScalatestTests -> "ScalatestTests",
+    // BetterFilesCore -> "BetterFilesCore",
+    // ShapelessCore -> "ShapelessCore",
+    // ShapelessExamples -> "ShapelessExamples"
     // MagnoliaTests -> "MagnoliaTests"
     // Enable the scalac compiler when it's not used as a fork
     // ScalacCompiler,
@@ -92,22 +90,17 @@ object BuildKeys {
   // final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
   // final val ScalacScalaVersion = Keys.scalaVersion in BuildKeys.ScalacCompiler
 
-  final val testDependencies = List(
-    "junit" % "junit" % "4.12" % "test",
-    "com.novocode" % "junit-interface" % "0.11" % "test"
-  )
-
   /** Write all the compile-time dependencies of the compiler plugin to a file,
     * in order to read it from the created Toolbox to run the neg tests. */
   lazy val generateToolboxClasspath = Def.task {
-    val scalaBinVersion = (Keys.scalaBinaryVersion in Compile).value
-    val targetDir = (Keys.target in Compile).value
+    val scalaBinVersion = (Compile / Keys.scalaBinaryVersion).value
+    val targetDir = (Compile / Keys.target).value
     val compiledClassesDir = targetDir / s"scala-$scalaBinVersion/classes"
     val testClassesDir = targetDir / s"scala-$scalaBinVersion/test-classes"
     val libraryJar = Keys.scalaInstance.value.libraryJar.getAbsolutePath
-    val deps = (Keys.libraryDependencies in Compile).value.mkString(":")
+    val deps = (Compile / Keys.libraryDependencies).value.mkString(":")
     val classpath = s"$compiledClassesDir:$testClassesDir:$libraryJar:$deps"
-    val resourceDir = (Keys.resourceManaged in Compile).value
+    val resourceDir = (Compile / Keys.resourceManaged).value
     val toolboxTestClasspath = resourceDir / "toolbox.classpath"
     sbt.IO.write(toolboxTestClasspath, classpath)
     List(toolboxTestClasspath.getAbsoluteFile)
@@ -133,7 +126,7 @@ object BuildKeys {
     * at the project level, which is bad practice). So, finding a repro for this
     * is going to be fun.
     */
-  final val hijacked = sbt.AttributeKey[Boolean]("The hijacked sexy option.")
+  final val hijacked = sbt.AttributeKey[Boolean]("the hijacked sexy option.")
 
   ////////////////////////////////////////////////////////////////////////////////
 
@@ -178,8 +171,6 @@ object BuildKeys {
 }
 
 object BuildImplementation {
-  import sbt.{url, file, richFile, State, Logger}
-  import sbt.{Developer, Resolver, ThisBuild, Watched, Compile, Test}
 
   // This should be added to upstream sbt.
   def GitHub(org: String, project: String): java.net.URL =
@@ -187,8 +178,8 @@ object BuildImplementation {
   def GitHubDev(handle: String, fullName: String, email: String) =
     Developer(handle, fullName, email, url(s"https://github.com/$handle"))
 
-  import com.typesafe.sbt.SbtPgp.autoImport.PgpKeys
-  import ch.epfl.scala.sbt.release.ReleaseEarlyPlugin.{autoImport => ReleaseEarlyKeys}
+  // import com.typesafe.sbt.SbtPgp.autoImport.PgpKeys
+  // import ch.epfl.scala.sbt.release.ReleaseEarlyPlugin.{autoImport => ReleaseEarlyKeys}
 
   final val PluginProject = sbt.LocalProject("plugin")
   private final val ThisRepo = GitHub("scalacenter", "scalac-profiling")
@@ -197,34 +188,34 @@ object BuildImplementation {
     Keys.autoAPIMappings := true,
     Keys.publishMavenStyle := true,
     Keys.homepage := Some(ThisRepo),
-    Keys.publishArtifact in Test := false,
+    Test / Keys.publishArtifact := false,
     Keys.licenses := Seq("Apache-2.0" -> url("https://opensource.org/licenses/Apache-2.0")),
     Keys.developers := List(GitHubDev("jvican", "Jorge Vicente Cantero", "jorge@vican.me")),
-    PgpKeys.pgpPublicRing := {
-      if (sys.env.get("CI").isDefined) file("/drone/.gnupg/pubring.asc")
-      else PgpKeys.pgpPublicRing.value
-    },
-    PgpKeys.pgpSecretRing := {
-      if (sys.env.get("CI").isDefined) file("/drone/.gnupg/secring.asc")
-      else PgpKeys.pgpSecretRing.value
-    },
-    ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.SonatypePublisher,
+    // PgpKeys.pgpPublicRing := {
+    //   if (sys.env.get("CI").isDefined) file("/drone/.gnupg/pubring.asc")
+    //   else PgpKeys.pgpPublicRing.value
+    // },
+    // PgpKeys.pgpSecretRing := {
+    //   if (sys.env.get("CI").isDefined) file("/drone/.gnupg/secring.asc")
+    //   else PgpKeys.pgpSecretRing.value
+    // },
+    // ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.SonatypePublisher,
     Keys.pomExtra := scala.xml.NodeSeq.Empty
   )
 
   object BuildDefaults {
     final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
       val logger = Keys.streams.value.log
-      logger.info((Keys.name in Test in BuildKeys.CirceTests).value)
-      logger.info((Keys.scalaInstance in Test in BuildKeys.CirceTests).value.toString)
+      // logger.info((Keys.name in Test in BuildKeys.CirceTests).value)
+      // logger.info((Keys.scalaInstance in Test in BuildKeys.CirceTests).value.toString)
       // logger.info((Keys.name in Test in BuildKeys.MonocleTests).value)
       // logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleTests).value.toString)
       // logger.info((Keys.name in Test in BuildKeys.MonocleExample).value)
       // logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleExample).value.toString)
-      logger.info((Keys.name in Test in BuildKeys.ScalatestCore).value)
-      logger.info((Keys.scalaInstance in Test in BuildKeys.ScalatestCore).value.toString)
-      logger.info((Keys.name in Test in BuildKeys.BetterFilesCore).value)
-      logger.info((Keys.scalaInstance in Test in BuildKeys.BetterFilesCore).value.toString)
+      // logger.info((Keys.name in Test in BuildKeys.ScalatestCore).value)
+      // logger.info((Keys.scalaInstance in Test in BuildKeys.ScalatestCore).value.toString)
+      // logger.info((Keys.name in Test in BuildKeys.BetterFilesCore).value)
+      // logger.info((Keys.scalaInstance in Test in BuildKeys.BetterFilesCore).value.toString)
       ()
     }
 
@@ -256,13 +247,13 @@ object BuildImplementation {
         val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
         val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
         val noProfileDb = s"-P:scalac-profiling:no-profiledb"
-        val pluginOpts = (BuildKeys.optionsForSourceCompilerPlugin in PluginProject).value
+        val pluginOpts = (PluginProject / BuildKeys.optionsForSourceCompilerPlugin).value
         noProfileDb +: sourceRoot +: pluginOpts
       }
     }
 
     def setUpUnmanagedJars: Def.Initialize[sbt.Task[Def.Classpath]] = Def.task {
-      val previousJars = Keys.unmanagedJars.in(Compile).value
+      val previousJars = (Compile / Keys.unmanagedJars).value
       val allPluginDeps = BuildKeys.allDepsForCompilerPlugin.in(PluginProject).value
       previousJars ++ allPluginDeps
     }
@@ -310,7 +301,7 @@ object BuildImplementation {
   }
 
   final val globalSettings: Seq[Def.Setting[_]] = Seq(
-    Keys.testOptions in Test += sbt.Tests.Argument("-oD"),
+    Test / Keys.testOptions += sbt.Tests.Argument("-oD"),
     // BuildKeys.useScalacFork := false,
     Keys.commands ~= BuildDefaults.fixPluginCross _,
     Keys.onLoadMessage := Header.intro,
@@ -340,7 +331,7 @@ object BuildImplementation {
     Keys.scalacOptions in Compile := reasonableCompileOptions,
     // Necessary because the scalac version has to be always SNAPSHOT to avoid caching issues
     // Scope here is wrong -- we put it here temporarily until this is fixed upstream
-    ReleaseEarlyKeys.releaseEarlyBypassSnapshotCheck := true
+    // ReleaseEarlyKeys.releaseEarlyBypassSnapshotCheck := true
   )
 
   final val reasonableCompileOptions = (

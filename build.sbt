@@ -7,6 +7,8 @@
 **                                                                                                **
 \*                                                                                                */
 
+import xsbti.compile.CompileAnalysis
+
 lazy val root = project
   .in(file("."))
   .aggregate(profiledb, plugin) //, profilingSbtPlugin)
@@ -18,9 +20,9 @@ lazy val root = project
       publishLocal := {},
       // crossSbtVersions := List("0.13.17", "1.1.1"),
       watchSources ++=
-        (watchSources in plugin).value ++
-          (watchSources in profiledb).value ++
-          (watchSources in integrations).value
+        (plugin / watchSources).value ++
+          (profiledb / watchSources).value ++
+          (integrations / watchSources).value
     )
   )
 
@@ -32,13 +34,13 @@ val bin213 = Seq("2.13.8", "2.13.7", "2.13.6")
 lazy val fullCrossVersionSettings = Seq(
   crossVersion := CrossVersion.full,
   crossScalaVersions := bin212 ++ bin213,
-  unmanagedSourceDirectories in Compile += {
+  Compile / unmanagedSourceDirectories += {
     // NOTE: sbt 0.13.8 provides cross-version support for Scala sources
     // (http://www.scala-sbt.org/0.13/docs/sbt-0.13-Tech-Previews.html#Cross-version+support+for+Scala+sources).
     // Unfortunately, it only includes directories like "scala_2.11" or "scala_2.12",
     // not "scala_2.11.8" or "scala_2.12.1" that we need.
     // That's why we have to work around here.
-    val base = (sourceDirectory in Compile).value
+    val base = (Compile/ sourceDirectory).value
     val versionDir = scalaVersion.value.replaceAll("-.*", "")
     base / ("scala-" + versionDir)
   }
@@ -56,7 +58,7 @@ lazy val profiledb = project
     crossScalaVersions := List(scalaVersion.value),
     libraryDependencies +=
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
-    PB.targets in Compile := Seq(scalapb.gen() -> (sourceManaged in Compile).value)
+    Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value)
   )
 
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
@@ -70,18 +72,21 @@ lazy val plugin = project
       "com.lihaoyi" %% "pprint" % "0.5.7",
       scalaOrganization.value % "scala-compiler" % scalaVersion.value
     ),
-    libraryDependencies ++= testDependencies,
-    testOptions in Test ++= List(Tests.Argument("-v"), Tests.Argument("-s")),
+    libraryDependencies ++= List(
+      "junit" % "junit" % "4.12" % "test",
+      "com.novocode" % "junit-interface" % "0.11" % "test"
+    ),
+    Test / testOptions ++= List(Tests.Argument("-v"), Tests.Argument("-s")),
     allDepsForCompilerPlugin := {
-      val jar = (Keys.packageBin in Compile).value
-      val profileDbJar = (Keys.`package` in Compile in profiledb).value
+      val jar = (Compile / Keys.packageBin).value
+      val profileDbJar = (profiledb / Compile / Keys.`package`).value
       val absoluteJars = List(jar, profileDbJar).classpath
-      val pluginDeps = (managedClasspath in Compile).value
+      val pluginDeps = (Compile / managedClasspath).value
       (absoluteJars ++ pluginDeps)
     },
     // Make the tests to compile with the plugin
     optionsForSourceCompilerPlugin := {
-      val jar = (Keys.packageBin in Compile).value
+      val jar = (Compile / Keys.packageBin).value
       val pluginAndDeps = allDepsForCompilerPlugin.value.map(_.data.getAbsolutePath()).mkString(":")
       val addPlugin = "-Xplugin:" + pluginAndDeps
       val dummy = "-Jdummy=" + jar.lastModified
@@ -92,10 +97,10 @@ lazy val plugin = project
       //else List("-Xlog-implicits", "-Ystatistics:typer")
       Seq(addPlugin, dummy) ++ debuggingPluginOptions
     },
-    scalacOptions in Test ++= optionsForSourceCompilerPlugin.value,
+    Test / scalacOptions ++= optionsForSourceCompilerPlugin.value,
     // Generate toolbox classpath while compiling for both configurations
-    resourceGenerators in Compile += generateToolboxClasspath.taskValue,
-    resourceGenerators in Test += Def.task {
+    Compile / resourceGenerators += generateToolboxClasspath.taskValue,
+    Test / resourceGenerators += Def.task {
       val options = scalacOptions.value
       val stringOptions = options.filterNot(_ == "-Ydebug").mkString(" ")
       val pluginOptionsFile = resourceManaged.value / "toolbox.plugin"
@@ -109,10 +114,10 @@ lazy val plugin = project
         case (2, y) if y >= 12 => new File(scalaSource.value.getPath + "-2.12")
       }.toList
     }),
-    Keys.packageBin in Compile := (assembly in Compile).value,
-    test in assembly := {},
-    assemblyOption in assembly :=
-      (assemblyOption in assembly).value
+    Compile / Keys.packageBin := (Compile / assembly).value,
+    assembly / test := {},
+    assembly / assemblyOption :=
+      (assembly / assemblyOption).value
         .copy(includeScala = false, includeDependency = true)
   )
 
@@ -172,50 +177,50 @@ lazy val integrations = project
   .settings(
     libraryDependencies += "com.github.alexarchambault" %% "case-app" % "2.0.6",
     // scalaHome := BuildDefaults.setUpScalaHome.value,
-    parallelExecution in Test := false,
-    scalacOptions in Compile := (Def.taskDyn {
-      val options = (Keys.scalacOptions in Compile).value
+    Test / parallelExecution := false,
+    Compile / scalacOptions := (Def.taskDyn {
+      val options = (Compile / scalacOptions).value
       val ref = Keys.thisProjectRef.value
       Def.task(options ++ BuildDefaults.scalacProfilingScalacOptions(ref).value)
     }).value,
     clean := Def
       .sequential(
         clean,
-        (clean in Test in CirceTests),
+        // (clean in Test in CirceTests),
         // (clean in Test in MonocleTests),
         // (clean in Test in MonocleExample),
-        (clean in Compile in ScalatestCore)
+        // (clean in Compile in ScalatestCore)
         //(clean in Compile in MagnoliaTests),
         // (clean in ScalacCompiler)
       )
       .value,
     test := Def
       .sequential(
-        (showScalaInstances in ThisBuild),
+        (ThisBuild / showScalaInstances),
         // (profilingWarmupCompiler in Compile), // Warmup example, classloader is the same for all
-        (compile in Compile),
-        (compile in Test in CirceTests),
+        // (compile in Compile),
+        // (compile in Test in CirceTests),
         // (compile in Test in MonocleTests),
         // (compile in Test in MonocleExample),
-        (compile in Compile in ScalatestCore)
+        // (compile in Compile in ScalatestCore)
         //(compile in Compile in MagnoliaTests),
         // (compile in ScalacCompiler)
       )
       .value,
     testOnly := Def.inputTaskDyn {
       val keywords = keywordsSetting.parsed
-      val emptyAnalysis = Def.task(sbt.inc.Analysis.Empty)
-      val CirceTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Circe))
-          Def.sequential(
-            (compile in Test in CirceTests)
-          )
-        else emptyAnalysis
-      }
+      val emptyAnalysis = Def.task[CompileAnalysis](sbt.internal.inc.Analysis.Empty)
+      // val CirceTask = Def.taskDyn {
+      //   if (keywords.contains(Keywords.Circe))
+      //     Def.sequential(
+      //       (compile in Test in CirceTests)
+      //     )
+      //   else emptyAnalysis
+      // }
       val IntegrationTask = Def.taskDyn {
         if (keywords.contains(Keywords.Integration))
           Def.sequential(
-            (compile in Compile)
+            (Compile / compile)
           )
         else emptyAnalysis
       }
@@ -228,14 +233,14 @@ lazy val integrations = project
       //     )
       //   else emptyAnalysis
       // }
-      val ScalatestTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Scalatest))
-          Def.sequential(
-            (compile in Compile in ScalatestCore),
-            (compile in Test in ScalatestTests)
-          )
-        else emptyAnalysis
-      }
+      // val ScalatestTask = Def.taskDyn {
+      //   if (keywords.contains(Keywords.Scalatest))
+      //     Def.sequential(
+      //       (compile in Compile in ScalatestCore),
+      //       (compile in Test in ScalatestTests)
+      //     )
+      //   else emptyAnalysis
+      // }
       // val ScalacTask = Def.taskDyn {
       //   if (keywords.contains(Keywords.Scalac))
       //     Def.sequential(
@@ -243,21 +248,21 @@ lazy val integrations = project
       //     )
       //   else emptyAnalysis
       // }
-      val BetterFilesTask = Def.taskDyn {
-        if (keywords.contains(Keywords.BetterFiles))
-          Def.sequential(
-            (compile in Compile in BetterFilesCore)
-          )
-        else emptyAnalysis
-      }
-      val ShapelessTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Shapeless))
-          Def.sequential(
-            (compile in Compile in ShapelessCore),
-            (compile in Test in ShapelessCore)
-          )
-        else emptyAnalysis
-      }
+      // val BetterFilesTask = Def.taskDyn {
+      //   if (keywords.contains(Keywords.BetterFiles))
+      //     Def.sequential(
+      //       (compile in Compile in BetterFilesCore)
+      //     )
+      //   else emptyAnalysis
+      // }
+      // val ShapelessTask = Def.taskDyn {
+      //   if (keywords.contains(Keywords.Shapeless))
+      //     Def.sequential(
+      //       (compile in Compile in ShapelessCore),
+      //       (compile in Test in ShapelessCore)
+      //     )
+      //   else emptyAnalysis
+      // }
       // val MagnoliaTask = Def.taskDyn {
       //   if (keywords.contains(Keywords.Magnolia))
       //     Def.sequential(
@@ -266,17 +271,17 @@ lazy val integrations = project
       //   else emptyAnalysis
       // }
       Def.sequential(
-        CirceTask,
+        // CirceTask,
         // MonocleTask,
         IntegrationTask,
-        ScalatestTask,
+        // ScalatestTask,
         // ScalacTask,
-        BetterFilesTask,
-        ShapelessTask//,MagnoliaTask
+        // BetterFilesTask,
+        // ShapelessTask//,MagnoliaTask
       )
     }.evaluated
   )
 
 val proxy = project
   .in(file(".proxy"))
-  .aggregate(Circe, Scalatest, BetterFiles, Shapeless)//, Monocle Scalac, Magnolia)
+  // .aggregate(Scalatest, BetterFiles, Shapeless)//, Circe, Monocle Scalac, Magnolia)
