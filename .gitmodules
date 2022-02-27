@@ -2,10 +2,6 @@
 	path = vscode-scala
 	url = git@github.com:scalacenter/vscode-scala-profiledb.git
 	branch = profiledb-integration
-[submodule "sbt-plugin/src/sbt-test/external-projects/circe"]
-	path = sbt-plugin/src/sbt-test/external-projects/circe
-	url = https://github.com/jvican/circe
-	branch = master-with-sbt-profiling
 [submodule "FlameGraph"]
 	path = FlameGraph
 	url = git://github.com/jvican/FlameGraph.git

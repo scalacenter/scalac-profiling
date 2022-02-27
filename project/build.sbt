@@ -12,5 +12,4 @@ lazy val root = project
     //   List(pluginMainDir / "scala", pluginMainDir / s"scala-sbt-${Keys.sbtBinaryVersion.value}")
     // },
     libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.9.7",
-    // libraryDependencies += "org.scala-sbt" % "scripted-plugin" % sbtVersion.value
   )

@@ -11,7 +11,7 @@ import xsbti.compile.CompileAnalysis
 
 lazy val root = project
   .in(file("."))
-  .aggregate(profiledb, plugin) //, profilingSbtPlugin)
+  .aggregate(profiledb, plugin, profilingSbtPlugin)
   .settings(
     Seq(
       name := "profiling-root",
@@ -135,8 +135,6 @@ lazy val plugin = project
 // This is the task to publish the vscode integration
 // val publishExtension = taskKey[Unit]("The task to publish the vscode extension.")
 
-// DO NOT BUILD vscode integration and sbt plugin for now
-
 // Has to be in independent project because uses different Scala version
 // lazy val vscodeIntegration = project
 //   .in(file(".hidden"))
@@ -158,17 +156,15 @@ lazy val plugin = project
 //       .value
 //   )
 // 
-// lazy val profilingSbtPlugin = project
-//   .in(file("sbt-plugin"))
-//   //.settings(metalsSettings)
-//   .settings(
-//     name := "sbt-scalac-profiling",
-//     sbtPlugin := true,
-//     scalaVersion := BuildDefaults.fixScalaVersionForSbtPlugin.value,
-//     ScriptedPlugin.scriptedSettings,
-//     scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", "-Xss8M", s"-Dplugin.version=${version.value}"),
-//     scriptedBufferLog := false
-//   )
+lazy val profilingSbtPlugin = project
+  .in(file("sbt-plugin"))
+  .settings(
+    name := "sbt-scalac-profiling",
+    scalaVersion := "2.12.15",
+    scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", "-Xss8M", s"-Dplugin.version=${version.value}"),
+    scriptedBufferLog := false
+  )
+  .enablePlugins(SbtPlugin)
 
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project

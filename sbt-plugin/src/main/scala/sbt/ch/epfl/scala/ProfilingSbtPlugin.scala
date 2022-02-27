@@ -45,18 +45,18 @@ object ProfilingPluginImplementation {
     Keys.commands += BuildDefaults.profilingWarmupCommand,
     BuildKeys.profilingWarmupDuration := BuildDefaults.profilingWarmupDuration.value,
     Keys.concurrentRestrictions += Tags.limit(WarmupTag, 1),
-    Keys.executeProgress := { _ =>
-      val debug = (Keys.logLevel in Keys.executeProgress).value == sbt.Level.Debug
-      new Keys.TaskProgress(new SbtTaskTimer(timingsForKeys, debug))
+    Keys.progressReports := {
+      val debug = (Keys.progressReports / Keys.logLevel).value == sbt.Level.Debug
+      Seq(new Keys.TaskProgress(new SbtTaskTimer(timingsForKeys, debug)))
     },
-    Keys.logLevel in Keys.executeProgress := sbt.Level.Info
+    Keys.progressReports / Keys.logLevel := sbt.Level.Info
   )
 
   val buildSettings: Seq[Def.Setting[_]] = Nil
   val projectSettings: Seq[Def.Setting[_]] = List(
-    BuildKeys.profilingWarmupCompiler in Compile :=
+    Compile / BuildKeys.profilingWarmupCompiler :=
       BuildDefaults.profilingWarmupCompiler.tag(WarmupTag).value,
-    BuildKeys.profilingWarmupCompiler in Test :=
+    Test / BuildKeys.profilingWarmupCompiler :=
       BuildDefaults.profilingWarmupCompiler.tag(WarmupTag).value
   )
 
@@ -132,7 +132,7 @@ object ProfilingPluginImplementation {
 
       val logger = st0.log
       val extracted = Project.extract(st0)
-      val (st1, compilers) = extracted.runTask(Keys.compilers in extracted.currentRef, st0)
+      val (st1, compilers) = extracted.runTask(extracted.currentRef / Keys.compilers, st0)
       val compilerLoader = compilers.scalac.scalaInstance.loader()
 
       val warmupDurationMs = extracted.get(BuildKeys.profilingWarmupDuration) * 1000

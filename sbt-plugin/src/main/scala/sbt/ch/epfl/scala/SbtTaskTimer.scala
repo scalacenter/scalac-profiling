@@ -16,7 +16,7 @@ import sbt.{ExecuteProgress, Result, Task, ScopedKey, Def}
 class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], isDebugEnabled: Boolean)
     extends ExecuteProgress[Task] {
 
-  override type S = Unit
+  type S = Unit
   override def initial: Unit = {}
 
   private def getKey(task: Task[_]): Option[ScopedKey[_]] =
@@ -27,14 +27,14 @@ class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], isDebugEn
 
   import sbt.Task
   type Tasks = Iterable[sbt.Task[_]]
-  override def registered(state: Unit, task: Task[_], allDeps: Tasks, pendingDeps: Tasks): Unit = {
+  override def afterRegistered(task: Task[_], allDeps: Tasks, pendingDeps: Tasks): Unit = {
     getKey(task) match {
       case Some(key) => pending.put(key, System.currentTimeMillis())
       case None => ()
     }
   }
 
-  override def workFinished[T](task: Task[T], result: Either[Task[T], Result[T]]): Unit = {
+  override def afterCompleted[A](task: Task[A], result: Result[A]): Unit = {
     def finishTiming(scopedKey: ScopedKey[_]): Unit = {
       pending.get(scopedKey) match {
         case startTime: BoxedLong =>
@@ -56,13 +56,22 @@ class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], isDebugEn
     }
 
     getKey(task) match {
-      case Some(key) => finishTiming(key)
+      case Some(key) => {
+        println(key)
+      finishTiming(key)
+      }
       case None => () // Ignore tasks that do not have key information
     }
+
   }
 
   def workStarting(task: Task[_]): Unit = ()
   def allCompleted(state: Unit, results: sbt.RMap[Task, sbt.Result]): Unit = ()
   def completed[T](state: Unit, task: Task[T], result: sbt.Result[T]): Unit = ()
   def ready(state: Unit, task: Task[_]): Unit = ()
+  def afterAllCompleted(results: sbt.internal.util.RMap[sbt.Task,sbt.Result]): Unit = ()
+  def afterReady(task: sbt.Task[_]): Unit = ()
+  def afterWork[A](task: sbt.Task[A],result: Either[sbt.Task[A],sbt.Result[A]]): Unit = ()
+  def beforeWork(task: sbt.Task[_]): Unit = ()
+  def stop(): Unit = ()
 }
