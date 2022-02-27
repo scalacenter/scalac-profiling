@@ -27,7 +27,7 @@ lazy val root = project
   )
 
 val bin212 = Seq("2.12.15", "2.12.14", "2.12.13", "2.12.12", "2.12.11")
-val bin213 = Seq("2.13.8", "2.13.7", "2.13.6")
+val bin213 = Seq("2.13.8", "2.13.7", "2.13.6", "2.13.5")
 
 // Copied from
 // https://github.com/scalameta/scalameta/blob/370e304b0d10db1dd65fc79a5abc1f39004aeffd/build.sbt#L724-L737
@@ -110,7 +110,8 @@ lazy val plugin = project
       val scalaPartialVersion = CrossVersion partialVersion scalaVersion.value
       scalaPartialVersion.collect {
         case (2, y) if y == 11 => new File(scalaSource.value.getPath + "-2.11")
-        case (2, y) if y >= 12 => new File(scalaSource.value.getPath + "-2.12")
+        case (2, y) if y == 12 => new File(scalaSource.value.getPath + "-2.12")
+        case (2, y) if y >= 13 => new File(scalaSource.value.getPath + "-2.13")
       }.toList
     }),
     Compile / Keys.packageBin := (Compile / assembly).value,

@@ -48,16 +48,16 @@ object BuildKeys {
     uri("git://github.com/circe/circe.git#bbcbd53637b601953dfbdb4fd6fb55944c4e476e")
   )
   val Monocle = RootProject(
-    uri("git://github.com/optics-dev/Monocle.git#40221ede82aaa71f4aaf7f2ace514eee91aa1ca3") // 3.1.0
+    uri("git://github.com/optics-dev/Monocle.git#8577ca6f818e7728bfd695d4739865bd73b0db0c") // 3.1.0, scala 2.13.8, kind-projector 0.13.2
   )
   val Scalatest = RootProject(
-    uri("git://github.com/scalatest/scalatest.git#2840dca367cb385a1d01ccdd0821f83badb07012")
+    uri("git://github.com/scalatest/scalatest.git#2840dca367cb385a1d01ccdd0821f83badb07012") // 3.2.11
   )
   val BetterFiles = RootProject(
     uri("git://github.com/pathikrit/better-files.git#81a3da05c58b9ab0cabe34235c6d7d88bcd16dca")
   )
   // val Shapeless = RootProject(
-  //   uri("git://github.com/milessabin/shapeless.git#b67ede43d1ccdf130d2584b592704e1dcb469866")
+  //   uri("git://github.com/milessabin/shapeless.git#0a08460573883cef8ea2d44bc1688a09aa83d7f1") // 2.13.8
   // )
 
   val CirceTests = ProjectRef(Circe.build, "testsJVM")
@@ -248,7 +248,8 @@ object BuildImplementation {
         val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
         val noProfileDb = s"-P:scalac-profiling:no-profiledb"
         val pluginOpts = (PluginProject / BuildKeys.optionsForSourceCompilerPlugin).value
-        noProfileDb +: sourceRoot +: pluginOpts
+        val forMonocle = if (ref.build == BuildKeys.Monocle.build) List("-language:postfixOps", "-Ymacro-annotations") else Nil
+        (noProfileDb +: sourceRoot +: pluginOpts) ++ forMonocle
       }
     }
 
