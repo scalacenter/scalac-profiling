@@ -6,7 +6,6 @@ on:
   pull_request:
     branches:
       - main
-      - integration-test
 jobs:
   test:
     name: ${{ matrix.command }}
@@ -16,8 +15,8 @@ jobs:
       matrix:
         command: # https://github.com/sbt/sbt/issues/2901
           - sbt "plugin/test" "^^0.13.17 profilingSbtPlugin/scripted" "^^1.1.1 profilingSbtPlugin/scripted compiler-profiling/*"
-          - sbt "showScalaInstances" "+integrations/testOnly circe integration monocle better-files scalac"
-          - sbt "showScalaInstances" "+integrations/testOnly scalatest shapeless"
+          - sbt "showScalaInstances" "+integrations/testOnly circe integration better-files"
+            # - sbt "showScalaInstances" "+integrations/testOnly scalatest shapeless monocle"
     steps:
       - uses: actions/checkout@v2
         with:
