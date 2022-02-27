@@ -111,7 +111,8 @@ lazy val plugin = project
       val scalaPartialVersion = CrossVersion partialVersion scalaVersion.value
       scalaPartialVersion.collect {
         case (2, y) if y == 11 => new File(scalaSource.value.getPath + "-2.11")
-        case (2, y) if y >= 12 => new File(scalaSource.value.getPath + "-2.12")
+        case (2, y) if y == 12 => new File(scalaSource.value.getPath + "-2.12")
+        case (2, y) if y >= 13 => new File(scalaSource.value.getPath + "-2.13")
       }.toList
     }),
     Compile / Keys.packageBin := (Compile / assembly).value,
@@ -230,7 +231,7 @@ lazy val integrations = project
       val MonocleTask = Def.taskDyn {
         if (keywords.contains(Keywords.Monocle))
           Def.sequential(
-            (MonocleTests/ Test/ compile),
+            (MonocleTests / Test/ compile),
             (MonocleExample / Test / compile)
           )
         else emptyAnalysis
