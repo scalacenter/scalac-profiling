@@ -248,8 +248,7 @@ object BuildImplementation {
         val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
         val noProfileDb = s"-P:scalac-profiling:no-profiledb"
         val pluginOpts = (PluginProject / BuildKeys.optionsForSourceCompilerPlugin).value
-        val forMonocle = if (ref.build == BuildKeys.Monocle.build) List("-language:postfixOps", "-Ymacro-annotations") else Nil
-        (noProfileDb +: sourceRoot +: pluginOpts) ++ forMonocle
+        noProfileDb +: sourceRoot +: pluginOpts
       }
     }
 
@@ -321,7 +320,7 @@ object BuildImplementation {
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := "2.13.5", // do not upgrade 2.13.6 and higher (Monocle 3.1.0 doesn't compile), 
+    Keys.scalaVersion := "2.13.6", // do not upgrade 2.13.7 and higher (as Monocle 3.1.0 depends on kind-projector 0.13.1 which doesn't support 2.13.7), 
     Keys.version := "1.0.1-SNAPSHOT",
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := true,
