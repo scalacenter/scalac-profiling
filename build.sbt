@@ -55,7 +55,6 @@ lazy val profiledb = project
     // Specify scala version to allow third-party software to use this module
     crossScalaVersions := bin212 ++ bin213,
     // scalaVersion := "2.12.12",
-    crossScalaVersions := List(scalaVersion.value),
     libraryDependencies +=
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
     Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value)
