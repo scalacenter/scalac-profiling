@@ -44,39 +44,39 @@ object BuildKeys {
   // final val VscodeImplementation = ProjectRef(VscodeScala.build, "ensime-lsp")
 
   // Source dependencies from git are cached by sbt
-  // val Circe = RootProject(
-  //   uri("git://github.com/jvican/circe.git#74daecae981ff5d7521824fea5304f9cb52dbac9")
-  // )
-  // val Monocle = RootProject(
-  //   uri("git://github.com/jvican/Monocle.git#5da7c1ac8ffd3942a843dca9cd1fbb281ff08412")
-  // )
-  // val Scalatest = RootProject(
-  //   uri("git://github.com/jvican/scalatest.git#c5fcbe35097a152a6595aa63ea25b15f237a7970")
-  // )
-  // val BetterFiles = RootProject(
-  //   uri("git://github.com/jvican/better-files.git#29270d200bdc5715be0fb6875b00718de2996641")
-  // )
+  val Circe = RootProject(
+    uri("git://github.com/circe/circe.git#bbcbd53637b601953dfbdb4fd6fb55944c4e476e")
+  )
+  val Monocle = RootProject(
+    uri("git://github.com/optics-dev/Monocle.git#40221ede82aaa71f4aaf7f2ace514eee91aa1ca3") // 3.1.0
+  )
+  val Scalatest = RootProject(
+    uri("git://github.com/scalatest/scalatest.git#2840dca367cb385a1d01ccdd0821f83badb07012")
+  )
+  val BetterFiles = RootProject(
+    uri("git://github.com/pathikrit/better-files.git#81a3da05c58b9ab0cabe34235c6d7d88bcd16dca")
+  )
   // val Shapeless = RootProject(
-  //   uri("git://github.com/jvican/shapeless.git#a42cd4c1c99e4a7be36e0239d3ee944a6355e321")
+  //   uri("git://github.com/milessabin/shapeless.git#b67ede43d1ccdf130d2584b592704e1dcb469866")
   // )
 
-  // val CirceTests = ProjectRef(Circe.build, "tests")
-  // val MonocleExample = ProjectRef(Monocle.build, "example")
-  // val MonocleTests = ProjectRef(Monocle.build, "testJVM")
-  // val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
-  // val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")
-  // val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
+  val CirceTests = ProjectRef(Circe.build, "testsJVM")
+  val MonocleExample = ProjectRef(Monocle.build, "example")
+  val MonocleTests = ProjectRef(Monocle.build, "testJVM")
+  val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
+  val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")
+  val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
   // val ShapelessCore = ProjectRef(Shapeless.build, "coreJVM")
   // val ShapelessExamples = ProjectRef(Shapeless.build, "examplesJVM")
   // val MagnoliaTests = ProjectRef(Magnolia.build, "tests")
 
   val IntegrationProjectsAndReferences = List[(ProjectRef, String)](
-    // CirceTests -> "CirceTests",
-    // MonocleExample -> "MonocleExample",
-    // MonocleTests -> "MonocleTests",
-    // ScalatestCore -> "ScalatestCore",
-    // ScalatestTests -> "ScalatestTests",
-    // BetterFilesCore -> "BetterFilesCore",
+    CirceTests -> "CirceTests",
+    MonocleExample -> "MonocleExample",
+    MonocleTests -> "MonocleTests",
+    ScalatestCore -> "ScalatestCore",
+    ScalatestTests -> "ScalatestTests",
+    BetterFilesCore -> "BetterFilesCore",
     // ShapelessCore -> "ShapelessCore",
     // ShapelessExamples -> "ShapelessExamples"
     // MagnoliaTests -> "MagnoliaTests"
@@ -141,7 +141,7 @@ object BuildKeys {
 
   object Keywords {
     val Circe = " circe"
-    // val Monocle = " monocle"
+    val Monocle = " monocle"
     val Integration = " integration"
     val Scalatest = " scalatest"
     val BetterFiles = " better-files"
@@ -152,7 +152,7 @@ object BuildKeys {
   // Circe has to be always at the beginning
   private val AllKeywords = List(
     Keywords.Circe,
-    // Keywords.Monocle,
+    Keywords.Monocle,
     Keywords.Integration,
     Keywords.Scalatest,
     // Keywords.Scalac,
@@ -206,16 +206,16 @@ object BuildImplementation {
   object BuildDefaults {
     final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
       val logger = Keys.streams.value.log
-      // logger.info((Keys.name in Test in BuildKeys.CirceTests).value)
-      // logger.info((Keys.scalaInstance in Test in BuildKeys.CirceTests).value.toString)
-      // logger.info((Keys.name in Test in BuildKeys.MonocleTests).value)
-      // logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleTests).value.toString)
-      // logger.info((Keys.name in Test in BuildKeys.MonocleExample).value)
-      // logger.info((Keys.scalaInstance in Test in BuildKeys.MonocleExample).value.toString)
-      // logger.info((Keys.name in Test in BuildKeys.ScalatestCore).value)
-      // logger.info((Keys.scalaInstance in Test in BuildKeys.ScalatestCore).value.toString)
-      // logger.info((Keys.name in Test in BuildKeys.BetterFilesCore).value)
-      // logger.info((Keys.scalaInstance in Test in BuildKeys.BetterFilesCore).value.toString)
+      logger.info((BuildKeys.CirceTests / Test / Keys.name).value)
+      logger.info((BuildKeys.CirceTests / Test / Keys.scalaInstance).value.toString)
+      logger.info((BuildKeys.MonocleTests / Test /  Keys.name).value)
+      logger.info((BuildKeys.MonocleTests / Test / Keys.scalaInstance).value.toString)
+      logger.info((BuildKeys.MonocleExample / Test / Keys.name).value)
+      logger.info((BuildKeys.MonocleExample / Test / Keys.scalaInstance).value.toString)
+      logger.info((BuildKeys.ScalatestCore / Test / Keys.name).value)
+      logger.info((BuildKeys.ScalatestCore / Test / Keys.scalaInstance).value.toString)
+      logger.info((BuildKeys.BetterFilesCore / Test / Keys.name).value)
+      logger.info((BuildKeys.BetterFilesCore / Test / Keys.scalaInstance).value.toString)
       ()
     }
 
@@ -254,7 +254,7 @@ object BuildImplementation {
 
     def setUpUnmanagedJars: Def.Initialize[sbt.Task[Def.Classpath]] = Def.task {
       val previousJars = (Compile / Keys.unmanagedJars).value
-      val allPluginDeps = BuildKeys.allDepsForCompilerPlugin.in(PluginProject).value
+      val allPluginDeps = (PluginProject / BuildKeys.allDepsForCompilerPlugin).value
       previousJars ++ allPluginDeps
     }
 
@@ -270,13 +270,13 @@ object BuildImplementation {
       Def.setting {
         val scalaV = Keys.scalaVersion.value
         def setScalaVersion(ref: String) =
-          s"""${Keys.scalaVersion.key.label} in $ref := "$scalaV""""
+          s"""$ref / ${Keys.scalaVersion.key.label} := "$scalaV""""
         def setScalacOptions(ref: String) =
-          s"""${Keys.scalacOptions.key.label} in $ref := ${MethodRefs.scalacProfilingScalacOptionsRef(ref)}.value""".stripMargin
+          s"""$ref / ${Keys.scalacOptions.key.label} := ${MethodRefs.scalacProfilingScalacOptionsRef(ref)}.value""".stripMargin
         def setUnmanagedJars(ref: String, config: String) =
-          s"""${Keys.unmanagedJars.key.label} in $config in $ref := ${MethodRefs.setUpUnmanagedJarsRef}.value"""
+          s"""$ref / $config / ${Keys.unmanagedJars.key.label} := ${MethodRefs.setUpUnmanagedJarsRef}.value"""
         val msg = "The build integrations are set up."
-        val setLoadMessage = s"""${Keys.onLoadMessage.key.label} in sbt.Global := "$msg""""
+        val setLoadMessage = s"""sbt.Global / ${Keys.onLoadMessage.key.label} := "$msg""""
         val allSettingsRedefinitions = refs.flatMap { ref =>
           val setsUnmanagedJars =
             List(setUnmanagedJars(ref, "Compile"), setUnmanagedJars(ref, "Test"))
@@ -320,7 +320,7 @@ object BuildImplementation {
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := "2.12.15",
+    Keys.scalaVersion := "2.13.6", // do not upgrade 2.13.7 and higher (as Monocle 3.1.0 depends on kind-projector 0.13.1 which doesn't support 2.13.7), 
     Keys.version := "1.0.1-SNAPSHOT",
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := true,
@@ -328,7 +328,7 @@ object BuildImplementation {
   ) ++ publishSettings ++ commandAliases
 
   final val projectSettings: Seq[Def.Setting[_]] = Seq(
-    Keys.scalacOptions in Compile := reasonableCompileOptions,
+    Compile / Keys.scalacOptions := reasonableCompileOptions,
     // Necessary because the scalac version has to be always SNAPSHOT to avoid caching issues
     // Scope here is wrong -- we put it here temporarily until this is fixed upstream
     // ReleaseEarlyKeys.releaseEarlyBypassSnapshotCheck := true
