@@ -321,7 +321,7 @@ object BuildImplementation {
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := "2.13.6", // do not upgrade 2.13.7 and higher (as Monocle 3.1.0 depends on kind-projector 0.13.1 which doesn't support 2.13.7), 
+    Keys.scalaVersion := "2.13.8",
     Keys.version := "1.0.1-SNAPSHOT",
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := true,
