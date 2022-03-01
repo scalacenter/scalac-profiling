@@ -171,6 +171,7 @@ lazy val integrations = project
   .in(file("integrations"))
   // .dependsOn(Circe)
   .settings(
+    scalaVersion := bin212.head, // Circe doesn't compile with Scala 2.13
     libraryDependencies += "com.github.alexarchambault" %% "case-app" % "2.0.6",
     // scalaHome := BuildDefaults.setUpScalaHome.value,
     Test / parallelExecution := false,

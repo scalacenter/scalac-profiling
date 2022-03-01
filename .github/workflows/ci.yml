@@ -12,9 +12,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        command: # https://github.com/sbt/sbt/issues/2901
-          - sbt "plugin/test" "profilingSbtPlugin/scripted compiler-profiling/*"
-          - sbt "showScalaInstances" "+integrations/testOnly circe integration better-files monocle"
+        command:
+          - sbt "+plugin/test" "profilingSbtPlugin/scripted compiler-profiling/*"
+          - sbt "showScalaInstances" "integrations/testOnly circe integration better-files monocle"
             # - sbt "showScalaInstances" "+integrations/testOnly scalatest shapeless"
     steps:
       - uses: actions/checkout@v2
