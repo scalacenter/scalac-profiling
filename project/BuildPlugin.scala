@@ -45,19 +45,19 @@ object BuildKeys {
 
   // Source dependencies from git are cached by sbt
   val Circe = RootProject(
-    uri("git://github.com/circe/circe.git#bbcbd53637b601953dfbdb4fd6fb55944c4e476e")
+    uri("ssh://git@github.com/circe/circe.git#bbcbd53637b601953dfbdb4fd6fb55944c4e476e")
   )
   val Monocle = RootProject(
-    uri("git://github.com/optics-dev/Monocle.git#8577ca6f818e7728bfd695d4739865bd73b0db0c") // 3.1.0, scala 2.13.8, kind-projector 0.13.2
+    uri("ssh://git@github.com/optics-dev/Monocle.git#8577ca6f818e7728bfd695d4739865bd73b0db0c") // 3.1.0, scala 2.13.8, kind-projector 0.13.2
   )
   val Scalatest = RootProject(
-    uri("git://github.com/scalatest/scalatest.git#2840dca367cb385a1d01ccdd0821f83badb07012") // 3.2.11
+    uri("ssh://git@github.com/scalatest/scalatest.git#2840dca367cb385a1d01ccdd0821f83badb07012") // 3.2.11
   )
   val BetterFiles = RootProject(
-    uri("git://github.com/pathikrit/better-files.git#81a3da05c58b9ab0cabe34235c6d7d88bcd16dca")
+    uri("ssh://git@github.com/pathikrit/better-files.git#81a3da05c58b9ab0cabe34235c6d7d88bcd16dca")
   )
   // val Shapeless = RootProject(
-  //   uri("git://github.com/milessabin/shapeless.git#0a08460573883cef8ea2d44bc1688a09aa83d7f1") // 2.13.8
+  //   uri("ssh://git@github.com/milessabin/shapeless.git#0a08460573883cef8ea2d44bc1688a09aa83d7f1") // 2.13.8
   // )
 
   val CirceTests = ProjectRef(Circe.build, "testsJVM")
