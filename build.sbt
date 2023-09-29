@@ -18,7 +18,6 @@ lazy val root = project
       crossScalaVersions := bin212 ++ bin213,
       publish := {},
       publishLocal := {},
-      // crossSbtVersions := List("0.13.17", "1.1.1"),
       watchSources ++=
         (plugin / watchSources).value ++
           (profiledb / watchSources).value ++
@@ -35,10 +34,10 @@ lazy val fullCrossVersionSettings = Seq(
   crossVersion := CrossVersion.full,
   crossScalaVersions := bin212 ++ bin213,
   Compile / unmanagedSourceDirectories += {
-    // NOTE: sbt 0.13.8 provides cross-version support for Scala sources
-    // (http://www.scala-sbt.org/0.13/docs/sbt-0.13-Tech-Previews.html#Cross-version+support+for+Scala+sources).
-    // Unfortunately, it only includes directories like "scala_2.11" or "scala_2.12",
-    // not "scala_2.11.8" or "scala_2.12.1" that we need.
+    // NOTE: SBT 1.x provides cross-version support for Scala sources
+    // (https://www.scala-sbt.org/1.x/docs/Cross-Build.html#Scala-version+specific+source+directory).
+    // Unfortunately, it only includes directories like "scala_2.12" or "scala_2.13",
+    // not "scala_2.12.18" or "scala_2.13.12" that we need.
     // That's why we have to work around here.
     val base = (Compile/ sourceDirectory).value
     val versionDir = scalaVersion.value.replaceAll("-.*", "")
