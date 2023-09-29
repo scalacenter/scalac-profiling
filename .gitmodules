@@ -4,4 +4,4 @@
 	branch = profiledb-integration
 [submodule "FlameGraph"]
 	path = FlameGraph
-	url = git://github.com/jvican/FlameGraph.git
+	url = git@github.com:jvican/FlameGraph.git

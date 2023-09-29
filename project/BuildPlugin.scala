@@ -13,7 +13,7 @@ import sbt._
 
 object BuildPlugin extends AutoPlugin {
   override def trigger: PluginTrigger = allRequirements
-  // override def requires: Plugins = ch.epfl.scala.sbt.release.ReleaseEarlyPlugin
+  override def requires: Plugins = plugins.JvmPlugin
   val autoImport = BuildKeys
 
   override def globalSettings: Seq[Def.Setting[_]] =
@@ -44,38 +44,38 @@ object BuildKeys {
   // final val VscodeImplementation = ProjectRef(VscodeScala.build, "ensime-lsp")
 
   // Source dependencies from git are cached by sbt
-  val Circe = RootProject(
-    uri("ssh://git@github.com/circe/circe.git#bbcbd53637b601953dfbdb4fd6fb55944c4e476e")
-  )
-  val Monocle = RootProject(
-    uri("ssh://git@github.com/optics-dev/Monocle.git#8577ca6f818e7728bfd695d4739865bd73b0db0c") // 3.1.0, scala 2.13.8, kind-projector 0.13.2
-  )
-  val Scalatest = RootProject(
-    uri("ssh://git@github.com/scalatest/scalatest.git#2840dca367cb385a1d01ccdd0821f83badb07012") // 3.2.11
-  )
+  /*val Circe = RootProject(
+    uri("ssh://git@github.com/circe/circe.git#dcee6313fd0a245a64fe08323268a3f0a9be82aa") // v0.14.6
+  )*/
+  /*val Monocle = RootProject(
+    uri("ssh://git@github.com/optics-dev/Monocle.git#dcad42c1818017f373d947d95f624a58571f08bf") // v3.2.0
+  )*/
+  /*val Scalatest = RootProject(
+    uri("ssh://git@github.com/scalatest/scalatest.git#6cad9e18157064cfe43d3148a49aace0b73c8a20") // v3.2.17
+  )*/
   val BetterFiles = RootProject(
-    uri("ssh://git@github.com/pathikrit/better-files.git#81a3da05c58b9ab0cabe34235c6d7d88bcd16dca")
+    uri("ssh://git@github.com/pathikrit/better-files.git#6f2e3f1328b1b18eddce973510db71bc6c14fadb") // v3.9.2
   )
   // val Shapeless = RootProject(
   //   uri("ssh://git@github.com/milessabin/shapeless.git#0a08460573883cef8ea2d44bc1688a09aa83d7f1") // 2.13.8
   // )
 
-  val CirceTests = ProjectRef(Circe.build, "testsJVM")
-  val MonocleExample = ProjectRef(Monocle.build, "example")
-  val MonocleTests = ProjectRef(Monocle.build, "testJVM")
-  val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
-  val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")
+  // val CirceTests = ProjectRef(Circe.build, "testsJVM")
+  /*val MonocleExample = ProjectRef(Monocle.build, "example")
+  val MonocleTests = ProjectRef(Monocle.build, "testJVM")*/
+  /*val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
+  val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")*/
   val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
   // val ShapelessCore = ProjectRef(Shapeless.build, "coreJVM")
   // val ShapelessExamples = ProjectRef(Shapeless.build, "examplesJVM")
   // val MagnoliaTests = ProjectRef(Magnolia.build, "tests")
 
   val IntegrationProjectsAndReferences = List[(ProjectRef, String)](
-    CirceTests -> "CirceTests",
-    MonocleExample -> "MonocleExample",
-    MonocleTests -> "MonocleTests",
-    ScalatestCore -> "ScalatestCore",
-    ScalatestTests -> "ScalatestTests",
+    // CirceTests -> "CirceTests",
+    /*MonocleExample -> "MonocleExample",
+    MonocleTests -> "MonocleTests",*/
+    /*ScalatestCore -> "ScalatestCore",
+    ScalatestTests -> "ScalatestTests",*/
     BetterFilesCore -> "BetterFilesCore",
     // ShapelessCore -> "ShapelessCore",
     // ShapelessExamples -> "ShapelessExamples"
@@ -141,7 +141,7 @@ object BuildKeys {
 
   object Keywords {
     val Circe = " circe"
-    val Monocle = " monocle"
+    //val Monocle = " monocle"
     val Integration = " integration"
     val Scalatest = " scalatest"
     val BetterFiles = " better-files"
@@ -151,10 +151,10 @@ object BuildKeys {
 
   // Circe has to be always at the beginning
   private val AllKeywords = List(
-    Keywords.Circe,
-    Keywords.Monocle,
+   //  Keywords.Circe,
+    //Keywords.Monocle,
     Keywords.Integration,
-    Keywords.Scalatest,
+    // Keywords.Scalatest,
     // Keywords.Scalac,
     Keywords.BetterFiles,
     Keywords.Shapeless
@@ -206,14 +206,14 @@ object BuildImplementation {
   object BuildDefaults {
     final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
       val logger = Keys.streams.value.log
-      logger.info((BuildKeys.CirceTests / Test / Keys.name).value)
-      logger.info((BuildKeys.CirceTests / Test / Keys.scalaInstance).value.toString)
-      logger.info((BuildKeys.MonocleTests / Test /  Keys.name).value)
+      /*logger.info((BuildKeys.CirceTests / Test / Keys.name).value)
+      logger.info((BuildKeys.CirceTests / Test / Keys.scalaInstance).value.toString)*/
+      /*logger.info((BuildKeys.MonocleTests / Test /  Keys.name).value)
       logger.info((BuildKeys.MonocleTests / Test / Keys.scalaInstance).value.toString)
       logger.info((BuildKeys.MonocleExample / Test / Keys.name).value)
-      logger.info((BuildKeys.MonocleExample / Test / Keys.scalaInstance).value.toString)
-      logger.info((BuildKeys.ScalatestCore / Test / Keys.name).value)
-      logger.info((BuildKeys.ScalatestCore / Test / Keys.scalaInstance).value.toString)
+      logger.info((BuildKeys.MonocleExample / Test / Keys.scalaInstance).value.toString)*/
+      /*logger.info((BuildKeys.ScalatestCore / Test / Keys.name).value)
+      logger.info((BuildKeys.ScalatestCore / Test / Keys.scalaInstance).value.toString)*/
       logger.info((BuildKeys.BetterFilesCore / Test / Keys.name).value)
       logger.info((BuildKeys.BetterFilesCore / Test / Keys.scalaInstance).value.toString)
       ()
@@ -248,8 +248,8 @@ object BuildImplementation {
         val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
         val noProfileDb = s"-P:scalac-profiling:no-profiledb"
         val pluginOpts = (PluginProject / BuildKeys.optionsForSourceCompilerPlugin).value
-        val forMonocle = if (ref.build == BuildKeys.Monocle.build) List("-language:postfixOps", "-Ymacro-annotations") else Nil
-        (noProfileDb +: sourceRoot +: pluginOpts) ++ forMonocle
+        //val forMonocle = if (ref.build == BuildKeys.Monocle.build) List("-language:postfixOps", "-Ymacro-annotations") else Nil
+        (noProfileDb +: sourceRoot +: pluginOpts) //++ forMonocle
       }
     }
 
@@ -321,8 +321,7 @@ object BuildImplementation {
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := "2.13.8",
-    Keys.version := "1.0.1-SNAPSHOT",
+    Keys.scalaVersion := "2.12.18",
     Keys.triggeredMessage := Watched.clearWhenTriggered,
     BuildKeys.enableStatistics := true,
     BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value

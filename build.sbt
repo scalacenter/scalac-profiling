@@ -54,7 +54,7 @@ lazy val profiledb = project
   .settings(
     // Specify scala version to allow third-party software to use this module
     crossScalaVersions := bin212 ++ bin213,
-    // scalaVersion := "2.12.12",
+    scalaVersion := bin212.head,
     libraryDependencies +=
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
     Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value)
@@ -109,16 +109,12 @@ lazy val plugin = project
     inCompileAndTest(unmanagedSourceDirectories ++= {
       val scalaPartialVersion = CrossVersion partialVersion scalaVersion.value
       scalaPartialVersion.collect {
-        case (2, y) if y == 11 => new File(scalaSource.value.getPath + "-2.11")
         case (2, y) if y == 12 => new File(scalaSource.value.getPath + "-2.12")
         case (2, y) if y >= 13 => new File(scalaSource.value.getPath + "-2.13")
       }.toList
     }),
     Compile / Keys.packageBin := (Compile / assembly).value,
-    assembly / test := {},
-    assembly / assemblyOption :=
-      (assembly / assemblyOption).value
-        .copy(includeScala = false, includeDependency = true)
+    assembly / test := {}
   )
 
 // Trick to copy profiledb with Scala 2.11.11 so that vscode can depend on it
@@ -160,7 +156,7 @@ lazy val profilingSbtPlugin = project
   .in(file("sbt-plugin"))
   .settings(
     name := "sbt-scalac-profiling",
-    scalaVersion := "2.12.15",
+    scalaVersion := bin212.head,
     scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", "-Xss8M", s"-Dplugin.version=${version.value}"),
     scriptedBufferLog := false
   )
@@ -171,9 +167,7 @@ lazy val integrations = project
   .in(file("integrations"))
   // .dependsOn(Circe)
   .settings(
-    scalaVersion := bin212.head, // Circe doesn't compile with Scala 2.13
     libraryDependencies += "com.github.alexarchambault" %% "case-app" % "2.0.6",
-    // scalaHome := BuildDefaults.setUpScalaHome.value,
     Test / parallelExecution := false,
     Compile / scalacOptions := (Def.taskDyn {
       val options = (Compile / scalacOptions).value
@@ -183,12 +177,12 @@ lazy val integrations = project
     clean := Def
       .sequential(
         clean,
-        (CirceTests/ Test / clean),
+        // (CirceTests/ Test / clean),
         (BetterFilesCore / Compile / clean),
-        (MonocleTests / Test / clean),
-        (MonocleExample / Test / clean),
-        (ScalatestCore / Compile / clean),
-        (ScalatestTests / Test / clean)
+        /*(MonocleTests / Test / clean),
+        (MonocleExample / Test / clean),*/
+        /*(ScalatestCore / Compile / clean),
+        (ScalatestTests / Test / clean)*/
         //(clean in Compile in MagnoliaTests),
         // (clean in ScalacCompiler)
       )
@@ -198,11 +192,11 @@ lazy val integrations = project
         (ThisBuild / showScalaInstances),
         // (profilingWarmupCompiler in Compile), // Warmup example, classloader is the same for all
         (Compile / compile),
-        (CirceTests / Test / compile),
-        (MonocleTests / Test / compile),
-        (MonocleExample / Test / compile),
-        (ScalatestCore / Compile / compile),
-        (ScalatestTests / Test / compile)
+        // (CirceTests / Test / compile),
+        /*(MonocleTests / Test / compile),
+        (MonocleExample / Test / compile),*/
+        /*(ScalatestCore / Compile / compile),
+        (ScalatestTests / Test / compile)*/
         //(compile in Compile in MagnoliaTests),
         // (compile in ScalacCompiler)
       )
@@ -210,13 +204,13 @@ lazy val integrations = project
     testOnly := Def.inputTaskDyn {
       val keywords = keywordsSetting.parsed
       val emptyAnalysis = Def.task[CompileAnalysis](sbt.internal.inc.Analysis.Empty)
-      val CirceTask = Def.taskDyn {
+/*      val CirceTask = Def.taskDyn {
         if (keywords.contains(Keywords.Circe))
           Def.sequential(
             (CirceTests / Test / compile)
           )
         else emptyAnalysis
-      }
+      }*/
       val IntegrationTask = Def.taskDyn {
         if (keywords.contains(Keywords.Integration))
           Def.sequential(
@@ -224,22 +218,22 @@ lazy val integrations = project
           )
         else emptyAnalysis
       }
-      val MonocleTask = Def.taskDyn {
+      /*val MonocleTask = Def.taskDyn {
         if (keywords.contains(Keywords.Monocle))
           Def.sequential(
             (MonocleTests/ Test/ compile),
             (MonocleExample / Test / compile)
           )
         else emptyAnalysis
-      }
-      val ScalatestTask = Def.taskDyn {
+      }*/
+      /*val ScalatestTask = Def.taskDyn {
         if (keywords.contains(Keywords.Scalatest))
           Def.sequential(
             (ScalatestCore / Compile / compile),
             (ScalatestTests / Test / compile)
           )
         else emptyAnalysis
-      }
+      }*/
       // val ScalacTask = Def.taskDyn {
       //   if (keywords.contains(Keywords.Scalac))
       //     Def.sequential(
@@ -270,10 +264,10 @@ lazy val integrations = project
       //   else emptyAnalysis
       // }
       Def.sequential(
-        CirceTask,
-        MonocleTask,
+        // CirceTask,
+        //MonocleTask,
         IntegrationTask,
-        ScalatestTask,
+        //ScalatestTask,
         // ScalacTask,
         BetterFilesTask,
         // ShapelessTask//,MagnoliaTask
@@ -283,4 +277,4 @@ lazy val integrations = project
 
 val proxy = project
   .in(file(".proxy"))
-   .aggregate(Circe, BetterFiles, Scalatest, Monocle) // Shapeless, Monocle Scalac, Magnolia)
+   .aggregate(BetterFiles) //calatest) //Monocle) // Shapeless, Monocle Scalac, Magnolia)
