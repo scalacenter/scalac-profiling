@@ -265,7 +265,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       new java.io.File(
         global.settings.outputDirs.getSingleOutput
           .map(_.file.getAbsolutePath)
-          .getOrElse(global.settings.d.value)
+          .getOrElse(global.settings.outdir.value)
       )
     )
 

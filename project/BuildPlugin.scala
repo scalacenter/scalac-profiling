@@ -328,16 +328,18 @@ object BuildImplementation {
   ) ++ publishSettings ++ commandAliases
 
   final val projectSettings: Seq[Def.Setting[_]] = Seq(
-    Compile / Keys.scalacOptions := reasonableCompileOptions,
+    Compile / Keys.scalacOptions := {
+      val base = (
+        "-deprecation" :: "-encoding" :: "UTF-8" :: "-feature" :: "-language:existentials" ::
+          "-language:higherKinds" :: "-language:implicitConversions" :: "-unchecked" ::
+          "-Ywarn-numeric-widen" :: "-Xlint" :: Nil
+        )
+
+      if (Keys.scalaVersion.value.startsWith("2.13")) base else base :+ "-Xfuture"
+    },
     // Necessary because the scalac version has to be always SNAPSHOT to avoid caching issues
     // Scope here is wrong -- we put it here temporarily until this is fixed upstream
     // ReleaseEarlyKeys.releaseEarlyBypassSnapshotCheck := true
-  )
-
-  final val reasonableCompileOptions = (
-    "-deprecation" :: "-encoding" :: "UTF-8" :: "-feature" :: "-language:existentials" ::
-      "-language:higherKinds" :: "-language:implicitConversions" :: "-unchecked" ::
-      "-Ywarn-numeric-widen" :: "-Xfuture" :: "-Xlint" :: Nil
   )
 }
 

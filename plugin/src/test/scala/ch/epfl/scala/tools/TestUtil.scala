@@ -37,20 +37,20 @@ object TestUtil {
     m.mkToolBox(options = compileOptions)
   }
 
-  def getResourceContent(resourceName: String) = {
+  def getResourceContent(resourceName: String): String = {
     val resource = getClass.getClassLoader.getResource(resourceName)
     val file = scala.io.Source.fromFile(resource.toURI)
-    file.getLines.mkString
+    file.getLines().mkString("")
   }
 
-  lazy val toolboxClasspath = getResourceContent("toolbox.classpath")
-  lazy val toolboxPluginOptions = getResourceContent("toolbox.extra")
+  lazy val toolboxClasspath: String = getResourceContent("toolbox.classpath")
+  lazy val toolboxPluginOptions: String = getResourceContent("toolbox.extra")
 
   def expectError(
       errorSnippet: String,
       compileOptions: String = "",
       baseCompileOptions: String =
-        s"-cp $toolboxClasspath $toolboxPluginOptions")(code: String) = {
+        s"-cp $toolboxClasspath $toolboxPluginOptions")(code: String): Unit = {
     val errorMessage = intercept[ToolBoxError] {
       eval(code, s"$compileOptions $baseCompileOptions")
     }.getMessage

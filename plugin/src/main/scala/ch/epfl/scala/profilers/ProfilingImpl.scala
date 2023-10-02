@@ -70,8 +70,8 @@ final class ProfilingImpl[G <: Global](
   def groupPerFile[V](
       kvs: Map[Position, V]
   )(empty: V, aggregate: (V, V) => V): Map[SourceFile, V] = {
-    kvs.groupBy(_._1.source).mapValues {
-      case posInfos: Map[Position, V] => posInfos.valuesIterator.fold(empty)(aggregate)
+    kvs.groupBy(_._1.source).view.map {
+      case (sf, posInfos: Map[Position, V]) => sf -> posInfos.valuesIterator.fold(empty)(aggregate)
     }.toMap
   }
 
@@ -79,7 +79,11 @@ final class ProfilingImpl[G <: Global](
     import ProfilingMacroPlugin.macroInfos //, repeatedTrees}
     val perCallSite = macroInfos.toMap
     val perFile = groupPerFile(perCallSite)(MacroInfo.Empty, _ + _)
-      .mapValues(i => i.copy(expansionNanos = toMillis(i.expansionNanos))).toMap
+      .view
+      .map {
+        case (sf, mi) => sf -> mi.copy(expansionNanos = toMillis(mi.expansionNanos))
+      }
+      .toMap
     val inTotal = MacroInfo.aggregate(perFile.valuesIterator)
 
     /*    val repeated = repeatedTrees.toMap.valuesIterator
@@ -89,7 +93,10 @@ final class ProfilingImpl[G <: Global](
 
     // perFile and inTotal are already converted to millis
     val callSiteNanos = perCallSite
-      .mapValues(i => i.copy(expansionNanos = toMillis(i.expansionNanos))).toMap
+      .view
+      .map {
+        case (pos, mi) => pos -> mi.copy(expansionNanos = toMillis(mi.expansionNanos))
+      }.toMap
     MacroProfiler(callSiteNanos, perFile, inTotal, Map.empty) //repeated)
   }
 
@@ -111,9 +118,13 @@ final class ProfilingImpl[G <: Global](
   )
 
   lazy val implicitProfiler: ImplicitProfiler = {
-    val perCallSite = implicitSearchesByPos.mapValues(ImplicitInfo.apply).toMap
+    val perCallSite = implicitSearchesByPos.view.map {
+      case (pos, i) => pos -> ImplicitInfo.apply(i)
+    }.toMap
     val perFile = groupPerFile[ImplicitInfo](perCallSite)(ImplicitInfo.Empty, _ + _)
-    val perType = implicitSearchesByType.mapValues(ImplicitInfo.apply).toMap
+    val perType = implicitSearchesByType.view.map {
+      case (pos, i) => pos -> ImplicitInfo.apply(i)
+    }.toMap
     val inTotal = ImplicitInfo.aggregate(perFile.valuesIterator)
     ImplicitProfiler(perCallSite, perFile, perType, inTotal)
   }
@@ -440,8 +451,8 @@ final class ProfilingImpl[G <: Global](
     //private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
     //private[ProfilingImpl] val repeatedTrees = perRunCaches.newMap[RepeatedKey, RepeatedValue]
 
-    val macroInfos = perRunCaches.newAnyRefMap[Position, MacroInfo]
-    val searchIdsToMacroStates = perRunCaches.newMap[Int, List[MacroState]]
+    val macroInfos = perRunCaches.newAnyRefMap[Position, MacroInfo]()
+    val searchIdsToMacroStates = perRunCaches.newMap[Int, List[MacroState]]()
     private val macroIdsToTimers = perRunCaches.newMap[Int, statistics.Timer]()
     private val macroChildren = perRunCaches.newMap[Int, List[MacroEntry]]()
     private val stackedNanos = perRunCaches.newMap[Int, Long]()
@@ -621,7 +632,7 @@ final class ProfilingImpl[G <: Global](
           val macroTypeCounter = macrosByType.getOrElse(expandedType, 0)
           macrosByType.update(expandedType, macroTypeCounter + 1)
 
-          val callSitePos = expandee.pos
+          val callSitePos = this.expandee.pos
           /*          val printedExpandee = showRaw(expandee)
           val printedExpanded = showRaw(expanded)
           val key = (printedExpandee, printedExpanded)
