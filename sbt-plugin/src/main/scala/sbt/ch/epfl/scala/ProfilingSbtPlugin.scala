@@ -10,8 +10,7 @@
 package sbt.ch.epfl.scala
 
 import java.util.concurrent.ConcurrentHashMap
-
-import sbt.{AutoPlugin, Def, Keys, PluginTrigger}
+import sbt.{AutoPlugin, Def, Keys, PluginTrigger, Select}
 
 object ProfilingSbtPlugin extends AutoPlugin {
   override def trigger: PluginTrigger = allRequirements
@@ -35,7 +34,7 @@ object BuildKeys {
 
 object ProfilingPluginImplementation {
   import java.lang.{Long => BoxedLong}
-  import sbt.{Compile, Test, ConsoleLogger, Project, Task, ScopedKey, Tags}
+  import sbt.{Compile, Test, Project, Task, ScopedKey, Tags}
 
   private val timingsForCompilers = new ConcurrentHashMap[ClassLoader, BoxedLong]()
   private val timingsForKeys = new ConcurrentHashMap[ScopedKey[_], BoxedLong]()
@@ -74,7 +73,7 @@ object ProfilingPluginImplementation {
             case Right(cmd) => cmd()
             case Left(msg) => sys.error(s"Invalid programmatic input:\n$msg")
           }
-          nextState.remainingCommands.toList match {
+          nextState.remainingCommands match {
             case Nil => nextState
             case head :: tail => runCommand(head, nextState.copy(remainingCommands = tail))
           }
@@ -138,8 +137,8 @@ object ProfilingPluginImplementation {
       val warmupDurationMs = extracted.get(BuildKeys.profilingWarmupDuration) * 1000
       var currentDurationMs = getWarmupTime(compilerLoader)
 
-      val baseScope = Scope.ThisScope.in(currentProject)
-      val scope = currentConfigKey.map(k => baseScope.in(k)).getOrElse(baseScope)
+      val baseScope = Scope.ThisScope.copy(project = Select(currentProject))
+      val scope = currentConfigKey.map(k => baseScope.copy(config = Select(k))).getOrElse(baseScope)
       val classDirectory = extracted.get(Keys.classDirectory.in(scope))
       val compileKeyRef = Keys.compile.in(scope)
       // We get the scope from `taskDefinitionKey` to be the same than the timer uses.
