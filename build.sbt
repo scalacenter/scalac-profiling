@@ -17,6 +17,7 @@ lazy val root = project
     crossScalaVersions := bin212 ++ bin213,
     publish := {},
     publishLocal := {},
+    skip / publish := true,
     watchSources ++=
       (plugin / watchSources).value ++
         (profiledb / watchSources).value ++
@@ -163,6 +164,7 @@ lazy val profilingSbtPlugin = project
 lazy val integrations = project
   .in(file("integrations"))
   .settings(
+    skip / publish := true,
     libraryDependencies += "com.github.alexarchambault" %% "case-app" % "2.0.6",
     Test / parallelExecution := false,
     Compile / scalacOptions := (Def.taskDyn {
@@ -218,4 +220,5 @@ lazy val integrations = project
 
 val proxy = project
   .in(file(".proxy"))
+    .settings(skip / publish := true)
    .aggregate(BetterFiles, Wartremover) //calatest) //Monocle) // Shapeless, Monocle Scalac, Magnolia)

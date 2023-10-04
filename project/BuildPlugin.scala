@@ -143,7 +143,6 @@ object BuildImplementation {
   def GitHubDev(handle: String, fullName: String, email: String) =
     Developer(handle, fullName, email, url(s"https://github.com/$handle"))
 
-  // import com.typesafe.sbt.SbtPgp.autoImport.PgpKeys
   // import ch.epfl.scala.sbt.release.ReleaseEarlyPlugin.{autoImport => ReleaseEarlyKeys}
 
   final val PluginProject = sbt.LocalProject("plugin")
@@ -151,19 +150,10 @@ object BuildImplementation {
   final val publishSettings: Seq[Def.Setting[_]] = Seq(
     Keys.startYear := Some(2017),
     Keys.autoAPIMappings := true,
-    Keys.publishMavenStyle := true,
     Keys.homepage := Some(ThisRepo),
     Test / Keys.publishArtifact := false,
     Keys.licenses := Seq("Apache-2.0" -> url("https://opensource.org/licenses/Apache-2.0")),
     Keys.developers := List(GitHubDev("jvican", "Jorge Vicente Cantero", "jorge@vican.me")),
-    // PgpKeys.pgpPublicRing := {
-    //   if (sys.env.get("CI").isDefined) file("/drone/.gnupg/pubring.asc")
-    //   else PgpKeys.pgpPublicRing.value
-    // },
-    // PgpKeys.pgpSecretRing := {
-    //   if (sys.env.get("CI").isDefined) file("/drone/.gnupg/secring.asc")
-    //   else PgpKeys.pgpSecretRing.value
-    // },
     // ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.SonatypePublisher,
     Keys.pomExtra := scala.xml.NodeSeq.Empty
   )
