@@ -44,44 +44,19 @@ object BuildKeys {
   // final val VscodeImplementation = ProjectRef(VscodeScala.build, "ensime-lsp")
 
   // Source dependencies from git are cached by sbt
-  /*val Circe = RootProject(
-    uri("ssh://git@github.com/circe/circe.git#dcee6313fd0a245a64fe08323268a3f0a9be82aa") // v0.14.6
-  )*/
-  /*val Monocle = RootProject(
-    uri("ssh://git@github.com/optics-dev/Monocle.git#dcad42c1818017f373d947d95f624a58571f08bf") // v3.2.0
-  )*/
-  /*val Scalatest = RootProject(
-    uri("ssh://git@github.com/scalatest/scalatest.git#6cad9e18157064cfe43d3148a49aace0b73c8a20") // v3.2.17
-  )*/
   val BetterFiles = RootProject(
     uri("ssh://git@github.com/pathikrit/better-files.git#6f2e3f1328b1b18eddce973510db71bc6c14fadb") // v3.9.2
   )
-  // val Shapeless = RootProject(
-  //   uri("ssh://git@github.com/milessabin/shapeless.git#0a08460573883cef8ea2d44bc1688a09aa83d7f1") // 2.13.8
-  // )
+  val Wartremover = RootProject(
+    uri("ssh://git@github.com/wartremover/wartremover.git#29bb7b69ad49eb87c19d9ba865298071c2795bb7") // v3.1.4
+  )
 
-  // val CirceTests = ProjectRef(Circe.build, "testsJVM")
-  /*val MonocleExample = ProjectRef(Monocle.build, "example")
-  val MonocleTests = ProjectRef(Monocle.build, "testJVM")*/
-  /*val ScalatestCore = ProjectRef(Scalatest.build, "scalatest")
-  val ScalatestTests = ProjectRef(Scalatest.build, "scalatest-test")*/
   val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
-  // val ShapelessCore = ProjectRef(Shapeless.build, "coreJVM")
-  // val ShapelessExamples = ProjectRef(Shapeless.build, "examplesJVM")
-  // val MagnoliaTests = ProjectRef(Magnolia.build, "tests")
+  val WartremoverCore = ProjectRef(Wartremover.build, "core")
 
   val IntegrationProjectsAndReferences = List[(ProjectRef, String)](
-    // CirceTests -> "CirceTests",
-    /*MonocleExample -> "MonocleExample",
-    MonocleTests -> "MonocleTests",*/
-    /*ScalatestCore -> "ScalatestCore",
-    ScalatestTests -> "ScalatestTests",*/
     BetterFilesCore -> "BetterFilesCore",
-    // ShapelessCore -> "ShapelessCore",
-    // ShapelessExamples -> "ShapelessExamples"
-    // MagnoliaTests -> "MagnoliaTests"
-    // Enable the scalac compiler when it's not used as a fork
-    // ScalacCompiler,
+    WartremoverCore -> "WartremoverCore",
   )
 
   val AllIntegrationProjects = IntegrationProjectsAndReferences.map(_._1)
@@ -140,25 +115,15 @@ object BuildKeys {
     Seq(sbt.Compile, sbt.Test).flatMap(sbt.inConfig(_)(ss))
 
   object Keywords {
-    val Circe = " circe"
-    //val Monocle = " monocle"
     val Integration = " integration"
-    val Scalatest = " scalatest"
     val BetterFiles = " better-files"
-    val Shapeless = " shapeless"
-    val Magnolia = " magnolia"
+    val Wartremover = " wartremover"
   }
 
-  // Circe has to be always at the beginning
   private val AllKeywords = List(
-   //  Keywords.Circe,
-    //Keywords.Monocle,
     Keywords.Integration,
-    // Keywords.Scalatest,
-    // Keywords.Scalac,
     Keywords.BetterFiles,
-    Keywords.Shapeless
-    // Keywords.Magnolia
+    Keywords.Wartremover,
   )
 
   import sbt.complete.Parser
@@ -216,6 +181,8 @@ object BuildImplementation {
       logger.info((BuildKeys.ScalatestCore / Test / Keys.scalaInstance).value.toString)*/
       logger.info((BuildKeys.BetterFilesCore / Test / Keys.name).value)
       logger.info((BuildKeys.BetterFilesCore / Test / Keys.scalaInstance).value.toString)
+      logger.info((BuildKeys.WartremoverCore / Compile / Keys.name).value)
+      logger.info((BuildKeys.WartremoverCore / Compile / Keys.scalaInstance).value.toString)
       ()
     }
 

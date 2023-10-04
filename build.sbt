@@ -164,7 +164,6 @@ lazy val profilingSbtPlugin = project
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
   .in(file("integrations"))
-  // .dependsOn(Circe)
   .settings(
     libraryDependencies += "com.github.alexarchambault" %% "case-app" % "2.0.6",
     Test / parallelExecution := false,
@@ -176,40 +175,19 @@ lazy val integrations = project
     clean := Def
       .sequential(
         clean,
-        // (CirceTests/ Test / clean),
         (BetterFilesCore / Compile / clean),
-        /*(MonocleTests / Test / clean),
-        (MonocleExample / Test / clean),*/
-        /*(ScalatestCore / Compile / clean),
-        (ScalatestTests / Test / clean)*/
-        //(clean in Compile in MagnoliaTests),
-        // (clean in ScalacCompiler)
+        (WartremoverCore / Compile / clean),
       )
       .value,
     test := Def
       .sequential(
         (ThisBuild / showScalaInstances),
-        // (profilingWarmupCompiler in Compile), // Warmup example, classloader is the same for all
         (Compile / compile),
-        // (CirceTests / Test / compile),
-        /*(MonocleTests / Test / compile),
-        (MonocleExample / Test / compile),*/
-        /*(ScalatestCore / Compile / compile),
-        (ScalatestTests / Test / compile)*/
-        //(compile in Compile in MagnoliaTests),
-        // (compile in ScalacCompiler)
       )
       .value,
     testOnly := Def.inputTaskDyn {
       val keywords = keywordsSetting.parsed
       val emptyAnalysis = Def.task[CompileAnalysis](sbt.internal.inc.Analysis.Empty)
-/*      val CirceTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Circe))
-          Def.sequential(
-            (CirceTests / Test / compile)
-          )
-        else emptyAnalysis
-      }*/
       val IntegrationTask = Def.taskDyn {
         if (keywords.contains(Keywords.Integration))
           Def.sequential(
@@ -217,29 +195,6 @@ lazy val integrations = project
           )
         else emptyAnalysis
       }
-      /*val MonocleTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Monocle))
-          Def.sequential(
-            (MonocleTests/ Test/ compile),
-            (MonocleExample / Test / compile)
-          )
-        else emptyAnalysis
-      }*/
-      /*val ScalatestTask = Def.taskDyn {
-        if (keywords.contains(Keywords.Scalatest))
-          Def.sequential(
-            (ScalatestCore / Compile / compile),
-            (ScalatestTests / Test / compile)
-          )
-        else emptyAnalysis
-      }*/
-      // val ScalacTask = Def.taskDyn {
-      //   if (keywords.contains(Keywords.Scalac))
-      //     Def.sequential(
-      //       (compile in Compile in ScalacCompiler)
-      //     )
-      //   else emptyAnalysis
-      // }
       val BetterFilesTask = Def.taskDyn {
         if (keywords.contains(Keywords.BetterFiles))
           Def.sequential(
@@ -247,33 +202,22 @@ lazy val integrations = project
           )
         else emptyAnalysis
       }
-      // val ShapelessTask = Def.taskDyn {
-      //   if (keywords.contains(Keywords.Shapeless))
-      //     Def.sequential(
-      //       (ShapelessCore / Compile / compile),
-      //       (ShapelessCore / Test / compile)
-      //     )
-      //   else emptyAnalysis
-      // }
-      // val MagnoliaTask = Def.taskDyn {
-      //   if (keywords.contains(Keywords.Magnolia))
-      //     Def.sequential(
-      //       (compile in Compile in MagnoliaTests)
-      //     )
-      //   else emptyAnalysis
-      // }
+      val WartremoverTask = Def.taskDyn {
+        if (keywords.contains(Keywords.Wartremover))
+          Def.sequential(
+            (WartremoverCore / Compile / compile)
+          )
+        else emptyAnalysis
+      }
+
       Def.sequential(
-        // CirceTask,
-        //MonocleTask,
         IntegrationTask,
-        //ScalatestTask,
-        // ScalacTask,
         BetterFilesTask,
-        // ShapelessTask//,MagnoliaTask
+        WartremoverTask
       )
     }.evaluated
   )
 
 val proxy = project
   .in(file(".proxy"))
-   .aggregate(BetterFiles) //calatest) //Monocle) // Shapeless, Monocle Scalac, Magnolia)
+   .aggregate(BetterFiles, Wartremover) //calatest) //Monocle) // Shapeless, Monocle Scalac, Magnolia)

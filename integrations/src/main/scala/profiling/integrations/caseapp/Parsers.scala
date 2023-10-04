@@ -1,18 +1,15 @@
-package profiling.integrations
+package profiling.integrations.caseapp
 
 import java.io.{InputStream, PrintStream}
 import java.nio.file.{Path, Paths}
 
 import CommonOptions.PrettyProperties
-import caseapp.{CaseApp, CommandParser}
 import caseapp.core.default.Default
 import caseapp.core.Error.Other
 
 import caseapp.core.argparser.{ArgParser, SimpleArgParser}
 import caseapp.core.parser.Parser
-import caseapp.core.default.Default
-import shapeless.{Annotations, Coproduct, LabelledGeneric, Strict, Generic, HList}
-import caseapp.{Name, ValueDescription, HelpMessage, Hidden, Recurse}
+import shapeless.{LabelledGeneric, HList}
 
 import scala.util.Try
 

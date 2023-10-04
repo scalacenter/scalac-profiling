@@ -1,4 +1,4 @@
-package profiling.integrations
+package profiling.integrations.caseapp
 
 import java.io.{InputStream, PrintStream}
 import java.util.Properties
@@ -30,14 +30,6 @@ object CommonOptions {
   final class PrettyProperties extends Properties {
     override def toString: String = synchronized {
       super.keySet().toArray.map(_.toString).mkString(", ")
-    }
-  }
-
-  object PrettyProperties {
-    def from(p: Properties): PrettyProperties = {
-      val pp = new PrettyProperties()
-      pp.putAll(p)
-      pp
     }
   }
 
