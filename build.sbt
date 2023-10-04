@@ -13,16 +13,14 @@ lazy val root = project
   .in(file("."))
   .aggregate(profiledb, plugin, profilingSbtPlugin)
   .settings(
-    Seq(
-      name := "profiling-root",
-      crossScalaVersions := bin212 ++ bin213,
-      publish := {},
-      publishLocal := {},
-      watchSources ++=
-        (plugin / watchSources).value ++
-          (profiledb / watchSources).value ++
-          (integrations / watchSources).value
-    )
+    name := "profiling-root",
+    crossScalaVersions := bin212 ++ bin213,
+    publish := {},
+    publishLocal := {},
+    watchSources ++=
+      (plugin / watchSources).value ++
+        (profiledb / watchSources).value ++
+        (integrations / watchSources).value
   )
 
 val bin212 = Seq("2.12.18", "2.12.17", "2.12.16", "2.12.15", "2.12.14", "2.12.13")
