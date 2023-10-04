@@ -1,10 +1,11 @@
 name: CI
 on:
   push:
-    branches:
-      - main
+    tags: [v*]
+    branches: ['**', '!update/**', '!pr/**']
   pull_request:
-    branches:
+    branches: ['**', '!update/**', '!pr/**']
+
 jobs:
   test:
     name: ${{ matrix.command }}
@@ -13,11 +14,10 @@ jobs:
       fail-fast: false
       matrix:
         command:
-          - sbt "+plugin/test" "profilingSbtPlugin/scripted compiler-profiling/*"
-          - sbt "showScalaInstances" "integrations/testOnly circe integration better-files monocle"
-            # - sbt "showScalaInstances" "+integrations/testOnly scalatest shapeless"
+          - sbt "+plugin/test" "profilingSbtPlugin/scripted compiler-profiling/scripted"
+          - sbt "showScalaInstances" "integrations/testOnly integration better-files wartremover"
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
       - uses: olafurpg/setup-scala@v13
