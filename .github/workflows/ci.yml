@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    tags: [v*]
+    tags: ["*"]
     branches: ['**', '!update/**', '!pr/**']
   pull_request:
     branches: ['**', '!update/**', '!pr/**']
@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     name: ${{ matrix.command }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
