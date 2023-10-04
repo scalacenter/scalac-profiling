@@ -27,12 +27,11 @@ trait CachedImplicits {
 
   implicit val propertiesParser: ArgParser[PrettyProperties] = {
     SimpleArgParser.from("A properties parser") {
-      case whatever => Left(Other("You cannot pass in properties through the command line."))
+      _ => Left(Other("You cannot pass in properties through the command line."))
     }
   }
 
-  import shapeless.{HNil, CNil, :+:, ::}
-  implicit val implicitHNil: HNil = HList.apply()
+  implicit val implicitHNil: shapeless.HNil = HList.apply()
 
   implicit val implicitOptionDefaultString: Option[Default[String]] =
     Some(Default(""))

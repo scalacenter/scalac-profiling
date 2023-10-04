@@ -171,14 +171,6 @@ object BuildImplementation {
   object BuildDefaults {
     final val showScalaInstances: Def.Initialize[sbt.Task[Unit]] = Def.task {
       val logger = Keys.streams.value.log
-      /*logger.info((BuildKeys.CirceTests / Test / Keys.name).value)
-      logger.info((BuildKeys.CirceTests / Test / Keys.scalaInstance).value.toString)*/
-      /*logger.info((BuildKeys.MonocleTests / Test /  Keys.name).value)
-      logger.info((BuildKeys.MonocleTests / Test / Keys.scalaInstance).value.toString)
-      logger.info((BuildKeys.MonocleExample / Test / Keys.name).value)
-      logger.info((BuildKeys.MonocleExample / Test / Keys.scalaInstance).value.toString)*/
-      /*logger.info((BuildKeys.ScalatestCore / Test / Keys.name).value)
-      logger.info((BuildKeys.ScalatestCore / Test / Keys.scalaInstance).value.toString)*/
       logger.info((BuildKeys.BetterFilesCore / Test / Keys.name).value)
       logger.info((BuildKeys.BetterFilesCore / Test / Keys.scalaInstance).value.toString)
       logger.info((BuildKeys.WartremoverCore / Compile / Keys.name).value)
@@ -192,21 +184,7 @@ object BuildImplementation {
       sbt.WorkingPluginCross.pluginSwitch +: pruned
     }
 
-    // val fixScalaVersionForSbtPlugin: Def.Initialize[String] = Def.setting {
-    //   val orig = Keys.scalaVersion.value
-    //   val is013 = (Keys.sbtVersion in Keys.pluginCrossBuild).value.startsWith("0.13")
-    //   if (is013) "2.10.6" else orig
-    // }
-
     type Hook = Def.Initialize[State => State]
-
-
-    // private[build] val MinimumScalaVersion = "2.12.6"
-    // def pickScalaVersion: Def.Initialize[String] = Def.settingDyn {
-    //   // if (!BuildKeys.useScalacFork.value) Def.setting(MinimumScalaVersion)
-    //   // 2.12.3 has no statistics, so if scalaHome isn't used it will fail to compile
-    //   scalaVersion.value
-    // }
 
     def scalacProfilingScalacOptions(ref: ProjectRef): Def.Initialize[sbt.Task[Seq[String]]] = {
       Def.task {
@@ -215,8 +193,7 @@ object BuildImplementation {
         val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
         val noProfileDb = s"-P:scalac-profiling:no-profiledb"
         val pluginOpts = (PluginProject / BuildKeys.optionsForSourceCompilerPlugin).value
-        //val forMonocle = if (ref.build == BuildKeys.Monocle.build) List("-language:postfixOps", "-Ymacro-annotations") else Nil
-        (noProfileDb +: sourceRoot +: pluginOpts) //++ forMonocle
+        noProfileDb +: sourceRoot +: pluginOpts
       }
     }
 
