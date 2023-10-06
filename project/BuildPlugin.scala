@@ -45,10 +45,10 @@ object BuildKeys {
 
   // Source dependencies from git are cached by sbt
   val BetterFiles = RootProject(
-    uri("ssh://git@github.com/pathikrit/better-files.git#6f2e3f1328b1b18eddce973510db71bc6c14fadb") // v3.9.2
+    uri("https://git@github.com/pathikrit/better-files.git#6f2e3f1328b1b18eddce973510db71bc6c14fadb") // v3.9.2
   )
   val Wartremover = RootProject(
-    uri("ssh://git@github.com/wartremover/wartremover.git#29bb7b69ad49eb87c19d9ba865298071c2795bb7") // v3.1.4
+    uri("https://git@github.com/wartremover/wartremover.git#29bb7b69ad49eb87c19d9ba865298071c2795bb7") // v3.1.4
   )
 
   val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
