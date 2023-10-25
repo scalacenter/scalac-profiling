@@ -220,5 +220,5 @@ lazy val integrations = project
 
 val proxy = project
   .in(file(".proxy"))
-    .settings(skip / publish := true)
-   .aggregate(BetterFiles, Wartremover) //calatest) //Monocle) // Shapeless, Monocle Scalac, Magnolia)
+  .aggregate(BetterFiles, Wartremover)
+  .settings(skip / publish := true)
