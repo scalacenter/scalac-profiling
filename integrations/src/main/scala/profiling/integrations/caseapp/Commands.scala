@@ -1,10 +1,9 @@
-package profiling.integrations
+package profiling.integrations.caseapp
 
-import java.nio.file.Path
+// import java.nio.file.Path
+// import caseapp.{ArgsName, ExtraName, HelpMessage, Hidden}
 
-import caseapp.core.ArgParser
-import caseapp.{ArgsName, CommandName, ExtraName, HelpMessage, Hidden, Recurse}
-import caseapp.core.CommandMessages
+import caseapp.{CommandName, Recurse}
 
 object Commands {
 

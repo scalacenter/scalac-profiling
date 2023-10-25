@@ -18,7 +18,7 @@ final class Logger[G <: scala.tools.nsc.Global](val global: G) {
     debug(wrap(msg, scala.Console.GREEN))
 
   def info(msg: String): Unit =
-    global.reporter.info(NoPosition, msg, true)
+    global.reporter.echo(NoPosition, msg)
   def info[T: pprint.TPrint](header: String, value: T): Unit = {
     val tokens = pprint.tokenize(value, height = 100000000).mkString
     info(s"$header:\n$tokens")

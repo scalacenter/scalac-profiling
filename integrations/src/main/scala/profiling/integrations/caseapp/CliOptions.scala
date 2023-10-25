@@ -1,4 +1,4 @@
-package profiling.integrations
+package profiling.integrations.caseapp
 
 import java.nio.file.Path
 

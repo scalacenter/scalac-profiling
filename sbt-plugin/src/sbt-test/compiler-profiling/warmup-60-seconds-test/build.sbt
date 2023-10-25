@@ -1,12 +1,12 @@
-scalaVersion := "2.12.4"
+scalaVersion := "2.12.15"
 profilingWarmupDuration := 20
 
 ////////////////////////////////////////////////////////////
 val checkCompilerIsWarmedUp = settingKey[Boolean]("")
-checkCompilerIsWarmedUp in Global := false
+Global / checkCompilerIsWarmedUp := false
 
-compile in Test := {
+Test / compile := {
   if (checkCompilerIsWarmedUp.value)
     sys.error("Compilation of files has been called again!")
-  (compile in Test).value
+  (Test / compile).value
 }

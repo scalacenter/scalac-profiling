@@ -10,8 +10,7 @@
 package sbt.ch.epfl.scala
 
 import java.util.concurrent.ConcurrentHashMap
-
-import sbt.{AutoPlugin, Def, Keys, PluginTrigger}
+import sbt.{AutoPlugin, Def, Keys, PluginTrigger, Select}
 
 object ProfilingSbtPlugin extends AutoPlugin {
   override def trigger: PluginTrigger = allRequirements
@@ -35,7 +34,7 @@ object BuildKeys {
 
 object ProfilingPluginImplementation {
   import java.lang.{Long => BoxedLong}
-  import sbt.{Compile, Test, ConsoleLogger, Project, Task, ScopedKey, Tags}
+  import sbt.{Compile, Test, Project, Task, ScopedKey, Tags}
 
   private val timingsForCompilers = new ConcurrentHashMap[ClassLoader, BoxedLong]()
   private val timingsForKeys = new ConcurrentHashMap[ScopedKey[_], BoxedLong]()
@@ -45,18 +44,18 @@ object ProfilingPluginImplementation {
     Keys.commands += BuildDefaults.profilingWarmupCommand,
     BuildKeys.profilingWarmupDuration := BuildDefaults.profilingWarmupDuration.value,
     Keys.concurrentRestrictions += Tags.limit(WarmupTag, 1),
-    Keys.executeProgress := { _ =>
-      val debug = (Keys.logLevel in Keys.executeProgress).value == sbt.Level.Debug
-      new Keys.TaskProgress(new SbtTaskTimer(timingsForKeys, debug))
+    Keys.progressReports := {
+      val debug = (Keys.progressReports / Keys.logLevel).value == sbt.Level.Debug
+      Seq(new Keys.TaskProgress(new SbtTaskTimer(timingsForKeys, debug)))
     },
-    Keys.logLevel in Keys.executeProgress := sbt.Level.Info
+    Keys.progressReports / Keys.logLevel := sbt.Level.Info
   )
 
   val buildSettings: Seq[Def.Setting[_]] = Nil
   val projectSettings: Seq[Def.Setting[_]] = List(
-    BuildKeys.profilingWarmupCompiler in Compile :=
+    Compile / BuildKeys.profilingWarmupCompiler :=
       BuildDefaults.profilingWarmupCompiler.tag(WarmupTag).value,
-    BuildKeys.profilingWarmupCompiler in Test :=
+    Test / BuildKeys.profilingWarmupCompiler :=
       BuildDefaults.profilingWarmupCompiler.tag(WarmupTag).value
   )
 
@@ -74,7 +73,7 @@ object ProfilingPluginImplementation {
             case Right(cmd) => cmd()
             case Left(msg) => sys.error(s"Invalid programmatic input:\n$msg")
           }
-          nextState.remainingCommands.toList match {
+          nextState.remainingCommands match {
             case Nil => nextState
             case head :: tail => runCommand(head, nextState.copy(remainingCommands = tail))
           }
@@ -132,14 +131,14 @@ object ProfilingPluginImplementation {
 
       val logger = st0.log
       val extracted = Project.extract(st0)
-      val (st1, compilers) = extracted.runTask(Keys.compilers in extracted.currentRef, st0)
+      val (st1, compilers) = extracted.runTask(extracted.currentRef / Keys.compilers, st0)
       val compilerLoader = compilers.scalac.scalaInstance.loader()
 
       val warmupDurationMs = extracted.get(BuildKeys.profilingWarmupDuration) * 1000
       var currentDurationMs = getWarmupTime(compilerLoader)
 
-      val baseScope = Scope.ThisScope.in(currentProject)
-      val scope = currentConfigKey.map(k => baseScope.in(k)).getOrElse(baseScope)
+      val baseScope = Scope.ThisScope.copy(project = Select(currentProject))
+      val scope = currentConfigKey.map(k => baseScope.copy(config = Select(k))).getOrElse(baseScope)
       val classDirectory = extracted.get(Keys.classDirectory.in(scope))
       val compileKeyRef = Keys.compile.in(scope)
       // We get the scope from `taskDefinitionKey` to be the same than the timer uses.

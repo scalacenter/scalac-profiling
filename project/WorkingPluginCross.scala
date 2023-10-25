@@ -3,8 +3,9 @@ package sbt
 import sbt.complete.Parser
 import sbt.complete.DefaultParsers._
 import sbt.Keys._
-import sbt.CommandStrings._
+import sbt.internal.CommandStrings._
 import Cross.{requireSession, spacedFirst}
+import sbt.internal.SettingCompletions
 
 object WorkingPluginCross {
   final val oldPluginSwitch = sbt.PluginCross.pluginSwitch
@@ -35,7 +36,7 @@ object WorkingPluginCross {
           inScope(GlobalScope.copy(project = Select(currentRef)))(
             Seq(scalaVersion := PluginCross.scalaVersionSetting.value)
           )
-        val session = SettingCompletions.setThis(state, x, add, "").session
+        val session = SettingCompletions.setThis(x, add, "").session
         BuiltinCommands.reapply(session, structure, command :: state)
     }
   }
