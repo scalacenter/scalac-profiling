@@ -1,8 +1,5 @@
 # Providing Better Compilation Performance Information
 
-[![Build
-Status](https://platform-ci.scala-lang.org/api/badges/scalacenter/scalac-profiling/status.svg)](https://platform-ci.scala-lang.org/scalacenter/scalac-profiling)
-
 When compile times become a problem, how can Scala developers reason about
 the relation between their code and compile times?
 
