@@ -6,6 +6,14 @@ Status](https://platform-ci.scala-lang.org/api/badges/scalacenter/scalac-profili
 When compile times become a problem, how can Scala developers reason about
 the relation between their code and compile times?
 
+## Maintenance status
+
+This plugin was created at the [Scala Center](http://scala.epfl.ch) in 2017 and 2018 as the result of the proposal [SCP-10](https://github.com/scalacenter/advisoryboard/blob/main/proposals/010-compiler-profiling.md), submitted by a [corporate member](https://scala.epfl.ch/corporate-membership.html) of the board. The Center is seeking new corporate members to fund activities such as these, to benefit the entire Scala community.
+
+[Version 1.0](https://github.com/scalacenter/scalac-profiling/releases/tag/v1.0.0) of the plugin supports Scala 2.12.
+
+The plugin is now community-maintained, with maintenance overseen by the Center. Thanks to volunteer contributors, there is now a 1.1.0-RC1 [release candidate](https://github.com/scalacenter/scalac-profiling/releases/tag/v1.1.0-RC1) targeting Scala 2.13 (in addition to 2.12). We invite interested users to test the release candidate and submit further improvements.
+
 ## Install
 
 Add `scalac-profiling` in any sbt project by specifying the following project
