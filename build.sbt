@@ -13,7 +13,7 @@ lazy val root = project
   .in(file("."))
   .aggregate(profiledb, plugin, profilingSbtPlugin)
   .settings(
-    name := "profiling-root",
+    name := "scalac-profiling-root",
     crossScalaVersions := bin212 ++ bin213,
     publish := {},
     publishLocal := {},
