@@ -1,5 +1,7 @@
 # Historical Context
 
+Most of the statements made in this doc correspond to the `1.0.0` version. As of now (Late Fall '23), it's an essay describing the process of building the `scalac-profiling` tool.
+
 ## Goal of the project
 
 The goal of this proposal is to allow Scala developers to optimize their
@@ -20,12 +22,14 @@ the following:
 1. [Initialize statistics per global](https://github.com/scala/scala/pull/6051).
 1. [Add extra timers and counters](https://github.com/scala/scala/pull/6067).
 
-## Information about the setup
+Effective since Scala 2.12.5, all of those changes have been released.
+
+## Information about the integration tests
 
 The project uses a forked scalac version that is used to compile both the
 compiler plugin and several OSS projects from the community. The integration
-tests are for now [Circe](https://github.com/circe/circe) and
-[Monocle](https://github.com/julien-truffaut/Monocle), and they help us look
+tests are for now [Better Files](https://github.com/pathikrit/better-files) and
+[Wartremover](https://github.com/wartremover/wartremover), and they help us look
 into big profiling numbers and detect hot spots and misbehaviours.
 
 If you think a particular codebase is a good candidate to become an integration test, please [open an issue](https://github.com/scalacenter/scalac-profiling/issues/new).
@@ -48,15 +52,10 @@ compiler plugin and a forked scalac).
 
 #### Project structure
 
-1. [A forked scalac](scalac/) with patches to collect profiling information.
-   <s>All changes are expected to be ported upstream.</s> This fork is not required
-   anymore because all the changes are already present in Scala 2.12.5.
-2. [A compiler plugin](plugin/) to get information from the macro infrastructure independently
+1. [A compiler plugin](plugin/) to get information from the macro infrastructure independently
    of the used Scalac version.
-3. [Profiledb readers and writers](profiledb/) to allow IDEs and editors to read and write profiledb's.
-4. [A proof-of-concept vscode integration](vscode-scala/) that displays the data collected from
-   the profiledb.
-5. [An sbt plugin for reproducibility](sbt-plugin/) that warms up the compiler before profiling.
+2. [Profiledb readers and writers](profiledb/) to allow IDEs and editors to read and write profiledb's.
+3. [An sbt plugin for reproducibility](sbt-plugin/) that warms up the compiler before profiling.
 
 The work is split into two parts so that Scala developers that are stuck in previous Scala
 versions can use the compiler plugin to get some profiling information about macros.
