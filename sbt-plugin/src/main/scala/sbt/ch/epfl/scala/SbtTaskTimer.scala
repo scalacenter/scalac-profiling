@@ -56,10 +56,7 @@ class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], isDebugEn
     }
 
     getKey(task) match {
-      case Some(key) => {
-        println(key)
-      finishTiming(key)
-      }
+      case Some(key) => finishTiming(key)
       case None => () // Ignore tasks that do not have key information
     }
 
