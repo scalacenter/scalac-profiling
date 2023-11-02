@@ -16,15 +16,16 @@ import ch.epfl.scala.profiledb.utils.AbsolutePath
 import ch.epfl.scala.profilers.ProfilingImpl
 import ch.epfl.scala.profilers.tools.{Logger, SettingsOps}
 
-import scala.reflect.internal.util.{SourceFile, Statistics}
+import scala.reflect.internal.util.{NoPosition, SourceFile, Statistics}
 import scala.reflect.io.Path
+import scala.tools.nsc.Reporting.WarningCategory
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.nsc.{Global, Phase}
 import scala.tools.nsc.plugins.{Plugin, PluginComponent}
 import scala.util.Try
 import scala.util.matching.Regex
 
-class ProfilingPlugin(val global: Global) extends Plugin {
+class ProfilingPlugin(val global: Global) extends Plugin { self =>
   // Every definition used at init needs to be lazy otherwise it slays the compiler
   val name = "scalac-profiling"
   val description = "Adds instrumentation to keep an eye on Scalac performance."
@@ -293,6 +294,16 @@ class ProfilingPlugin(val global: Global) extends Plugin {
 
         override def run(): Unit = {
           super.run()
+
+          if (!SettingsOps.areStatisticsEnabled(global)) {
+            val flagName = global.settings.Ystatistics.name.replace("-V", "-Y")
+            global.runReporting.warning(
+              NoPosition,
+              s"`${self.name}` compiler plugin requires the option `$flagName` to be enabled",
+              WarningCategory.OtherDebug,
+              ""
+            )
+          }
 
           val graphsRelativePath = ProfileDbPath.GraphsProfileDbRelativePath
           val graphsDir = globalOutputDir.resolve(graphsRelativePath)
