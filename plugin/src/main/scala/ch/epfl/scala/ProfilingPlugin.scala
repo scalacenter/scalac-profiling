@@ -56,13 +56,13 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
   }
 
   private final lazy val config = PluginConfig(
-    super.options.contains(ShowProfiles),
-    super.options.contains(NoProfileDb),
-    findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply),
-    findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
-    super.options.contains(GenerateMacroFlamegraph),
-    super.options.contains(PrintFailedMacroImplicits),
-    super.options.contains(ShowConcreteImplicitTparams)
+    showProfiles = super.options.contains(ShowProfiles),
+    noDb = super.options.contains(NoProfileDb),
+    sourceRoot = findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply),
+    printSearchIds = findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
+    generateMacroFlamegraph = super.options.contains(GenerateMacroFlamegraph),
+    printFailedMacroImplicits = super.options.contains(PrintFailedMacroImplicits),
+    concreteTypeParamsInImplicits = super.options.contains(ShowConcreteImplicitTparams)
   )
 
   private lazy val logger = new Logger(global)
