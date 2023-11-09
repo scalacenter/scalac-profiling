@@ -13,9 +13,10 @@ import java.nio.file.{Files, Path, StandardOpenOption}
 
 import ch.epfl.scala.PluginConfig
 import ch.epfl.scala.profiledb.utils.AbsolutePath
+import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker, SettingsOps}
 
 import scala.tools.nsc.Global
-import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker, SettingsOps}
+import scala.reflect.internal.util.SourceFile
 
 final class ProfilingImpl[G <: Global](
     override val global: G,
@@ -304,6 +305,15 @@ final class ProfilingImpl[G <: Global](
         implicitSearchesByType.update(targetType, typeCounter + 1)
         val posCounter = implicitSearchesByPos.getOrElse(targetPos, 0)
         implicitSearchesByPos.update(targetPos, posCounter + 1)
+
+        if (config.showProfiles) {
+          val sourceFiles =
+            implicitSearchesSourceFilesByType.getOrElseUpdate(targetType, mutable.HashSet.empty)
+          if (!sourceFiles.contains(targetPos.source)) {
+            sourceFiles.add(targetPos.source)
+          }
+        }
+
         if (global.analyzer.openMacros.nonEmpty)
           statistics.incCounter(implicitSearchesByMacrosCount)
 
@@ -662,7 +672,11 @@ trait ProfilingStats {
   final val implicitSearchesByMacrosCount = newSubCounter("  from macros", implicitSearchCount)
 
   import scala.reflect.internal.util.Position
-  final val macrosByType = new scala.collection.mutable.HashMap[global.Type, Int]()
+  import scala.collection.mutable
+
+  final val macrosByType = new mutable.HashMap[global.Type, Int]()
   final val implicitSearchesByType = global.perRunCaches.newMap[global.Type, Int]()
   final val implicitSearchesByPos = global.perRunCaches.newMap[Position, Int]()
+  final val implicitSearchesSourceFilesByType =
+    global.perRunCaches.newMap[global.Type, mutable.HashSet[SourceFile]]()
 }
