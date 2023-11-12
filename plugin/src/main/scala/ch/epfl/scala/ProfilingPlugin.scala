@@ -71,8 +71,11 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   private lazy val logger = new Logger(global)
 
   private def pad20(option: String): String = option + (" " * (20 - option.length))
+
   override def init(ops: List[String], e: (String) => Unit): Boolean = true
+
   override val optionsHelp: Option[String] = Some(s"""
+       |-P:$name:${pad20(GenerateGlobalFlamegraph)}: Creates a global flamegraph of implicit searches for all compilation units. Use the `-P:$name:$SourceRoot` option to manage the root directory, otherwise, a working directory (defined by the `user.dir` property) will be picked.
        |-P:$name:${pad20(SourceRoot)}:_ Sets the source root for this project.
        |-P:$name:${pad20(ShowProfiles)} Logs profile information for every call-site.
        |-P:$name:${pad20(ShowConcreteImplicitTparams)} Shows types in flamegraphs of implicits with concrete type params.
