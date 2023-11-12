@@ -10,11 +10,10 @@
 package ch.epfl.scala
 
 import java.nio.file.Files
-
 import ch.epfl.scala.profiledb.{ProfileDb, ProfileDbPath}
-import ch.epfl.scala.profiledb.utils.AbsolutePath
+import ch.epfl.scala.profiledb.utils.{AbsolutePath, RelativePath}
 import ch.epfl.scala.profilers.ProfilingImpl
-import ch.epfl.scala.profilers.tools.{Logger, SettingsOps}
+import ch.epfl.scala.profilers.tools.{Logger, ScalaSettingsOps, SettingsOps}
 
 import scala.reflect.internal.util.{SourceFile, Statistics}
 import scala.reflect.io.Path
@@ -34,6 +33,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   private final lazy val SourceRoot = "sourceroot"
   private final lazy val PrintSearchResult = "print-search-result"
   private final lazy val GenerateMacroFlamegraph = "generate-macro-flamegraph"
+  private final lazy val GenerateGlobalFlamegraph = "generate-global-flamegraph"
   private final lazy val PrintFailedMacroImplicits = "print-failed-implicit-macro-candidates"
   private final lazy val NoProfileDb = "no-profiledb"
   private final lazy val ShowConcreteImplicitTparams = "show-concrete-implicit-tparams"
@@ -55,13 +55,17 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   }
 
   private final lazy val config = PluginConfig(
-    super.options.contains(ShowProfiles),
-    super.options.contains(NoProfileDb),
-    findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply),
-    findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
-    super.options.contains(GenerateMacroFlamegraph),
-    super.options.contains(PrintFailedMacroImplicits),
-    super.options.contains(ShowConcreteImplicitTparams)
+    showProfiles = super.options.contains(ShowProfiles),
+    noDb = super.options.contains(NoProfileDb),
+    sourceRoot =
+      findOption(SourceRoot, SourceRootRegex)
+        .map(AbsolutePath.apply)
+        .getOrElse(AbsolutePath.workingDirectory),
+    printSearchIds = findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
+    generateMacroFlamegraph = super.options.contains(GenerateMacroFlamegraph),
+    generateGlobalFlamegraph = super.options.contains(GenerateGlobalFlamegraph),
+    printFailedMacroImplicits = super.options.contains(PrintFailedMacroImplicits),
+    concreteTypeParamsInImplicits = super.options.contains(ShowConcreteImplicitTparams)
   )
 
   private lazy val logger = new Logger(global)
@@ -96,10 +100,31 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     }
 
     private def reportStatistics(graphsPath: AbsolutePath): Unit = {
-      val macroProfiler = implementation.macroProfiler
-      val persistedGraphData = implementation.generateGraphData(graphsPath)
+      val globalDir =
+        if (config.generateGlobalFlamegraph) {
+          val scalaDir =
+            if (ScalaSettingsOps.isScala212)
+              "scala-2.12"
+            else if (ScalaSettingsOps.isScala213)
+              "scala-2.13"
+            else
+              sys.error(s"Currently, only Scala 2.12 and 2.13 are supported, " +
+                s"but [${global.settings.source.value}] has been spotted")
+
+          val globalDir =
+            ProfileDbPath.toGraphsProfilePath(
+              config.sourceRoot.resolve(RelativePath(s"target/$scalaDir/classes"))
+            )
+
+          Some(globalDir)
+        } else None
+
+      val persistedGraphData = implementation.generateGraphData(graphsPath, globalDir)
       persistedGraphData.foreach(p => logger.info(s"Writing graph to ${p.underlying}"))
+
       if (config.showProfiles) {
+        val macroProfiler = implementation.macroProfiler
+
         logger.info("Macro data per call-site", macroProfiler.perCallSite)
         logger.info("Macro data per file", macroProfiler.perFile)
         logger.info("Macro data in total", macroProfiler.inTotal)
@@ -181,10 +206,9 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       if (outputPath.isEmpty) "." else outputPath
     }
 
-    private final def sourceRoot = config.sourceRoot.getOrElse(AbsolutePath.workingDirectory)
     private def dbPathFor(sourceFile: SourceFile): Option[ProfileDbPath] = {
       val absoluteSourceFile = AbsolutePath(sourceFile.file.path)
-      val targetPath = absoluteSourceFile.toRelative(sourceRoot)
+      val targetPath = absoluteSourceFile.toRelative(config.sourceRoot)
       if (targetPath.syntax.endsWith(".scala")) {
         val outputDir = getOutputDirFor(sourceFile.file)
         val absoluteOutput = AbsolutePath(outputDir.jfile)
