@@ -149,20 +149,45 @@ final class ProfilingImpl[G <: Global](
     }
   }
 
-  def generateGraphData(outputDir: AbsolutePath): List[AbsolutePath] = {
+  def generateGraphData(outputDir: AbsolutePath, globalDirMaybe: Option[AbsolutePath]): List[AbsolutePath] = {
     Files.createDirectories(outputDir.underlying)
+
     val randomId = java.lang.Long.toString(System.currentTimeMillis())
-    val implicitGraphName = s"implicit-searches-$randomId"
-    val macroGraphName = s"macros-$randomId"
-    /*    val dotFile = outputDir.resolve(s"$graphName.dot")
+
+    /*val dotFile = outputDir.resolve(s"$graphName.dot")
     ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)*/
-    val implicitFlamegraphFile = outputDir.resolve(s"$implicitGraphName.flamegraph")
-    ProfilingAnalyzerPlugin.foldImplicitStacks(implicitFlamegraphFile.underlying)
-    if (config.generateMacroFlamegraph) {
-      val macroFlamegraphFile = outputDir.resolve(s"$macroGraphName.flamegraph")
-      ProfilingMacroPlugin.foldMacroStacks(macroFlamegraphFile.underlying)
-      List(implicitFlamegraphFile, macroFlamegraphFile)
-    } else List(implicitFlamegraphFile)
+
+    val implicitFlamegraphFiles = {
+      val mkImplicitGraphName: String => String =
+        postfix => s"implicit-searches-$postfix.flamegraph"
+      val compileUnitFlamegraphFile = outputDir.resolve(mkImplicitGraphName(randomId))
+
+      globalDirMaybe match {
+        case Some(globalDir) =>
+          Files.createDirectories(globalDir.underlying)
+
+          val globalFile =
+            globalDir
+              .resolve(mkImplicitGraphName("global"))
+
+          List(compileUnitFlamegraphFile, globalFile)
+
+        case None =>
+          List(compileUnitFlamegraphFile)
+      }
+    }
+
+    val macroFlamegraphFiles =
+      if (config.generateMacroFlamegraph) {
+        val macroGraphName = s"macros-$randomId"
+        val file = outputDir.resolve(s"$macroGraphName.flamegraph")
+        List(file)
+      } else Nil
+
+    ProfilingAnalyzerPlugin.foldImplicitStacks(implicitFlamegraphFiles)
+    ProfilingMacroPlugin.foldMacroStacks(macroFlamegraphFiles)
+
+    implicitFlamegraphFiles ::: macroFlamegraphFiles
   }
 
   private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
@@ -190,20 +215,29 @@ final class ProfilingImpl[G <: Global](
     private val implicitsDependants = new mutable.AnyRefMap[Type, mutable.HashSet[Type]]()
     private val searchIdChildren = perRunCaches.newMap[Int, List[analyzer.ImplicitSearch]]()
 
-    def foldImplicitStacks(outputPath: Path): Unit = {
-      // This part is memory intensive and hence the use of java collections
-      val stacksJavaList = new java.util.ArrayList[String]()
-      stackedNanos.foreach {
-        case (id, (nanos, tpe)) =>
-          val names =
-            stackedNames.getOrElse(id, sys.error(s"Stack name for search id ${id} doesn't exist!"))
-          val stackName = names.mkString(";")
-          //val count = implicitSearchesByType.getOrElse(tpe, sys.error(s"No counter for ${tpe}"))
-          stacksJavaList.add(s"$stackName ${nanos / 1000}")
-      }
-      java.util.Collections.sort(stacksJavaList)
-      Files.write(outputPath, stacksJavaList, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
-    }
+    def foldImplicitStacks(outputPaths: Seq[AbsolutePath]): Unit =
+      if (outputPaths.nonEmpty) {
+        // This part is memory intensive and hence the use of java collections
+        val stacksJavaList = new java.util.ArrayList[String]()
+        stackedNanos.foreach {
+          case (id, (nanos, _)) =>
+            val names =
+              stackedNames.getOrElse(id, sys.error(s"Stack name for search id ${id} doesn't exist!"))
+            val stackName = names.mkString(";")
+            //val count = implicitSearchesByType.getOrElse(tpe, sys.error(s"No counter for ${tpe}"))
+            stacksJavaList.add(s"$stackName ${nanos / 1000}")
+        }
+        java.util.Collections.sort(stacksJavaList)
+
+        outputPaths.foreach(path =>
+          Files.write(
+            path.underlying,
+            stacksJavaList,
+            StandardOpenOption.APPEND,
+            StandardOpenOption.CREATE
+          )
+        )
+      } else ()
 
     def dottify(graphName: String, outputPath: Path): Unit = {
       def clean(`type`: Type) = typeToString(`type`).replace("\"", "\'")
@@ -454,19 +488,28 @@ final class ProfilingImpl[G <: Global](
     private val stackedNanos = perRunCaches.newMap[Int, Long]()
     private val stackedNames = perRunCaches.newMap[Int, List[String]]()
 
-    def foldMacroStacks(outputPath: Path): Unit = {
-      // This part is memory intensive and hence the use of java collections
-      val stacksJavaList = new java.util.ArrayList[String]()
-      stackedNanos.foreach {
-        case (id, nanos) =>
-          val names =
-            stackedNames.getOrElse(id, sys.error(s"Stack name for macro id ${id} doesn't exist!"))
-          val stackName = names.mkString(";")
-          stacksJavaList.add(s"$stackName ${nanos / 1000}")
-      }
-      java.util.Collections.sort(stacksJavaList)
-      Files.write(outputPath, stacksJavaList, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
-    }
+    def foldMacroStacks(outputPaths: Seq[AbsolutePath]): Unit =
+      if (outputPaths.nonEmpty) {
+        // This part is memory intensive and hence the use of java collections
+        val stacksJavaList = new java.util.ArrayList[String]()
+        stackedNanos.foreach {
+          case (id, nanos) =>
+            val names =
+              stackedNames.getOrElse(id, sys.error(s"Stack name for macro id ${id} doesn't exist!"))
+            val stackName = names.mkString(";")
+            stacksJavaList.add(s"$stackName ${nanos / 1000}")
+        }
+        java.util.Collections.sort(stacksJavaList)
+
+        outputPaths.foreach(path =>
+          Files.write(
+            path.underlying,
+            stacksJavaList,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.CREATE
+          )
+        )
+      } else ()
 
     import scala.tools.nsc.Mode
     override def pluginsMacroExpand(t: Typer, expandee: Tree, md: Mode, pt: Type): Option[Tree] = {
