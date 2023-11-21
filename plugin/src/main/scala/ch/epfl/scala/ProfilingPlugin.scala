@@ -296,7 +296,7 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
           super.run()
 
           if (!SettingsOps.areStatisticsEnabled(global)) {
-            val flagName = global.settings.Ystatistics.name.replace("-V", "-Y")
+            val flagName = global.settings.Ystatistics.name
             global.runReporting.warning(
               NoPosition,
               s"`${self.name}` compiler plugin requires the option `$flagName` to be enabled",
