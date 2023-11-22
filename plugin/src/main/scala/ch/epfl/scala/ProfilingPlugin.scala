@@ -35,7 +35,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   private final lazy val PrintSearchResult = "print-search-result"
   private final lazy val GenerateMacroFlamegraph = "generate-macro-flamegraph"
   private final lazy val PrintFailedMacroImplicits = "print-failed-implicit-macro-candidates"
-  private final lazy val NoProfileDb = "no-profiledb"
+  private final lazy val GenerateProfileDb = "generate-profiledb"
   private final lazy val ShowConcreteImplicitTparams = "show-concrete-implicit-tparams"
   private final lazy val PrintSearchRegex = s"$PrintSearchResult:(.*)".r
   private final lazy val SourceRootRegex = s"$SourceRoot:(.*)".r
@@ -55,13 +55,13 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   }
 
   private final lazy val config = PluginConfig(
-    super.options.contains(ShowProfiles),
-    super.options.contains(NoProfileDb),
-    findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply),
-    findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
-    super.options.contains(GenerateMacroFlamegraph),
-    super.options.contains(PrintFailedMacroImplicits),
-    super.options.contains(ShowConcreteImplicitTparams)
+    showProfiles = super.options.contains(ShowProfiles),
+    generateDb = super.options.contains(GenerateProfileDb),
+    sourceRoot = findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply),
+    printSearchIds = findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
+    generateMacroFlamegraph = super.options.contains(GenerateMacroFlamegraph),
+    printFailedMacroImplicits = super.options.contains(PrintFailedMacroImplicits),
+    concreteTypeParamsInImplicits = super.options.contains(ShowConcreteImplicitTparams)
   )
 
   private lazy val logger = new Logger(global)
@@ -275,7 +275,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
         override def apply(unit: global.CompilationUnit): Unit = {
           if (
             SettingsOps.areStatisticsEnabled(global) &&
-            !config.noDb) {
+            config.generateDb) {
             val currentSourceFile = unit.source
             val compilationUnitEntry = profileDbEntryFor(currentSourceFile)
             dbPathFor(currentSourceFile) match {
@@ -298,7 +298,7 @@ class ProfilingPlugin(val global: Global) extends Plugin {
           val graphsDir = globalOutputDir.resolve(graphsRelativePath)
           reportStatistics(graphsDir)
 
-          if (!config.noDb) {
+          if (config.generateDb) {
             val globalDatabase = toGlobalDatabase(global.statistics)
             val globalRelativePath = ProfileDbPath.GlobalProfileDbRelativePath
             val globalProfileDbPath = ProfileDbPath(globalOutputDir, globalRelativePath)

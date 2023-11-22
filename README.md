@@ -40,8 +40,7 @@ All the compiler plugin options are **prepended by `-P:scalac-profiling:`**.
   flamegraph for implicit searches is enabled by default.
 * `print-failed-implicit-macro-candidates`: Print trees of all failed implicit
   searches that triggered a macro expansion.
-* `no-profiledb`: Recommended. Don't generate profiledb (will be on by default
-  in a future release).
+* `generate-profiledb`: Generate profiledb.
 * `show-concrete-implicit-tparams`: Use more concrete type parameters in the
   implicit search flamegraph. Note that it may change the shape of the
   flamegraph.
