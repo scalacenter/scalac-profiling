@@ -35,6 +35,9 @@ object ProfileDbPath {
   def toProfileDbPath(relativeSourceFile: RelativePath): RelativePath =
     Prefix.resolveRelative(addDbExtension(relativeSourceFile))
 
+  def toGraphsProfilePath(path: AbsolutePath): AbsolutePath =
+    path.resolve(GraphsProfileDbRelativePath)
+
   private[profiledb] def addDbExtension(path: RelativePath): RelativePath = {
     val realPath = path.underlying
     val extendedName = realPath.getFileName.toString + ProfileDbExtension
