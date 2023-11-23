@@ -36,7 +36,7 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
   private final lazy val PrintSearchResult = "print-search-result"
   private final lazy val GenerateMacroFlamegraph = "generate-macro-flamegraph"
   private final lazy val PrintFailedMacroImplicits = "print-failed-implicit-macro-candidates"
-  private final lazy val NoProfileDb = "no-profiledb"
+  private final lazy val GenerateProfileDb = "generate-profiledb"
   private final lazy val ShowConcreteImplicitTparams = "show-concrete-implicit-tparams"
   private final lazy val PrintSearchRegex = s"$PrintSearchResult:(.*)".r
   private final lazy val SourceRootRegex = s"$SourceRoot:(.*)".r
@@ -57,7 +57,7 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
 
   private final lazy val config = PluginConfig(
     showProfiles = super.options.contains(ShowProfiles),
-    noDb = super.options.contains(NoProfileDb),
+    generateDb = super.options.contains(GenerateProfileDb),
     sourceRoot = findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply),
     printSearchIds = findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
     generateMacroFlamegraph = super.options.contains(GenerateMacroFlamegraph),
@@ -276,7 +276,7 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
         override def apply(unit: global.CompilationUnit): Unit = {
           if (
             SettingsOps.areStatisticsEnabled(global) &&
-            !config.noDb) {
+            config.generateDb) {
             val currentSourceFile = unit.source
             val compilationUnitEntry = profileDbEntryFor(currentSourceFile)
             dbPathFor(currentSourceFile) match {
@@ -309,7 +309,7 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
           val graphsDir = globalOutputDir.resolve(graphsRelativePath)
           reportStatistics(graphsDir)
 
-          if (!config.noDb) {
+          if (config.generateDb) {
             val globalDatabase = toGlobalDatabase(global.statistics)
             val globalRelativePath = ProfileDbPath.GlobalProfileDbRelativePath
             val globalProfileDbPath = ProfileDbPath(globalOutputDir, globalRelativePath)
