@@ -24,6 +24,8 @@ addCompilerPlugin("ch.epfl.scala" %% "scalac-profiling" % "<version>" cross Cros
 
 To learn how to use the plugin, read [Speeding Up Compilation Time with `scalac-profiling`](https://www.scala-lang.org/blog/2018/06/04/scalac-profiling.html) in the scala-lang blog.
 
+Note that in Scala 2.13, the preferred form of the compiler option to enable statistics is `-Vstatistics`. It is part of the family of `-V` flags that enable various "verbose" behaviors. (In 2.12, the flag is called `-Ystatistics`.)
+
 ### Compiler plugin options
 
 All the compiler plugin options are **prepended by `-P:scalac-profiling:`**.
@@ -38,8 +40,7 @@ All the compiler plugin options are **prepended by `-P:scalac-profiling:`**.
   flamegraph for implicit searches is enabled by default.
 * `print-failed-implicit-macro-candidates`: Print trees of all failed implicit
   searches that triggered a macro expansion.
-* `no-profiledb`: Recommended. Don't generate profiledb (will be on by default
-  in a future release).
+* `generate-profiledb`: Generate profiledb.
 * `show-concrete-implicit-tparams`: Use more concrete type parameters in the
   implicit search flamegraph. Note that it may change the shape of the
   flamegraph.

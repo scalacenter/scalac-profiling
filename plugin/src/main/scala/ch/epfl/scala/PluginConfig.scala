@@ -4,7 +4,7 @@ import ch.epfl.scala.profiledb.utils.AbsolutePath
 
 final case class PluginConfig(
     showProfiles: Boolean,
-    noDb: Boolean,
+    generateDb: Boolean,
     sourceRoot: AbsolutePath,
     printSearchIds: Set[Int],
     generateMacroFlamegraph: Boolean,
