@@ -13,7 +13,8 @@ object WorkingPluginCross {
     def switchParser(state: State): Parser[(String, String)] = {
       val knownVersions = Nil
       lazy val switchArgs = token(NotSpace.examples(knownVersions: _*)) ~ (token(
-        Space ~> matched(state.combinedParser)) ?? "")
+        Space ~> matched(state.combinedParser)
+      ) ?? "")
       lazy val nextSpaced = spacedFirst(PluginSwitchCommand)
       token(PluginSwitchCommand ~ OptSpace) flatMap { _ =>
         switchArgs & nextSpaced
