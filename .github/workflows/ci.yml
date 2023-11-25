@@ -7,6 +7,15 @@ on:
     branches: ['**', '!update/**', '!pr/**']
 
 jobs:
+  scalafmt:
+    name: Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: olafurpg/setup-scala@v13
+      - uses: coursier/cache-action@v5
+      - name: Check formatting
+        run: sbt -v "scalafmtSbtCheck" "scalafmtCheckAll"
   test:
     name: ${{ matrix.command }}
     runs-on: ubuntu-20.04
