@@ -58,10 +58,9 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
   private final lazy val config = PluginConfig(
     showProfiles = super.options.contains(ShowProfiles),
     generateDb = super.options.contains(GenerateProfileDb),
-    sourceRoot =
-      findOption(SourceRoot, SourceRootRegex)
-        .map(AbsolutePath.apply)
-        .getOrElse(AbsolutePath.workingDirectory),
+    sourceRoot = findOption(SourceRoot, SourceRootRegex)
+      .map(AbsolutePath.apply)
+      .getOrElse(AbsolutePath.workingDirectory),
     printSearchIds = findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
     generateMacroFlamegraph = super.options.contains(GenerateMacroFlamegraph),
     generateGlobalFlamegraph = super.options.contains(GenerateGlobalFlamegraph),
@@ -75,13 +74,21 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
 
   override def init(ops: List[String], e: (String) => Unit): Boolean = true
 
-  override val optionsHelp: Option[String] = Some(s"""
-       |-P:$name:${pad20(GenerateGlobalFlamegraph)}: Creates a global flamegraph of implicit searches for all compilation units. Use the `-P:$name:$SourceRoot` option to manage the root directory, otherwise, a working directory (defined by the `user.dir` property) will be picked.
+  override val optionsHelp: Option[String] = Some(
+    s"""
+       |-P:$name:${pad20(
+        GenerateGlobalFlamegraph
+      )}: Creates a global flamegraph of implicit searches for all compilation units. Use the `-P:$name:$SourceRoot` option to manage the root directory, otherwise, a working directory (defined by the `user.dir` property) will be picked.
        |-P:$name:${pad20(SourceRoot)}:_ Sets the source root for this project.
        |-P:$name:${pad20(ShowProfiles)} Logs profile information for every call-site.
-       |-P:$name:${pad20(ShowConcreteImplicitTparams)} Shows types in flamegraphs of implicits with concrete type params.
-       |-P:$name:${pad20(PrintSearchResult)}:_ Print implicit search result trees for a list of search ids separated by a comma.
-    """.stripMargin)
+       |-P:$name:${pad20(
+        ShowConcreteImplicitTparams
+      )} Shows types in flamegraphs of implicits with concrete type params.
+       |-P:$name:${pad20(
+        PrintSearchResult
+      )}:_ Print implicit search result trees for a list of search ids separated by a comma.
+    """.stripMargin
+  )
 
   lazy val implementation = new ProfilingImpl(ProfilingPlugin.this.global, config, logger)
   implementation.registerProfilers()
@@ -112,8 +119,10 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
             else if (ScalaSettingsOps.isScala213)
               "scala-2.13"
             else
-              sys.error(s"Currently, only Scala 2.12 and 2.13 are supported, " +
-                s"but [${global.settings.source.value}] has been spotted")
+              sys.error(
+                s"Currently, only Scala 2.12 and 2.13 are supported, " +
+                  s"but [${global.settings.source.value}] has been spotted"
+              )
 
           val globalDir =
             ProfileDbPath.toGraphsProfilePath(
@@ -280,8 +289,10 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
         ProfileDb.read(path).flatMap { oldDb =>
           val oldDbType = oldDb.`type`
           val newDbType = db.`type`
-          if (oldDbType.isGlobal && newDbType.isGlobal ||
-            (oldDbType.isPerCompilationUnit && newDbType.isPerCompilationUnit)) {
+          if (
+            oldDbType.isGlobal && newDbType.isGlobal ||
+            (oldDbType.isPerCompilationUnit && newDbType.isPerCompilationUnit)
+          ) {
             val updatedDb = oldDb.addAllEntries(db.entries)
             ProfileDb.write(updatedDb, path)
           } else Try(sys.error(s"Db type mismatch: $newDbType != $oldDbType"))
@@ -303,7 +314,8 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
         override def apply(unit: global.CompilationUnit): Unit = {
           if (
             SettingsOps.areStatisticsEnabled(global) &&
-            config.generateDb) {
+            config.generateDb
+          ) {
             val currentSourceFile = unit.source
             val compilationUnitEntry = profileDbEntryFor(currentSourceFile)
             dbPathFor(currentSourceFile) match {
