@@ -38,7 +38,7 @@ lazy val fullCrossVersionSettings = Seq(
     // Unfortunately, it only includes directories like "scala_2.12" or "scala_2.13",
     // not "scala_2.12.18" or "scala_2.13.12" that we need.
     // That's why we have to work around here.
-    val base = (Compile/ sourceDirectory).value
+    val base = (Compile / sourceDirectory).value
     val versionDir = scalaVersion.value.replaceAll("-.*", "")
     base / ("scala-" + versionDir)
   }
@@ -48,7 +48,7 @@ import _root_.ch.epfl.scala.profiling.build.BuildImplementation.BuildDefaults
 import scalapb.compiler.Version.scalapbVersion
 lazy val profiledb = project
   .in(file("profiledb"))
-  //.settings(metalsSettings)
+  // .settings(metalsSettings)
   .settings(
     // Specify scala version to allow third-party software to use this module
     crossScalaVersions := bin212 ++ bin213,
@@ -61,7 +61,7 @@ lazy val profiledb = project
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
   .dependsOn(profiledb)
-  //.settings(metalsSettings)
+  // .settings(metalsSettings)
   .settings(
     fullCrossVersionSettings,
     name := "scalac-profiling",
@@ -90,8 +90,8 @@ lazy val plugin = project
       // Enable debugging information when necessary
       val debuggingPluginOptions =
         if (!enableStatistics.value) Nil
-        else List("-Ystatistics") //, "-P:scalac-profiling:show-profiles")
-      //else List("-Xlog-implicits", "-Ystatistics:typer")
+        else List("-Ystatistics") // , "-P:scalac-profiling:show-profiles")
+      // else List("-Xlog-implicits", "-Ystatistics:typer")
       Seq(addPlugin, dummy) ++ debuggingPluginOptions
     },
     Test / scalacOptions ++= optionsForSourceCompilerPlugin.value,
@@ -149,13 +149,18 @@ lazy val plugin = project
 //       .dependsOn(publishLocal)
 //       .value
 //   )
-// 
+//
 lazy val profilingSbtPlugin = project
   .in(file("sbt-plugin"))
   .settings(
     name := "sbt-scalac-profiling",
     scalaVersion := bin212.head,
-    scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", "-Xss8M", s"-Dplugin.version=${version.value}"),
+    scriptedLaunchOpts ++= Seq(
+      "-Xmx2048M",
+      "-Xms1024M",
+      "-Xss8M",
+      s"-Dplugin.version=${version.value}"
+    ),
     scriptedBufferLog := false
   )
   .enablePlugins(SbtPlugin)
@@ -176,13 +181,13 @@ lazy val integrations = project
       .sequential(
         clean,
         (BetterFilesCore / Compile / clean),
-        (WartremoverCore / Compile / clean),
+        (WartremoverCore / Compile / clean)
       )
       .value,
     test := Def
       .sequential(
         (ThisBuild / showScalaInstances),
-        (Compile / compile),
+        (Compile / compile)
       )
       .value,
     testOnly := Def.inputTaskDyn {
