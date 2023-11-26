@@ -40,9 +40,6 @@ object BuildKeys {
   final val AbsolutePath = file(".").getCanonicalFile.getAbsolutePath
   final val HomeBuild = BuildRef(RootProject(file(AbsolutePath)).build)
 
-  // final val VscodeScala = RootProject(file(s"$AbsolutePath/vscode-scala"))
-  // final val VscodeImplementation = ProjectRef(VscodeScala.build, "ensime-lsp")
-
   // Source dependencies from git are cached by sbt
   val BetterFiles = RootProject(
     uri(
