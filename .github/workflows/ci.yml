@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: olafurpg/setup-scala@v14
       - uses: coursier/cache-action@v6
       - name: Check formatting
         run: sbt -v "scalafmtSbtCheck" "scalafmtCheckAll"
@@ -29,6 +28,5 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: olafurpg/setup-scala@v14
       - uses: coursier/cache-action@v6
       - run: ${{ matrix.command }}
