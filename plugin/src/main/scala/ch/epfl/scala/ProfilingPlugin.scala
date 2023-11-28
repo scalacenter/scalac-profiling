@@ -80,6 +80,7 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
         GenerateGlobalFlamegraph
       )}: Creates a global flamegraph of implicit searches for all compilation units. Use the `-P:$name:$SourceRoot` option to manage the root directory, otherwise, a working directory (defined by the `user.dir` property) will be picked.
        |-P:$name:${pad20(SourceRoot)}:_ Sets the source root for this project.
+       |-P:$name:${pad20(GenerateProfileDb)}:_ Sets the source root for this project.
        |-P:$name:${pad20(ShowProfiles)} Logs profile information for every call-site.
        |-P:$name:${pad20(
         ShowConcreteImplicitTparams
@@ -87,6 +88,12 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
        |-P:$name:${pad20(
         PrintSearchResult
       )}:_ Print implicit search result trees for a list of search ids separated by a comma.
+       |-P:$name:${pad20(
+        GenerateMacroFlamegraph
+      )} Generates a flamegraph for macro expansions. The flamegraph for implicit searches is enabled by default.
+       |-P:$name:${pad20(
+        PrintFailedMacroImplicits
+      )} Prints trees of all failed implicit searches that triggered a macro expansion.
     """.stripMargin
   )
 
