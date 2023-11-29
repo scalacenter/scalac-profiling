@@ -38,6 +38,9 @@ All the compiler plugin options are **prepended by `-P:scalac-profiling:`**.
   Example: `-P:scalac-profiling:print-search-result:$MACRO_ID`.
 * `generate-macro-flamegraph`: Generate a flamegraph for macro expansions. The
   flamegraph for implicit searches is enabled by default.
+* `generate-global-flamegraph`: Creates a global flamegraph of implicit searches for all compilation units. 
+  Use the `-P:scalac-profiling:sourceroot` option to manage the root directory, 
+  otherwise, a working directory (defined by the `user.dir` property) will be picked.
 * `print-failed-implicit-macro-candidates`: Print trees of all failed implicit
   searches that triggered a macro expansion.
 * `generate-profiledb`: Generate profiledb.
