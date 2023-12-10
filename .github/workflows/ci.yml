@@ -15,18 +15,25 @@ jobs:
       - uses: coursier/cache-action@v6
       - name: Check formatting
         run: sbt -v "scalafmtSbtCheck" "scalafmtCheckAll"
-  test:
-    name: ${{ matrix.command }}
+  plugin-tests:
+    name: Compiler and SBT plugin tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        command:
-          - sbt "+plugin/test" "profilingSbtPlugin/scripted compiler-profiling/scripted"
-          - sbt "showScalaInstances" "integrations/testOnly integration better-files wartremover"
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
       - uses: coursier/cache-action@v6
-      - run: ${{ matrix.command }}
+      - name: Compiler plugin tests
+        run: sbt -v "+plugin/test"
+      - name: SBT plugin tests
+        run: sbt -v "profilingSbtPlugin/scripted"
+  intergration-tests:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: coursier/cache-action@v6
+      - name: Running tests
+        run: sbt -v "showScalaInstances" "integrations/testOnly integration better-files wartremover"
