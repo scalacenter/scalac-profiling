@@ -120,6 +120,7 @@ lazy val profilingSbtPlugin = project
   .settings(
     name := "sbt-scalac-profiling",
     scalaVersion := bin212.head,
+    sbtPlugin := true,
     scriptedLaunchOpts ++= Seq(
       "-Xmx2048M",
       "-Xms1024M",
@@ -128,7 +129,7 @@ lazy val profilingSbtPlugin = project
     ),
     scriptedBufferLog := false
   )
-  .enablePlugins(SbtPlugin)
+  .enablePlugins(ScriptedPlugin)
 
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
