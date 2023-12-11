@@ -11,5 +11,5 @@ lazy val root = project
     //   val pluginMainDir = baseDirectory.value.getParentFile / "sbt-plugin" / "src" / "main"
     //   List(pluginMainDir / "scala", pluginMainDir / s"scala-sbt-${Keys.sbtBinaryVersion.value}")
     // },
-    libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.13"
+    libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.14"
   )
