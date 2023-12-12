@@ -70,7 +70,7 @@ lazy val plugin = project
       scalaOrganization.value % "scala-compiler" % scalaVersion.value
     ),
     libraryDependencies ++= List(
-      "junit" % "junit" % "4.12" % "test",
+      "junit" % "junit" % "4.13.2" % "test",
       "com.novocode" % "junit-interface" % "0.11" % "test"
     ),
     Test / testOptions ++= List(Tests.Argument("-v"), Tests.Argument("-s")),
