@@ -71,7 +71,7 @@ lazy val plugin = project
     ),
     libraryDependencies ++= List(
       "junit" % "junit" % "4.13.2" % "test",
-      "com.novocode" % "junit-interface" % "0.11" % "test"
+      "com.github.sbt" % "junit-interface" % "0.13.3" % "test"
     ),
     Test / testOptions ++= List(Tests.Argument("-v"), Tests.Argument("-s")),
     allDepsForCompilerPlugin := {
