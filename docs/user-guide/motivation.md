@@ -1,5 +1,5 @@
 ---
-id: index
+id: motivation
 title: What is scalac-profiling?
 ---
 

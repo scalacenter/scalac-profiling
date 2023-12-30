@@ -61,8 +61,9 @@ lazy val profiledb = project
     buildInfoKeys := List[BuildInfoKey](
       Keys.organization,
       Keys.version,
-      Keys.scalaVersion
-    ),
+      Keys.scalaVersion,
+      Keys.crossScalaVersions
+    )
   )
 
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
