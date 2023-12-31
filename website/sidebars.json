@@ -1,6 +1,6 @@
 {
   "user-guide": {
-    "Usage": ["user-guide/index", "user-guide/installation", "user-guide/usage"],
+    "Usage": ["user-guide/motivation", "user-guide/installation", "user-guide/usage"],
     "Plugins": [
       "plugins/sbt-plugin"
     ]
