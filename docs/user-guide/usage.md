@@ -49,6 +49,17 @@ The resulting graph will look like this one we generated for the [Scala Steward]
   </object>
 <p>
 
+### Reading the graphs
+
+A graph is a set of nodes and edges. A node represents an implicit search for a given type. 
+Every node specifies how many implicit searches have been triggered in total, 
+and how long they took in total. An edge represents the dependency between 
+an implicit search and another one.
+
+> It is important to note that every node in a program can be relied upon by other nodes 
+> and can serve as the starting point for an implicit search. Therefore, the number of times a
+> node has been searched for may not always be equal to the total number of nodes that depend on it.
+
 
 [flamegraph]: https://github.com/brendangregg/FlameGraph
 [scalac-profiling]: https://github.com/scalacenter/scalac-profiling/
