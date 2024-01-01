@@ -12,7 +12,7 @@
         "title": "What is scalac-profiling?"
       },
       "plugins/sbt-plugin": {
-        "title": "plugins/sbt-plugin"
+        "title": "SBT Plugin"
       },
       "user-guide/index": {
         "title": "What is scalac-profiling?"
