@@ -4,13 +4,5 @@
     "Plugins": [
       "plugins/sbt-plugin"
     ]
-  },
-  "case-studies": {
-    "Intro": [
-      "case-studies/index"
-    ],
-    "Case Studies": [
-
-    ]
   }
 }

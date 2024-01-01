@@ -42,12 +42,6 @@ class Footer extends React.Component {
             >
               Usage
             </a>
-            <a
-              href={`
-                ${this.props.config.baseUrl}docs/case-studies/index.html`}
-            >
-              Case studies
-            </a>
           </div>
           <div>
             <h5>Community</h5>

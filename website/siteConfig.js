@@ -21,8 +21,9 @@ const siteConfig = {
 
   // For no header links in the top nav bar -> headerLinks: [],
   headerLinks: [
-    { doc: "user-guide/index", label: "Docs" },
-    { doc: "case-studies/index", label: "Case Studies" },
+    { doc: "user-guide/motivation", label: "Docs" },
+    // TODO: Add the 'Case Studies' chapter
+    // { doc: "case-studies/index", label: "Case Studies" },
     { href: repoUrl, label: "GitHub", external: true }
   ],
 

@@ -16,18 +16,24 @@
       },
       "user-guide/index": {
         "title": "What is scalac-profiling?"
+      },
+      "user-guide/installation": {
+        "title": "Installation"
+      },
+      "user-guide/motivation": {
+        "title": "What is scalac-profiling?"
+      },
+      "user-guide/usage": {
+        "title": "Usage"
       }
     },
     "links": {
       "Docs": "Docs",
-      "Case Studies": "Case Studies",
       "GitHub": "GitHub"
     },
     "categories": {
       "Usage": "Usage",
-      "Plugins": "Plugins",
-      "Intro": "Intro",
-      "Case Studies": "Case Studies"
+      "Plugins": "Plugins"
     }
   },
   "pages-strings": {
