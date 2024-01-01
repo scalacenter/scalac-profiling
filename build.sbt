@@ -56,7 +56,10 @@ lazy val profiledb = project
     scalaVersion := bin212.head,
     libraryDependencies +=
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
-    Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value),
+    Compile / managedSourceDirectories += target.value / "protobuf-generated",
+    Compile / PB.targets in Compile := Seq(
+      scalapb.gen() -> (target.value / "protobuf-generated")
+    ),
     buildInfoPackage := "scalac.profiling.internal.build",
     buildInfoKeys := List[BuildInfoKey](
       Keys.organization,
