@@ -5,17 +5,8 @@
     "previous": "Previous",
     "tagline": "Compilation profiling tool for Scala 2 projects",
     "docs": {
-      "case-studies/index": {
-        "title": "Case studies of profiling compilation of different projects"
-      },
-      "docs/index": {
-        "title": "What is scalac-profiling?"
-      },
       "plugins/sbt-plugin": {
         "title": "SBT Plugin"
-      },
-      "user-guide/index": {
-        "title": "What is scalac-profiling?"
       },
       "user-guide/installation": {
         "title": "Installation"
