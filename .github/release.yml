@@ -1,12 +1,12 @@
 changelog:
   categories:
-    - title: `scalac-profiling` compiler plugin
+    - title: scalac-profiling
       labels:
         - scalac-profiling
       exclude:
         labels:
           - behind-the-scenes
-    - title: `sbt-scalac-profiling` SBT plugin
+    - title: sbt-scalac-profiling
       labels:
         - sbt-scalac-profiling
       exclude:
