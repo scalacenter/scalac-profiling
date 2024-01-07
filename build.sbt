@@ -48,6 +48,7 @@ import _root_.ch.epfl.scala.profiling.build.BuildImplementation.BuildDefaults
 import scalapb.compiler.Version.scalapbVersion
 lazy val profiledb = project
   .in(file("profiledb"))
+  .enablePlugins(BuildInfoPlugin)
   // .settings(metalsSettings)
   .settings(
     // Specify scala version to allow third-party software to use this module
@@ -55,7 +56,17 @@ lazy val profiledb = project
     scalaVersion := bin212.head,
     libraryDependencies +=
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
-    Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value)
+    Compile / managedSourceDirectories += target.value / "protobuf-generated",
+    Compile / PB.targets in Compile := Seq(
+      scalapb.gen() -> (target.value / "protobuf-generated")
+    ),
+    buildInfoPackage := "scalac.profiling.internal.build",
+    buildInfoKeys := List[BuildInfoKey](
+      Keys.organization,
+      Keys.version,
+      Keys.scalaVersion,
+      Keys.crossScalaVersions
+    )
   )
 
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
@@ -187,6 +198,23 @@ lazy val integrations = project
         WartremoverTask
       )
     }.evaluated
+  )
+
+lazy val docs = project
+  .in(file("docs-gen"))
+  .dependsOn(profiledb)
+  .enablePlugins(MdocPlugin, DocusaurusPlugin)
+  .settings(
+    name := "scalac-profiling-docs",
+    moduleName := "scalac-profiling-docs",
+    libraryDependencies += "io.get-coursier" % "interface" % "1.0.19",
+    (publish / skip) := true,
+    scalaVersion := bin212.head,
+    mdoc := (Compile / run).evaluated,
+    (Compile / mainClass) := Some("ch.epfl.scala.profiling.Docs"),
+    (Compile / resources) ++= {
+      List((ThisBuild / baseDirectory).value / "docs")
+    }
   )
 
 val proxy = project

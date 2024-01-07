@@ -1,5 +1,6 @@
 *.class
 *.log
+**/.DS_Store
 
 # sbt specific
 .cache
@@ -32,3 +33,14 @@ project/plugins/project/
 .metals
 .vscode
 metals.sbt
+
+# website
+website/translated_docs
+website/build/
+website/yarn.lock
+website/node_modules
+website/i18n/*
+!website/i18n/en.json
+out/
+node_modules/
+package-lock.json
