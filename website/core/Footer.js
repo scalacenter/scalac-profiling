@@ -45,7 +45,7 @@ class Footer extends React.Component {
           </div>
           <div>
             <h5>Community</h5>
-            <a href="https://discord.gg/CnyNkhcs" target="_blank">
+            <a href="https://discord.gg/udJgtkvd" target="_blank">
               Chat on Discord
             </a>
             <a href="https://users.scala-lang.org/" target="_blank">
