@@ -15,6 +15,13 @@ jobs:
       - uses: coursier/cache-action@v6
       - name: Check formatting
         run: sbt -v "scalafmtSbtCheck" "scalafmtCheckAll"
+  docs:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: coursier/cache-action@v6
+      - run: sbt docs/run
   plugin-tests:
     name: Compiler and SBT plugin tests
     runs-on: ubuntu-latest
