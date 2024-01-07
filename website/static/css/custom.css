@@ -5,7 +5,7 @@
 }
 
 .fixedHeaderContainer header img {
-  margin-right: 0px;
+  margin-right: 5px;
 }
 
 .imageAlignSide .blockImage {
@@ -30,24 +30,6 @@
     width: 70%;
     margin-top: 3em;
     margin-bottom: 3em;
-  }
-}
-
-@media only screen and (max-width: 960px) {
-  .wrapper {
-    max-width: 700px;
-  }
-  .imageAlignSide.imageAlignLeft {
-    flex-flow: row wrap-reverse;
-  }
-  .imageAlignSide .blockImage {
-    margin-top: 20px;
-  }
-  .imageAlignLeft .blockImage {
-    margin-right: 0;
-  }
-  .imageAlignRight .blockImage {
-    margin-left: 0;
   }
 }
 

@@ -55,8 +55,8 @@ const SplashContainer = props => (
 
 const logoStyle = {
   marginBottom: '-20px',
-  marginRight: '1px',
-  width: '114px',
+  marginRight: '10px',
+  width: '77px',
   height: '77px'
 };
 
