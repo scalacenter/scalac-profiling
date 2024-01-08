@@ -15,4 +15,4 @@ jobs:
       - name: Publish ${{ github.ref }}
         run: sbt docs/docusaurusPublishGhpages
         env:
-          GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
+          GITHUB_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
