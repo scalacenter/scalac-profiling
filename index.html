@@ -1,94 +1,25 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<!--*-markdown-*-->
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>
-Scalac-profiling: profile Scala compile times
-</title>
-<style type="text/css">
-  body          { font-family: Times New Roman; font-size: 16px;
-                  line-height: 125%; width: 36em; margin: 2em; }
-  code, pre     { font-family: Input Mono Sans, Courier New, Courier, monospace; }
-  blockquote    { font-size: 14px; line-height: 130%; }
-  pre           { font-size: 14px; line-height: 120%; }
-  code          { font-size: 15px; }
-  h1            { font-size: 24px; }
-  h2            { font-size: 20px; }
-  h3            { font: inherit; font-weight:bold; font-size: 18px; }
-  pre           { padding: 1ex; background: #eee; width: 40em; }
-  h3            { margin: 1.5em 0 0; }
-  ol, ul, pre   { margin: 1em 1ex; }
-  ul ul, ol ol  { margin: 0; }
-  blockquote    { margin: 1em 4ex; }
-  p             { margin: .5em 0 .5em 0; }
-  h4            { margin: 0; }
-  a             { text-decoration: none; }
-  div.smaller   { font-size: 85%; }
-  span.smaller  { font-size: 95%; }
-</style>
-</head>
-<body>
-<h1 id="scalac-profiling">Scalac-profiling</h1>
-<h4 id="jorge-vicente-cantero-jvican-scala-center">Jorge Vicente Cantero (<a href="https://github.com/jvican">jvican</a>), <a href="https://scala.epfl.ch">Scala Center</a></h4>
-<p><code>scalac-profiling</code> aims at providing the tools to understand and profile your Scala projects. In this document, I dive into how you can use <code>scalac-profiling</code> to profile implicit search.</p>
-<p><strong>Note</strong> that <code>scalac-profiling</code> is not released yet, so the installation steps in this document are shallow on purpose.</p>
-<h2 id="profiling-implicit-search">Profiling implicit search</h2>
-<p>Profiling implicit search is useful to answer the following questions:</p>
-<ol style="list-style-type: decimal">
-<li>What implicit searches happen in my project?</li>
-<li>How do all implicit searches interact with each other?</li>
-<li>Are implicit searches the main bottleneck of my compile times?</li>
-</ol>
-<p>Incidentally, implicit searches also help you to assess how expensive the use of a macro library is, specifically if the macro library relies heavily on implicit search. Libraries that provide generic typeclass derivation are an example.</p>
-<h3 id="graphs">Graphs</h3>
-<p><code>scalac-profiling</code> generates several graph representations of all the implicit searches happened during compilation. The supported graph representations are <a href="http://www.graphviz.org/doc/info/command.html">graphviz</a> (aka dot) and <a href="https://github.com/brendangregg/FlameGraph">flamegraph</a>.</p>
-<p>The compiler plugin does not generate the graphs for you; instead, it persists the graph data in a format that allows you to generate the graphs yourself without touching or transforming the data.</p>
-<p>These graphs are present under the <em>profiledb META-INF directory</em>, located in your classes directory. For example, a flamegraph data file can be located at <code>target/scala-2.12/classes/META-INF/profiledb/graphs/$name.flamegraph</code>.</p>
-<h3 id="flamegraphs">Flamegraphs</h3>
-<p>If this is the first time you hear about flamegraphs, have a look at the <a href="https://github.com/brendangregg/FlameGraph">official website</a> and the <a href="http://queue.acm.org/detail.cfm?id=2927301">ACM article</a>.</p>
-<p>Flamegraphs are graphs that allow you to see the stack of all the implicit search calls that have happened during a concrete compilation. They are intuitive to inspect and to browse, and stand out because:</p>
-<ul>
-<li>They allow you to selectively choose what things to profile. Click on every stack to zoom in, and reset by clicking “Reset zoom” on the bottom left.</li>
-<li>They allow you to search via regexes and those matching stacks are highlighted. Check the search button on the top right.</li>
-</ul>
-<h4 id="flamegraph-generation">Flamegraph generation</h4>
-<p>In order to generate flamegraphs, clone <a href="https://github.com/brendangregg/FlameGraph">brendangregg/FlameGraph</a> GitHub repository. The repository provides the tools to generate the svg files that you will later on use.</p>
-<p>Next, compile your project with <code>scalac-profiling</code> as a compiler plugin, and statistics enabled (<code>-Ystatistics</code>). <code>scalac-profiling</code> will generate the flamegraph data in the profiledb <code>graphs</code> directory explained in <a href="#graphs">the Graphs section</a>.</p>
-<p>Run the following command in the Flamegraph project’s root directory:</p>
-<pre><code>./flamegraph.pl --countname=&quot;ms&quot; \
-    $PATH_TO_FLAMEGRAPH_FILE &gt; graph.svg</code></pre>
-<p>And it will generate something like <a href="circe-integration-flamegraph.svg">this</a>.</p>
-<h4 id="examples">Examples</h4>
-<ul>
-<li><a href="circe-integration-flamegraph.svg">circe website example flamegraph</a></li>
-<li><a href="circe-test-suite-flamegraph.svg">circe test suite flamegraph</a></li>
-<li><a href="scalac-flamegraph.svg">scalac flamegraph</a></li>
-<li><a href="monocle-example-flamegraph.svg">monocle example flamegraph</a></li>
-<li><a href="monocle-test-suite-flamegraph.svg">monocle test suite flamegraph</a></li>
-<li><a href="scalatest-core-flamegraph.svg">scalatest core flamegraph</a></li>
-<li><a href="scalatest-tests-flamegraph.svg">scalatest tests flamegraph</a></li>
-</ul>
-<h3 id="dot-graphs">Dot graphs</h3>
-<p>The process to generate dot graphs is similar to Flamegraph. Dot graph files are files that declare a graph and tell Graphviz how it should be rendered. They can then be visualized in several ways: a <code>png</code> file, a pdf, a svg, et cetera.</p>
-<h4 id="dot-graph-generation">Dot graph generation</h4>
-<p>Install <a href="http://www.graphviz.org/doc/info/command.html">graphviz</a>.</p>
-<p>Read <a href="#flamegraph-generation">the previous Flamegraph generation</a> first.</p>
-<p>When you compile your project with <code>scalac-profiling</code>, the plugin creates dot files along with the flamegraph data files. You can use these dot files to generate a graph with the following command:</p>
-<pre><code>dot -Tsvg -o graph.svg $PATH_TO_DOT_FILE</code></pre>
-<p>After that, you can open the resulting svg with your favorite web browser. For example, by running <code>firefox graph.svg</code>.</p>
-<p>However, you will quickly realize that exploring larger graphs is difficult with a normal svg. I recommend using <a href="https://github.com/jvican/jquery.graphviz.svg">jquery.graphviz.svg</a> to have a nicer browsing experience: zoom in and out, reset zoom and the killer feature: only highlight the edges for a given node (by clicking on the node).</p>
-<h4 id="reading-the-generated-graphs">Reading the generated graphs</h4>
-<p>A graph is a set of nodes and edges. A node represent an implicit search for a given type. Every node tells you how many implicit searches have been triggered in total, and how much time they took in total. An edge represents the dependency between an implicit search and another one.</p>
-<blockquote>
-<p><span class="smaller"> Note that every node can be depended upon by others and be the start of the implicit search in the program. That means that often the amount of times a node has been searched for will not be equal to the sum of the nodes that depend on it.</p>
-</blockquote>
-<h4 id="examples-1">Examples</h4>
-<ul>
-<li><a href="circe-integration.html">circe website example dot graph</a></li>
-<li><a href="circe-test-suite.html">circe test suite dot graph</a></li>
-<li><a href="scalac.html">scalac dot graph</a></li>
-<li><a href="monocle-example.html">monocle example dot graph</a></li>
-<li><a href="monocle-test-suite.html">monocle test suite dot graph</a></li>
-<li><a href="scalatest-core.html">scalatest dot graph</a></li>
-</ul>
+<!DOCTYPE html><html lang=""><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>scalac-profiling · Compilation profiling tool for Scala 2 projects</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Compilation profiling tool for Scala 2 projects"/><meta property="og:title" content="scalac-profiling · Compilation profiling tool for Scala 2 projects"/><meta property="og:type" content="website"/><meta property="og:url" content="https://scalacenter.github.io//scalac-profiling/index.html"/><meta property="og:description" content="Compilation profiling tool for Scala 2 projects"/><meta property="og:image" content="https://scalacenter.github.io//scalac-profiling/img/scalac-profiling-logo.png"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://scalacenter.github.io//scalac-profiling/img/scalac-profiling-logo.png"/><link rel="shortcut icon" href="/scalac-profiling/img/favicon.png"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css"/><script src="/scalac-profiling/js/scrollSpy.js"></script><link rel="stylesheet" href="/scalac-profiling/css/main.css"/><script src="/scalac-profiling/js/codetabs.js"></script></head><body><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/scalac-profiling/"><img class="logo" src="/scalac-profiling/img/scalac-profiling-logo.png" alt="scalac-profiling"/><h2 class="headerTitleWithLogo">scalac-profiling</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/scalac-profiling/docs/user-guide/motivation.html" target="_self">Docs</a></li><li class=""><a href="https://github.com/scalacenter/scalac-profiling" target="_blank">GitHub</a></li><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div><div class="lightBackground"><div class="homeContainer"><div class="homeSplashFade"><div class="wrapper homeWrapper"><div class="inner"><h2 class="projectTitle"><img src="/scalac-profiling/img/scalac-profiling-logo.png" alt="logo" style="margin-bottom:-20px;margin-right:10px;width:77px;height:77px"/>scalac-profiling<small>Compilation profiling tool for Scala 2 projects</small></h2><div class="section promoSection"><div class="promoRow"><div class="pluginRowBlock"><div class="pluginWrapper buttonWrapper"><a class="button" href="/scalac-profiling/docs/user-guide/motivation.html" target="_self">Get started</a></div></div></div></div></div></div></div></div></div><div class="mainContainer"><div class="productShowcaseSection paddingBottom" style="text-align:center"><div class="container paddingBottom paddingTop"><div class="wrapper"><div class="gridBlock"><div class="blockElement imageAlignSide imageAlignRight twoByGridBlock"><div class="blockContent"><h2><div><span><p>Speed up compilation</p>
+</span></div></h2><div><span><p>Analyze your Scala 2 project and chase down compilation time bottlenecks with a focus on implicit searches and macro expansions.</p>
+</span></div></div><div class="blockImage"><img src="/scalac-profiling/img/speed-up-compilation.png"/></div></div></div></div></div><div class="container paddingBottom paddingTop"><div class="wrapper"><div class="gridBlock"><div class="blockElement imageAlignSide imageAlignLeft twoByGridBlock"><div class="blockImage"><img src="/scalac-profiling/img/macro-impl.png"/></div><div class="blockContent"><h2><div><span><p>Optimize your macros</p>
+</span></div></h2><div><span><p>As a library author, improve the implementation of your macros to avoid excessive compilation time.</p>
+</span></div></div></div></div></div></div></div></div></div><footer class="nav-footer" id="footer" style="background-color:#005028"><section class="sitemap"><a href="/scalac-profiling/" class="nav-home"><img src="/scalac-profiling/img/scalac-profiling-logo.png" alt="scalac-profiling" width="52" height="52"/></a><div><h5>Docs</h5><a href="
+                /scalac-profiling/docs/user-guide/installation.html">Installation</a><a href="
+                /scalac-profiling/docs/user-guide/usage.html">Usage</a></div><div><h5>Community</h5><a href="https://discord.gg/udJgtkvd" target="_blank">Chat on Discord</a><a href="https://users.scala-lang.org/" target="_blank">Discuss on Scala Users</a></div><div><h5>More</h5><a href="https://github.com/scalacenter/scalac-profiling" target="_blank">GitHub</a></div></section><section class="copyright">Copyright © 2024 Scala Center</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: '',
+                indexName: '',
+                inputSelector: '#search_input_react'
+              });
+            </script></body></html>
