@@ -1,0 +1,4 @@
+[submodule "external/FlameGraph"]
+	path = external/FlameGraph
+	url = https://github.com/scalacenter/FlameGraph
+	branch = scala-compilation
