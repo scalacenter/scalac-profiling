@@ -1,3 +1,4 @@
-[submodule "FlameGraph"]
-	path = FlameGraph
-	url = git@github.com:jvican/FlameGraph.git
+[submodule "external/FlameGraph"]
+	path = external/FlameGraph
+	url = https://github.com/scalacenter/FlameGraph
+	branch = scala-compilation
