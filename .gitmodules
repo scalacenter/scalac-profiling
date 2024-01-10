@@ -1,3 +1,0 @@
-[submodule "FlameGraph"]
-	path = FlameGraph
-	url = git@github.com:jvican/FlameGraph.git
