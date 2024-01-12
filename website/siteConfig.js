@@ -15,6 +15,7 @@ const siteConfig = {
   organizationName: "scalacenter",
 
   algolia: {
+    appId: "AW5MWDTADP",
     apiKey: "09e0d1866214fafd949a13703354b2c5",
     indexName: "scalac-profiling"
   },
