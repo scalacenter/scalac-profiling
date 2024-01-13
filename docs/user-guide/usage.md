@@ -45,7 +45,7 @@ The resulting graph will look like this one we generated for the [Scala Steward]
 
 <p>
   <object data="/scalac-profiling/img/scala-steward-implicit-searches-flamegraph.svg" type="image/svg+xml" width="100%" height="100%">
-  <img src="/scalac-profiling/img/scala-steward-implicit-searches-flamegraph.svg" width="100%" height="100%">
+  <img src="/scalac-profiling/img/scala-steward-implicit-searches-flamegraph.svg" width="100%" height="100%" />
   </object>
 <p>
 
