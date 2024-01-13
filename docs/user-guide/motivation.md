@@ -29,7 +29,7 @@ from the FlameGraph project. Note that the following graph is clickable.
 
 <p>
   <object data="/scalac-profiling/img/scala-steward-implicit-searches-flamegraph.svg" type="image/svg+xml" width="100%" height="100%">
-  <img src="/scalac-profiling/img/scala-steward-implicit-searches-flamegraph.svg" width="100%" height="100%">
+  <img src="/scalac-profiling/img/scala-steward-implicit-searches-flamegraph.svg" width="100%" height="100%" />
   </object>
 <p>
 
