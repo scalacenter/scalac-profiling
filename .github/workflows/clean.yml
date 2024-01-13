@@ -1,4 +1,4 @@
-# all credits to the sbt/sbt-github-actions projects
+# all credits to the sbt/sbt-github-actions project
 name: Clean
 
 on: push
