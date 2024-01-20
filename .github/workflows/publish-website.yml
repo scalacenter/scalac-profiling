@@ -12,7 +12,11 @@ jobs:
         with:
           fetch-depth: 0
       - uses: coursier/cache-action@v6
-      - name: Publish ${{ github.ref }}
-        run: sbt docs/docusaurusCreateSite docs/docusaurusPublishGhpages
-        env:
-          GITHUB_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
+      - name: Build website
+        run: sbt docs/docusaurusCreateSite
+      - name: Publish website to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: ./website/build
+          ssh-key: ${{ secrets.GIT_DEPLOY_KEY }}
