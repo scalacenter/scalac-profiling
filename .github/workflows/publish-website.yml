@@ -17,5 +17,4 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: ./website/build
-          # ssh-key: ${{ secrets.GIT_DEPLOY_KEY }}
+          folder: ./website/build/scalac-profiling
