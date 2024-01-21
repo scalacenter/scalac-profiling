@@ -18,4 +18,4 @@ jobs:
         with:
           branch: gh-pages
           folder: ./website/build
-          ssh-key: ${{ secrets.GIT_DEPLOY_KEY }}
+          # ssh-key: ${{ secrets.GIT_DEPLOY_KEY }}
