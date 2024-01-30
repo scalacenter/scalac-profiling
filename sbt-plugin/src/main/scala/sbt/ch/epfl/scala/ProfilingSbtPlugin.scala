@@ -32,6 +32,7 @@ object BuildKeys {
   private[sbt] val currentConfigKey = AttributeKey[Option[ConfigKey]]("thisConfig")
 }
 
+// just for testing
 object ProfilingPluginImplementation {
   import java.lang.{Long => BoxedLong}
   import sbt.{Compile, Test, Project, Task, ScopedKey, Tags}
