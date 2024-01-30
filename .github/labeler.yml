@@ -19,12 +19,12 @@ scalac-profiling:
 behind-the-scenes:
   - all:
     - changed-files:
-      - any-globs-to-all-file: '!**/build.sbt'
-      - any-globs-to-all-file: '!docs/**'
-      - any-globs-to-all-file: '!website/**'
-      - any-globs-to-all-file: '!**/*.md'
-      - any-globs-to-all-file: '!sbt-plugin/**'
-      - any-globs-to-all-file: '!external/**'
-      - any-globs-to-all-file: '!integrations/**'
-      - any-globs-to-all-file: '!profiledb/**'
-      - any-globs-to-all-file: '!plugin/**'
+      - any-glob-to-all-files: '!**/build.sbt'
+      - any-glob-to-all-files: '!docs/**'
+      - any-glob-to-all-files: '!website/**'
+      - any-glob-to-all-files: '!**/*.md'
+      - any-glob-to-all-files: '!sbt-plugin/**'
+      - any-glob-to-all-files: '!external/**'
+      - any-glob-to-all-files: '!integrations/**'
+      - any-glob-to-all-files: '!profiledb/**'
+      - any-glob-to-all-files: '!plugin/**'
