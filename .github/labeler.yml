@@ -1,20 +1,30 @@
 dependencies:
-- head-branch: '^update/'
-- changed-files:
-  - all-globs-to-any-file: ['**/build.sbt']
+  - all:
+    - head-branch: '^update/'
+    - changed-files:
+      - all-globs-to-any-file: '**/build.sbt'
 
 docs:
-- changed-files:
-  - any-glob-to-any-file: ['docs/*', 'website/*', '**/*.md']
+  - changed-files:
+    - any-glob-to-any-file: ['docs/*', 'website/*', '**/*.md']
 
 sbt-scalac-profiling:
-- changed-files:
-  - any-glob-to-any-file: 'sbt-plugin/*'
+  - changed-files:
+    - any-glob-to-any-file: sbt-plugin/*
 
 scalac-profiling:
   - changed-files:
     - any-glob-to-any-file: ['external/*', 'integrations/*', 'profiledb/*', 'plugin/*']
 
 behind-the-scenes:
-  - changed-files:
-    - all-globs-to-all-files: ['!**/build.sbt', '!docs/*', '!website/*', '!**/*.md', '!sbt-plugin/*', '!external/*', '!integrations/*', '!profiledb/*', '!plugin/*']
+  - all:
+    - changed-files:
+      - all-globs-to-all-files: '!**/build.sbt'
+      - all-globs-to-all-files: '!docs/*'
+      - all-globs-to-all-files: '!website/*'
+      - all-globs-to-all-files: '!**/*.md'
+      - all-globs-to-all-files: '!sbt-plugin/*'
+      - all-globs-to-all-files: '!external/*'
+      - all-globs-to-all-files: '!integrations/*'
+      - all-globs-to-all-files: '!profiledb/*'
+      - all-globs-to-all-files: '!plugin/*'
