@@ -1,0 +1,20 @@
+dependencies:
+- head-branch: '^update/'
+- changed-files:
+  - all-globs-to-any-file: ['**/build.sbt']
+
+docs:
+- changed-files:
+  - any-glob-to-any-file: ['docs/*', 'website/*', '**/*.md']
+
+sbt-scalac-profiling:
+- changed-files:
+  - any-glob-to-any-file: 'sbt-plugin/*'
+
+scalac-profiling:
+  - changed-files:
+    - any-glob-to-any-file: ['external/*', 'integrations/*', 'profiledb/*', 'plugin/*']
+
+behind-the-scenes:
+  - changed-files:
+    - all-globs-to-all-files: ['!**/build.sbt', '!docs/*', '!website/*', '!**/*.md', '!sbt-plugin/*', '!external/*', '!integrations/*', '!profiledb/*', '!plugin/*']
