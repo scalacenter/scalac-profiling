@@ -10,21 +10,21 @@
 package ch.epfl.scala
 
 import java.nio.file.Files
-
 import ch.epfl.scala.profiledb.{ProfileDb, ProfileDbPath}
-import ch.epfl.scala.profiledb.utils.AbsolutePath
+import ch.epfl.scala.profiledb.utils.{AbsolutePath, RelativePath}
 import ch.epfl.scala.profilers.ProfilingImpl
-import ch.epfl.scala.profilers.tools.{Logger, SettingsOps}
+import ch.epfl.scala.profilers.tools.{Logger, ScalaSettingsOps, SettingsOps}
 
-import scala.reflect.internal.util.{SourceFile, Statistics}
+import scala.reflect.internal.util.{NoPosition, SourceFile, Statistics}
 import scala.reflect.io.Path
+import scala.tools.nsc.Reporting.WarningCategory
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.nsc.{Global, Phase}
 import scala.tools.nsc.plugins.{Plugin, PluginComponent}
 import scala.util.Try
 import scala.util.matching.Regex
 
-class ProfilingPlugin(val global: Global) extends Plugin {
+class ProfilingPlugin(val global: Global) extends Plugin { self =>
   // Every definition used at init needs to be lazy otherwise it slays the compiler
   val name = "scalac-profiling"
   val description = "Adds instrumentation to keep an eye on Scalac performance."
@@ -34,8 +34,9 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   private final lazy val SourceRoot = "sourceroot"
   private final lazy val PrintSearchResult = "print-search-result"
   private final lazy val GenerateMacroFlamegraph = "generate-macro-flamegraph"
+  private final lazy val GenerateGlobalFlamegraph = "generate-global-flamegraph"
   private final lazy val PrintFailedMacroImplicits = "print-failed-implicit-macro-candidates"
-  private final lazy val NoProfileDb = "no-profiledb"
+  private final lazy val GenerateProfileDb = "generate-profiledb"
   private final lazy val ShowConcreteImplicitTparams = "show-concrete-implicit-tparams"
   private final lazy val PrintSearchRegex = s"$PrintSearchResult:(.*)".r
   private final lazy val SourceRootRegex = s"$SourceRoot:(.*)".r
@@ -55,25 +56,37 @@ class ProfilingPlugin(val global: Global) extends Plugin {
   }
 
   private final lazy val config = PluginConfig(
-    super.options.contains(ShowProfiles),
-    super.options.contains(NoProfileDb),
-    findOption(SourceRoot, SourceRootRegex).map(AbsolutePath.apply),
-    findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
-    super.options.contains(GenerateMacroFlamegraph),
-    super.options.contains(PrintFailedMacroImplicits),
-    super.options.contains(ShowConcreteImplicitTparams)
+    showProfiles = super.options.contains(ShowProfiles),
+    generateDb = super.options.contains(GenerateProfileDb),
+    sourceRoot = findOption(SourceRoot, SourceRootRegex)
+      .map(AbsolutePath.apply)
+      .getOrElse(AbsolutePath.workingDirectory),
+    printSearchIds = findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
+    generateMacroFlamegraph = super.options.contains(GenerateMacroFlamegraph),
+    generateGlobalFlamegraph = super.options.contains(GenerateGlobalFlamegraph),
+    printFailedMacroImplicits = super.options.contains(PrintFailedMacroImplicits),
+    concreteTypeParamsInImplicits = super.options.contains(ShowConcreteImplicitTparams)
   )
 
   private lazy val logger = new Logger(global)
 
   private def pad20(option: String): String = option + (" " * (20 - option.length))
+
   override def init(ops: List[String], e: (String) => Unit): Boolean = true
-  override val optionsHelp: Option[String] = Some(s"""
-       |-P:$name:${pad20(SourceRoot)}:_ Sets the source root for this project.
-       |-P:$name:${pad20(ShowProfiles)} Logs profile information for every call-site.
-       |-P:$name:${pad20(ShowConcreteImplicitTparams)} Shows types in flamegraphs of implicits with concrete type params.
+
+  // format: off
+  override val optionsHelp: Option[String] = Some(
+    s"""
+       |-P:$name:${pad20(GenerateGlobalFlamegraph)} Creates a global flamegraph of implicit searches for all compilation units. Use the `-P:$name:$SourceRoot` option to manage the root directory, otherwise, a working directory (defined by the `user.dir` property) will be picked.
+       |-P:$name:${pad20(GenerateMacroFlamegraph)} Generates a flamegraph for macro expansions. The flamegraph for implicit searches is enabled by default.
+       |-P:$name:${pad20(GenerateProfileDb)} Generates profiledb (will be removed later).
+       |-P:$name:${pad20(PrintFailedMacroImplicits)} Prints trees of all failed implicit searches that triggered a macro expansion.
        |-P:$name:${pad20(PrintSearchResult)}:_ Print implicit search result trees for a list of search ids separated by a comma.
-    """.stripMargin)
+       |-P:$name:${pad20(ShowConcreteImplicitTparams)} Shows types in flamegraphs of implicits with concrete type params.
+       |-P:$name:${pad20(ShowProfiles)} Logs profile information for every call-site.
+       |-P:$name:${pad20(SourceRoot)}:_ Sets the source root for this project.
+    """.stripMargin
+  ) // format: on
 
   lazy val implementation = new ProfilingImpl(ProfilingPlugin.this.global, config, logger)
   implementation.registerProfilers()
@@ -96,10 +109,33 @@ class ProfilingPlugin(val global: Global) extends Plugin {
     }
 
     private def reportStatistics(graphsPath: AbsolutePath): Unit = {
-      val macroProfiler = implementation.macroProfiler
-      val persistedGraphData = implementation.generateGraphData(graphsPath)
+      val globalDir =
+        if (config.generateGlobalFlamegraph) {
+          val scalaDir =
+            if (ScalaSettingsOps.isScala212)
+              "scala-2.12"
+            else if (ScalaSettingsOps.isScala213)
+              "scala-2.13"
+            else
+              sys.error(
+                s"Currently, only Scala 2.12 and 2.13 are supported, " +
+                  s"but [${global.settings.source.value}] has been spotted"
+              )
+
+          val globalDir =
+            ProfileDbPath.toGraphsProfilePath(
+              config.sourceRoot.resolve(RelativePath(s"target/$scalaDir/classes"))
+            )
+
+          Some(globalDir)
+        } else None
+
+      val persistedGraphData = implementation.generateGraphData(graphsPath, globalDir)
       persistedGraphData.foreach(p => logger.info(s"Writing graph to ${p.underlying}"))
+
       if (config.showProfiles) {
+        val macroProfiler = implementation.macroProfiler
+
         logger.info("Macro data per call-site", macroProfiler.perCallSite)
         logger.info("Macro data per file", macroProfiler.perFile)
         logger.info("Macro data in total", macroProfiler.inTotal)
@@ -198,10 +234,9 @@ class ProfilingPlugin(val global: Global) extends Plugin {
       if (outputPath.isEmpty) "." else outputPath
     }
 
-    private final def sourceRoot = config.sourceRoot.getOrElse(AbsolutePath.workingDirectory)
     private def dbPathFor(sourceFile: SourceFile): Option[ProfileDbPath] = {
       val absoluteSourceFile = AbsolutePath(sourceFile.file.path)
-      val targetPath = absoluteSourceFile.toRelative(sourceRoot)
+      val targetPath = absoluteSourceFile.toRelative(config.sourceRoot)
       if (targetPath.syntax.endsWith(".scala")) {
         val outputDir = getOutputDirFor(sourceFile.file)
         val absoluteOutput = AbsolutePath(outputDir.jfile)
@@ -269,8 +304,10 @@ class ProfilingPlugin(val global: Global) extends Plugin {
         ProfileDb.read(path).flatMap { oldDb =>
           val oldDbType = oldDb.`type`
           val newDbType = db.`type`
-          if (oldDbType.isGlobal && newDbType.isGlobal ||
-            (oldDbType.isPerCompilationUnit && newDbType.isPerCompilationUnit)) {
+          if (
+            oldDbType.isGlobal && newDbType.isGlobal ||
+            (oldDbType.isPerCompilationUnit && newDbType.isPerCompilationUnit)
+          ) {
             val updatedDb = oldDb.addAllEntries(db.entries)
             ProfileDb.write(updatedDb, path)
           } else Try(sys.error(s"Db type mismatch: $newDbType != $oldDbType"))
@@ -292,7 +329,8 @@ class ProfilingPlugin(val global: Global) extends Plugin {
         override def apply(unit: global.CompilationUnit): Unit = {
           if (
             SettingsOps.areStatisticsEnabled(global) &&
-            !config.noDb) {
+            config.generateDb
+          ) {
             val currentSourceFile = unit.source
             val compilationUnitEntry = profileDbEntryFor(currentSourceFile)
             dbPathFor(currentSourceFile) match {
@@ -311,11 +349,21 @@ class ProfilingPlugin(val global: Global) extends Plugin {
         override def run(): Unit = {
           super.run()
 
+          if (!SettingsOps.areStatisticsEnabled(global)) {
+            val flagName = global.settings.Ystatistics.name
+            global.runReporting.warning(
+              NoPosition,
+              s"`${self.name}` compiler plugin requires the option `$flagName` to be enabled",
+              WarningCategory.OtherDebug,
+              ""
+            )
+          }
+
           val graphsRelativePath = ProfileDbPath.GraphsProfileDbRelativePath
           val graphsDir = globalOutputDir.resolve(graphsRelativePath)
           reportStatistics(graphsDir)
 
-          if (!config.noDb) {
+          if (config.generateDb) {
             val globalDatabase = toGlobalDatabase(global.statistics)
             val globalRelativePath = ProfileDbPath.GlobalProfileDbRelativePath
             val globalProfileDbPath = ProfileDbPath(globalOutputDir, globalRelativePath)

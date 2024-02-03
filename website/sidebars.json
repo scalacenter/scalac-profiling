@@ -1,0 +1,8 @@
+{
+  "user-guide": {
+    "Usage": ["user-guide/motivation", "user-guide/installation", "user-guide/usage"],
+    "Plugins": [
+      "plugins/sbt-plugin"
+    ]
+  }
+}

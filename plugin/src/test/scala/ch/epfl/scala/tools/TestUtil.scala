@@ -30,8 +30,7 @@ object TestUtil {
     tb.eval(tb.parse(code))
   }
 
-  def mkToolbox(compileOptions: String = "")
-    : ToolBox[_ <: scala.reflect.api.Universe] = {
+  def mkToolbox(compileOptions: String = ""): ToolBox[_ <: scala.reflect.api.Universe] = {
     val m = scala.reflect.runtime.currentMirror
     import scala.tools.reflect.ToolBox
     m.mkToolBox(options = compileOptions)
@@ -49,15 +48,15 @@ object TestUtil {
   def expectError(
       errorSnippet: String,
       compileOptions: String = "",
-      baseCompileOptions: String =
-        s"-cp $toolboxClasspath $toolboxPluginOptions")(code: String): Unit = {
+      baseCompileOptions: String = s"-cp $toolboxClasspath $toolboxPluginOptions"
+  )(code: String): Unit = {
     val errorMessage = intercept[ToolBoxError] {
       eval(code, s"$compileOptions $baseCompileOptions")
     }.getMessage
     val userMessage =
       s"""
-        |FOUND: $errorMessage
-        |EXPECTED: $errorSnippet
+         |FOUND: $errorMessage
+         |EXPECTED: $errorSnippet
       """.stripMargin
     assert(errorMessage.contains(errorSnippet), userMessage)
   }
@@ -65,10 +64,8 @@ object TestUtil {
   def expectWarning(
       errorSnippet: String,
       compileOptions: String = "",
-      baseCompileOptions: String =
-        s"-cp $toolboxClasspath $toolboxPluginOptions")(code: String): Unit = {
-    expectError(errorSnippet,
-                compileOptions + "-Xfatal-warnings",
-                baseCompileOptions)(code)
+      baseCompileOptions: String = s"-cp $toolboxClasspath $toolboxPluginOptions"
+  )(code: String): Unit = {
+    expectError(errorSnippet, compileOptions + "-Xfatal-warnings", baseCompileOptions)(code)
   }
 }

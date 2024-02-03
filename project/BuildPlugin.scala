@@ -40,15 +40,16 @@ object BuildKeys {
   final val AbsolutePath = file(".").getCanonicalFile.getAbsolutePath
   final val HomeBuild = BuildRef(RootProject(file(AbsolutePath)).build)
 
-  // final val VscodeScala = RootProject(file(s"$AbsolutePath/vscode-scala"))
-  // final val VscodeImplementation = ProjectRef(VscodeScala.build, "ensime-lsp")
-
   // Source dependencies from git are cached by sbt
   val BetterFiles = RootProject(
-    uri("https://git@github.com/pathikrit/better-files.git#6f2e3f1328b1b18eddce973510db71bc6c14fadb") // v3.9.2
+    uri(
+      "https://git@github.com/pathikrit/better-files.git#6f2e3f1328b1b18eddce973510db71bc6c14fadb"
+    ) // v3.9.2
   )
   val Wartremover = RootProject(
-    uri("https://git@github.com/wartremover/wartremover.git#29bb7b69ad49eb87c19d9ba865298071c2795bb7") // v3.1.4
+    uri(
+      "https://git@github.com/wartremover/wartremover.git#29bb7b69ad49eb87c19d9ba865298071c2795bb7"
+    ) // v3.1.4
   )
 
   val BetterFilesCore = ProjectRef(BetterFiles.build, "core")
@@ -56,7 +57,7 @@ object BuildKeys {
 
   val IntegrationProjectsAndReferences = List[(ProjectRef, String)](
     BetterFilesCore -> "BetterFilesCore",
-    WartremoverCore -> "WartremoverCore",
+    WartremoverCore -> "WartremoverCore"
   )
 
   val AllIntegrationProjects = IntegrationProjectsAndReferences.map(_._1)
@@ -65,8 +66,10 @@ object BuildKeys {
   // final val ScalacVersion = Keys.version in BuildKeys.ScalacCompiler
   // final val ScalacScalaVersion = Keys.scalaVersion in BuildKeys.ScalacCompiler
 
-  /** Write all the compile-time dependencies of the compiler plugin to a file,
-    * in order to read it from the created Toolbox to run the neg tests. */
+  /**
+   * Write all the compile-time dependencies of the compiler plugin to a file,
+   * in order to read it from the created Toolbox to run the neg tests.
+   */
   lazy val generateToolboxClasspath = Def.task {
     val scalaBinVersion = (Compile / Keys.scalaBinaryVersion).value
     val targetDir = (Compile / Keys.target).value
@@ -82,25 +85,25 @@ object BuildKeys {
   }
 
   /**
-    * Sbt does not like overrides of setting values that happen in ThisBuild,
-    * nor in other project settings like integrations'. No. Sbt is exigent and
-    * always asks you to give your best.
-    *
-    * Why so much code for such a simple idea? Well, `Project.extract` does force
-    * the execution and initialization of settings, so as `onLoad` is a setting
-    * it causes a recursive call to itself, yay!
-    *
-    * So, in short, solution: use an attribute in the state to short-circuit the
-    * recursive invocation.
-    *
-    * Notes to the future reader: the bug that prompted this solution is weird
-    * I can indeed override lots of settings via project refs, but when it comes
-    * to overriding a setting **in a project** (that has been generated via
-    * sbt-cross-project), it does not work. On top of this, this wouldn't happen
-    * if monocle defined the scala versions at the build level (it instead does it
-    * at the project level, which is bad practice). So, finding a repro for this
-    * is going to be fun.
-    */
+   * Sbt does not like overrides of setting values that happen in ThisBuild,
+   * nor in other project settings like integrations'. No. Sbt is exigent and
+   * always asks you to give your best.
+   *
+   * Why so much code for such a simple idea? Well, `Project.extract` does force
+   * the execution and initialization of settings, so as `onLoad` is a setting
+   * it causes a recursive call to itself, yay!
+   *
+   * So, in short, solution: use an attribute in the state to short-circuit the
+   * recursive invocation.
+   *
+   * Notes to the future reader: the bug that prompted this solution is weird
+   * I can indeed override lots of settings via project refs, but when it comes
+   * to overriding a setting **in a project** (that has been generated via
+   * sbt-cross-project), it does not work. On top of this, this wouldn't happen
+   * if monocle defined the scala versions at the build level (it instead does it
+   * at the project level, which is bad practice). So, finding a repro for this
+   * is going to be fun.
+   */
   final val hijacked = sbt.AttributeKey[Boolean]("the hijacked sexy option.")
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -123,7 +126,7 @@ object BuildKeys {
   private val AllKeywords = List(
     Keywords.Integration,
     Keywords.BetterFiles,
-    Keywords.Wartremover,
+    Keywords.Wartremover
   )
 
   import sbt.complete.Parser
@@ -181,9 +184,8 @@ object BuildImplementation {
         val projectBuild = ref.build
         val workingDir = Keys.buildStructure.value.units(projectBuild).localBase.getAbsolutePath
         val sourceRoot = s"-P:scalac-profiling:sourceroot:$workingDir"
-        val noProfileDb = s"-P:scalac-profiling:no-profiledb"
         val pluginOpts = (PluginProject / BuildKeys.optionsForSourceCompilerPlugin).value
-        noProfileDb +: sourceRoot +: pluginOpts
+        sourceRoot +: pluginOpts
       }
     }
 
@@ -207,7 +209,8 @@ object BuildImplementation {
         def setScalaVersion(ref: String) =
           s"""$ref / ${Keys.scalaVersion.key.label} := "$scalaV""""
         def setScalacOptions(ref: String) =
-          s"""$ref / ${Keys.scalacOptions.key.label} := ${MethodRefs.scalacProfilingScalacOptionsRef(ref)}.value""".stripMargin
+          s"""$ref / ${Keys.scalacOptions.key.label} := ${MethodRefs
+              .scalacProfilingScalacOptionsRef(ref)}.value""".stripMargin
         def setUnmanagedJars(ref: String, config: String) =
           s"""$ref / $config / ${Keys.unmanagedJars.key.label} := ${MethodRefs.setUpUnmanagedJarsRef}.value"""
         val msg = "The build integrations are set up."
@@ -267,10 +270,10 @@ object BuildImplementation {
         "-deprecation" :: "-encoding" :: "UTF-8" :: "-feature" :: "-language:existentials" ::
           "-language:higherKinds" :: "-language:implicitConversions" :: "-unchecked" ::
           "-Ywarn-numeric-widen" :: "-Xlint" :: Nil
-        )
+      )
 
       if (Keys.scalaVersion.value.startsWith("2.13")) base else base :+ "-Xfuture"
-    },
+    }
     // Necessary because the scalac version has to be always SNAPSHOT to avoid caching issues
     // Scope here is wrong -- we put it here temporarily until this is fixed upstream
     // ReleaseEarlyKeys.releaseEarlyBypassSnapshotCheck := true

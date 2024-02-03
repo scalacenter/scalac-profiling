@@ -38,7 +38,7 @@ lazy val fullCrossVersionSettings = Seq(
     // Unfortunately, it only includes directories like "scala_2.12" or "scala_2.13",
     // not "scala_2.12.18" or "scala_2.13.12" that we need.
     // That's why we have to work around here.
-    val base = (Compile/ sourceDirectory).value
+    val base = (Compile / sourceDirectory).value
     val versionDir = scalaVersion.value.replaceAll("-.*", "")
     base / ("scala-" + versionDir)
   }
@@ -48,20 +48,31 @@ import _root_.ch.epfl.scala.profiling.build.BuildImplementation.BuildDefaults
 import scalapb.compiler.Version.scalapbVersion
 lazy val profiledb = project
   .in(file("profiledb"))
-  //.settings(metalsSettings)
+  .enablePlugins(BuildInfoPlugin)
+  // .settings(metalsSettings)
   .settings(
     // Specify scala version to allow third-party software to use this module
     crossScalaVersions := bin212 ++ bin213,
     scalaVersion := bin212.head,
     libraryDependencies +=
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
-    Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value)
+    Compile / managedSourceDirectories += target.value / "protobuf-generated",
+    Compile / PB.targets in Compile := Seq(
+      scalapb.gen() -> (target.value / "protobuf-generated")
+    ),
+    buildInfoPackage := "scalac.profiling.internal.build",
+    buildInfoKeys := List[BuildInfoKey](
+      Keys.organization,
+      Keys.version,
+      Keys.scalaVersion,
+      Keys.crossScalaVersions
+    )
   )
 
 // Do not change the lhs id of this plugin, `BuildPlugin` relies on it
 lazy val plugin = project
   .dependsOn(profiledb)
-  //.settings(metalsSettings)
+  // .settings(metalsSettings)
   .settings(
     fullCrossVersionSettings,
     name := "scalac-profiling",
@@ -70,8 +81,8 @@ lazy val plugin = project
       scalaOrganization.value % "scala-compiler" % scalaVersion.value
     ),
     libraryDependencies ++= List(
-      "junit" % "junit" % "4.12" % "test",
-      "com.novocode" % "junit-interface" % "0.11" % "test"
+      "junit" % "junit" % "4.13.2" % "test",
+      "com.github.sbt" % "junit-interface" % "0.13.3" % "test"
     ),
     Test / testOptions ++= List(Tests.Argument("-v"), Tests.Argument("-s")),
     allDepsForCompilerPlugin := {
@@ -90,8 +101,8 @@ lazy val plugin = project
       // Enable debugging information when necessary
       val debuggingPluginOptions =
         if (!enableStatistics.value) Nil
-        else List("-Ystatistics") //, "-P:scalac-profiling:show-profiles")
-      //else List("-Xlog-implicits", "-Ystatistics:typer")
+        else List("-Ystatistics") // , "-P:scalac-profiling:show-profiles")
+      // else List("-Xlog-implicits", "-Ystatistics:typer")
       Seq(addPlugin, dummy) ++ debuggingPluginOptions
     },
     Test / scalacOptions ++= optionsForSourceCompilerPlugin.value,
@@ -115,50 +126,21 @@ lazy val plugin = project
     assembly / test := {}
   )
 
-// Trick to copy profiledb with Scala 2.11.11 so that vscode can depend on it
-// lazy val profiledb211 = profiledb
-//   .copy(id = "profiledb-211")
-//   .settings(
-//     moduleName := "profiledb",
-//     scalaVersion := (scalaVersion in VscodeImplementation).value,
-//     // Redefining target so that sbt doesn't clash at runtime
-//     // This makes sense, but we should get a more sensible error message.
-//     target := (baseDirectory in profiledb).value./("target_211")
-//   )
-
-// This is the task to publish the vscode integration
-// val publishExtension = taskKey[Unit]("The task to publish the vscode extension.")
-
-// Has to be in independent project because uses different Scala version
-// lazy val vscodeIntegration = project
-//   .in(file(".hidden"))
-//   .dependsOn(VscodeImplementation, profiledb211)
-//   .settings(
-//     scalaVersion := (scalaVersion in VscodeImplementation).value,
-//     libraryDependencies in VscodeImplementation += (projectID in profiledb211).value,
-//     // Sbt bug: doing this for VscodeImplementation just doesn't work.
-//     update := update.dependsOn(publishLocal in profiledb211).value,
-//     publish := (publish in VscodeImplementation).dependsOn(publish in profiledb211).value,
-//     publishLocal :=
-//       (publishLocal in VscodeImplementation).dependsOn(publishLocal in profiledb211).value,
-//     publishExtension := (Def
-//       .task {
-//         val scalaExtensionDir = (baseDirectory in VscodeScala).value./("scala")
-//         sys.process.Process(Seq("vsce", "package"), scalaExtensionDir).!!
-//       })
-//       .dependsOn(publishLocal)
-//       .value
-//   )
-// 
 lazy val profilingSbtPlugin = project
   .in(file("sbt-plugin"))
   .settings(
     name := "sbt-scalac-profiling",
     scalaVersion := bin212.head,
-    scriptedLaunchOpts ++= Seq("-Xmx2048M", "-Xms1024M", "-Xss8M", s"-Dplugin.version=${version.value}"),
+    sbtPlugin := true,
+    scriptedLaunchOpts ++= Seq(
+      "-Xmx2048M",
+      "-Xms1024M",
+      "-Xss8M",
+      s"-Dplugin.version=${version.value}"
+    ),
     scriptedBufferLog := false
   )
-  .enablePlugins(SbtPlugin)
+  .enablePlugins(ScriptedPlugin)
 
 // Source dependencies are specified in `project/BuildPlugin.scala`
 lazy val integrations = project
@@ -176,13 +158,13 @@ lazy val integrations = project
       .sequential(
         clean,
         (BetterFilesCore / Compile / clean),
-        (WartremoverCore / Compile / clean),
+        (WartremoverCore / Compile / clean)
       )
       .value,
     test := Def
       .sequential(
         (ThisBuild / showScalaInstances),
-        (Compile / compile),
+        (Compile / compile)
       )
       .value,
     testOnly := Def.inputTaskDyn {
@@ -216,6 +198,23 @@ lazy val integrations = project
         WartremoverTask
       )
     }.evaluated
+  )
+
+lazy val docs = project
+  .in(file("docs-gen"))
+  .dependsOn(profiledb)
+  .enablePlugins(MdocPlugin, DocusaurusPlugin)
+  .settings(
+    name := "scalac-profiling-docs",
+    moduleName := "scalac-profiling-docs",
+    libraryDependencies += "io.get-coursier" % "interface" % "1.0.19",
+    (publish / skip) := true,
+    scalaVersion := bin212.head,
+    mdoc := (Compile / run).evaluated,
+    (Compile / mainClass) := Some("ch.epfl.scala.profiling.Docs"),
+    (Compile / resources) ++= {
+      List((ThisBuild / baseDirectory).value / "docs")
+    }
   )
 
 val proxy = project

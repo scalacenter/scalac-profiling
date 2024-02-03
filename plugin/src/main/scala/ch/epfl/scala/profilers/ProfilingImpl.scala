@@ -32,14 +32,14 @@ final class ProfilingImpl[G <: Global](
   }
 
   /**
-    * Represents the profiling information about expanded macros.
-    *
-    * Note that we could derive the value of expanded macros from the
-    * number of instances of [[MacroInfo]] if it were not by the fact
-    * that a macro can expand in the same position more than once. We
-    * want to be able to report/analyse such cases on their own, so
-    * we keep it as a paramater of this entity.
-    */
+   * Represents the profiling information about expanded macros.
+   *
+   * Note that we could derive the value of expanded macros from the
+   * number of instances of [[MacroInfo]] if it were not by the fact
+   * that a macro can expand in the same position more than once. We
+   * want to be able to report/analyse such cases on their own, so
+   * we keep it as a paramater of this entity.
+   */
   case class MacroInfo(expandedMacros: Int, expandedNodes: Int, expansionNanos: Long) {
     def +(other: MacroInfo): MacroInfo = {
       val totalExpanded = expandedMacros + other.expandedMacros
@@ -77,7 +77,7 @@ final class ProfilingImpl[G <: Global](
   }
 
   lazy val macroProfiler: MacroProfiler = {
-    import ProfilingMacroPlugin.macroInfos //, repeatedTrees}
+    import ProfilingMacroPlugin.macroInfos // , repeatedTrees}
     val perCallSite = macroInfos.toMap
     val perFile = groupPerFile(perCallSite)(MacroInfo.Empty, _ + _)
       .map {
@@ -92,9 +92,9 @@ final class ProfilingImpl[G <: Global](
 
     // perFile and inTotal are already converted to millis
     val callSiteNanos = perCallSite.map {
-        case (pos, mi) => pos -> mi.copy(expansionNanos = toMillis(mi.expansionNanos))
-      }
-    MacroProfiler(callSiteNanos, perFile, inTotal, Map.empty) //repeated)
+      case (pos, mi) => pos -> mi.copy(expansionNanos = toMillis(mi.expansionNanos))
+    }
+    MacroProfiler(callSiteNanos, perFile, inTotal, Map.empty) // repeated)
   }
 
   case class ImplicitInfo(count: Int) {
@@ -150,20 +150,48 @@ final class ProfilingImpl[G <: Global](
     }
   }
 
-  def generateGraphData(outputDir: AbsolutePath): List[AbsolutePath] = {
+  def generateGraphData(
+      outputDir: AbsolutePath,
+      globalDirMaybe: Option[AbsolutePath]
+  ): List[AbsolutePath] = {
     Files.createDirectories(outputDir.underlying)
+
     val randomId = java.lang.Long.toString(System.currentTimeMillis())
-    val implicitGraphName = s"implicit-searches-$randomId"
-    val macroGraphName = s"macros-$randomId"
-    /*    val dotFile = outputDir.resolve(s"$graphName.dot")
+
+    /*val dotFile = outputDir.resolve(s"$graphName.dot")
     ProfilingAnalyzerPlugin.dottify(graphName, dotFile.underlying)*/
-    val implicitFlamegraphFile = outputDir.resolve(s"$implicitGraphName.flamegraph")
-    ProfilingAnalyzerPlugin.foldImplicitStacks(implicitFlamegraphFile.underlying)
-    if (config.generateMacroFlamegraph) {
-      val macroFlamegraphFile = outputDir.resolve(s"$macroGraphName.flamegraph")
-      ProfilingMacroPlugin.foldMacroStacks(macroFlamegraphFile.underlying)
-      List(implicitFlamegraphFile, macroFlamegraphFile)
-    } else List(implicitFlamegraphFile)
+
+    val implicitFlamegraphFiles = {
+      val mkImplicitGraphName: String => String =
+        postfix => s"implicit-searches-$postfix.flamegraph"
+      val compileUnitFlamegraphFile = outputDir.resolve(mkImplicitGraphName(randomId))
+
+      globalDirMaybe match {
+        case Some(globalDir) =>
+          Files.createDirectories(globalDir.underlying)
+
+          val globalFile =
+            globalDir
+              .resolve(mkImplicitGraphName("global"))
+
+          List(compileUnitFlamegraphFile, globalFile)
+
+        case None =>
+          List(compileUnitFlamegraphFile)
+      }
+    }
+
+    val macroFlamegraphFiles =
+      if (config.generateMacroFlamegraph) {
+        val macroGraphName = s"macros-$randomId"
+        val file = outputDir.resolve(s"$macroGraphName.flamegraph")
+        List(file)
+      } else Nil
+
+    ProfilingAnalyzerPlugin.foldImplicitStacks(implicitFlamegraphFiles)
+    ProfilingMacroPlugin.foldMacroStacks(macroFlamegraphFiles)
+
+    implicitFlamegraphFiles ::: macroFlamegraphFiles
   }
 
   private val registeredQuantities = QuantitiesHijacker.getRegisteredQuantities(global)
@@ -191,20 +219,32 @@ final class ProfilingImpl[G <: Global](
     private val implicitsDependants = new mutable.AnyRefMap[Type, mutable.HashSet[Type]]()
     private val searchIdChildren = perRunCaches.newMap[Int, List[analyzer.ImplicitSearch]]()
 
-    def foldImplicitStacks(outputPath: Path): Unit = {
-      // This part is memory intensive and hence the use of java collections
-      val stacksJavaList = new java.util.ArrayList[String]()
-      stackedNanos.foreach {
-        case (id, (nanos, tpe)) =>
-          val names =
-            stackedNames.getOrElse(id, sys.error(s"Stack name for search id ${id} doesn't exist!"))
-          val stackName = names.mkString(";")
-          //val count = implicitSearchesByType.getOrElse(tpe, sys.error(s"No counter for ${tpe}"))
-          stacksJavaList.add(s"$stackName ${nanos / 1000}")
-      }
-      java.util.Collections.sort(stacksJavaList)
-      Files.write(outputPath, stacksJavaList, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
-    }
+    def foldImplicitStacks(outputPaths: Seq[AbsolutePath]): Unit =
+      if (outputPaths.nonEmpty) {
+        // This part is memory intensive and hence the use of java collections
+        val stacksJavaList = new java.util.ArrayList[String]()
+        stackedNanos.foreach {
+          case (id, (nanos, _)) =>
+            val names =
+              stackedNames.getOrElse(
+                id,
+                sys.error(s"Stack name for search id ${id} doesn't exist!")
+              )
+            val stackName = names.mkString(";")
+            // val count = implicitSearchesByType.getOrElse(tpe, sys.error(s"No counter for ${tpe}"))
+            stacksJavaList.add(s"$stackName ${nanos / 1000}")
+        }
+        java.util.Collections.sort(stacksJavaList)
+
+        outputPaths.foreach(path =>
+          Files.write(
+            path.underlying,
+            stacksJavaList,
+            StandardOpenOption.APPEND,
+            StandardOpenOption.CREATE
+          )
+        )
+      } else ()
 
     def dottify(graphName: String, outputPath: Path): Unit = {
       def clean(`type`: Type) = typeToString(`type`).replace("\"", "\'")
@@ -221,12 +261,12 @@ final class ProfilingImpl[G <: Global](
           `type`,
           sys.error {
             s"""Id for ${`type`} doesn't exist.
-              |
-              |  Information about the type:
-              |   - `structure` -> ${global.showRaw(`type`)}
-              |   - `safeToString` -> ${`type`.safeToString}
-              |   - `toLongString` after typer -> ${typeToString(`type`)}
-              |   - `typeSymbol` -> ${`type`.typeSymbol}
+               |
+               |  Information about the type:
+               |   - `structure` -> ${global.showRaw(`type`)}
+               |   - `safeToString` -> ${`type`.safeToString}
+               |   - `toLongString` after typer -> ${typeToString(`type`)}
+               |   - `typeSymbol` -> ${`type`.typeSymbol}
             """.stripMargin
           }
         )
@@ -248,10 +288,10 @@ final class ProfilingImpl[G <: Global](
       }
 
       val graph = s"""digraph "$graphName" {
-        | graph [ranksep=0, rankdir=LR];
-        |${nodeInfos.mkString("  ", "\n  ", "\n  ")}
-        |${connections.mkString("  ", "\n  ", "\n  ")}
-        |}""".stripMargin.getBytes
+                     | graph [ranksep=0, rankdir=LR];
+                     |${nodeInfos.mkString("  ", "\n  ", "\n  ")}
+                     |${connections.mkString("  ", "\n  ", "\n  ")}
+                     |}""".stripMargin.getBytes
       Files.write(outputPath, graph, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
     }
 
@@ -376,7 +416,11 @@ final class ProfilingImpl[G <: Global](
             else concreteTypeFromSearch(result.subst(result.tree), targetType)
           }
 
-          if (config.printSearchIds.contains(searchId) || (result.isFailure && config.printFailedMacroImplicits)) {
+          if (
+            config.printSearchIds.contains(
+              searchId
+            ) || (result.isFailure && config.printFailedMacroImplicits)
+          ) {
             logger.info(
               s"""implicit search ${searchId}:
                  |  -> valid ${result.isSuccess}
@@ -453,9 +497,9 @@ final class ProfilingImpl[G <: Global](
       1 + tree.children.map(guessTreeSize).sum
 
     type RepeatedKey = (String, String)
-    //case class RepeatedValue(original: Tree, result: Tree, count: Int)
-    //private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
-    //private[ProfilingImpl] val repeatedTrees = perRunCaches.newMap[RepeatedKey, RepeatedValue]
+    // case class RepeatedValue(original: Tree, result: Tree, count: Int)
+    // private final val EmptyRepeatedValue = RepeatedValue(EmptyTree, EmptyTree, 0)
+    // private[ProfilingImpl] val repeatedTrees = perRunCaches.newMap[RepeatedKey, RepeatedValue]
 
     val macroInfos = perRunCaches.newAnyRefMap[Position, MacroInfo]()
     val searchIdsToMacroStates = perRunCaches.newMap[Int, List[MacroState]]()
@@ -464,19 +508,28 @@ final class ProfilingImpl[G <: Global](
     private val stackedNanos = perRunCaches.newMap[Int, Long]()
     private val stackedNames = perRunCaches.newMap[Int, List[String]]()
 
-    def foldMacroStacks(outputPath: Path): Unit = {
-      // This part is memory intensive and hence the use of java collections
-      val stacksJavaList = new java.util.ArrayList[String]()
-      stackedNanos.foreach {
-        case (id, nanos) =>
-          val names =
-            stackedNames.getOrElse(id, sys.error(s"Stack name for macro id ${id} doesn't exist!"))
-          val stackName = names.mkString(";")
-          stacksJavaList.add(s"$stackName ${nanos / 1000}")
-      }
-      java.util.Collections.sort(stacksJavaList)
-      Files.write(outputPath, stacksJavaList, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
-    }
+    def foldMacroStacks(outputPaths: Seq[AbsolutePath]): Unit =
+      if (outputPaths.nonEmpty) {
+        // This part is memory intensive and hence the use of java collections
+        val stacksJavaList = new java.util.ArrayList[String]()
+        stackedNanos.foreach {
+          case (id, nanos) =>
+            val names =
+              stackedNames.getOrElse(id, sys.error(s"Stack name for macro id ${id} doesn't exist!"))
+            val stackName = names.mkString(";")
+            stacksJavaList.add(s"$stackName ${nanos / 1000}")
+        }
+        java.util.Collections.sort(stacksJavaList)
+
+        outputPaths.foreach(path =>
+          Files.write(
+            path.underlying,
+            stacksJavaList,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.CREATE
+          )
+        )
+      } else ()
 
     import scala.tools.nsc.Mode
     override def pluginsMacroExpand(t: Typer, expandee: Tree, md: Mode, pt: Type): Option[Tree] = {
@@ -647,7 +700,7 @@ final class ProfilingImpl[G <: Global](
           repeatedTrees.put(key, newValue)*/
           val macroInfo = macroInfos.getOrElse(callSitePos, MacroInfo.Empty)
           val expandedMacros = macroInfo.expandedMacros + 1
-          val treeSize = 0 //macroInfo.expandedNodes + guessTreeSize(expanded)
+          val treeSize = 0 // macroInfo.expandedNodes + guessTreeSize(expanded)
 
           // Use 0L for the timer because it will be filled in by the caller `apply`
           macroInfos.put(callSitePos, MacroInfo(expandedMacros, treeSize, 0L))

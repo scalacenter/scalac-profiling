@@ -1,7 +1,4 @@
-[submodule "vscode-scala"]
-	path = vscode-scala
-	url = git@github.com:scalacenter/vscode-scala-profiledb.git
-	branch = profiledb-integration
-[submodule "FlameGraph"]
-	path = FlameGraph
-	url = git@github.com:jvican/FlameGraph.git
+[submodule "external/FlameGraph"]
+	path = external/FlameGraph
+	url = https://github.com/scalacenter/FlameGraph
+	branch = scala-compilation

@@ -1,0 +1,68 @@
+const React = require("react");
+
+const siteConfig = require(process.cwd() + "/siteConfig.js");
+
+class Footer extends React.Component {
+  render() {
+    const currentYear = new Date().getFullYear();
+    const {
+      copyright,
+      colors: { secondaryColor }
+    } = this.props.config;
+    return (
+      <footer
+        className="nav-footer"
+        id="footer"
+        style={{ backgroundColor: secondaryColor }}
+      >
+        <section className="sitemap">
+          {this.props.config.footerIcon && (
+            <a href={this.props.config.baseUrl} className="nav-home">
+              <img
+                src={`${this.props.config.baseUrl}${
+                  this.props.config.footerIcon
+                }`}
+                alt={this.props.config.title}
+                width="52"
+                height="52"
+              />
+            </a>
+          )}
+          <div>
+            <h5>Docs</h5>
+            <a
+              href={`
+                ${this.props.config.baseUrl}docs/user-guide/installation.html`}
+            >
+              Installation
+            </a>
+            <a
+              href={`
+                ${this.props.config.baseUrl}docs/user-guide/usage.html`}
+            >
+              Usage
+            </a>
+          </div>
+          <div>
+            <h5>Community</h5>
+            <a href="https://discord.gg/udJgtkvd" target="_blank">
+              Chat on Discord
+            </a>
+            <a href="https://users.scala-lang.org/" target="_blank">
+              Discuss on Scala Users
+            </a>
+          </div>
+          <div>
+            <h5>More</h5>
+            <a href={siteConfig.repoUrl} target="_blank">
+              GitHub
+            </a>
+          </div>
+        </section>
+        <section className="copyright">{copyright}</section>
+      </footer>
+    );
+  }
+}
+
+module.exports = Footer;

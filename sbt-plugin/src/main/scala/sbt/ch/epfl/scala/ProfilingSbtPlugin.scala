@@ -63,13 +63,12 @@ object ProfilingPluginImplementation {
     import sbt.{Command, State}
     import sbt.complete.Parser
 
-    import sbt.ch.epfl.scala.Compat._
     val profilingWarmupCompiler: Def.Initialize[Task[Unit]] = Def.task {
       // Meh, we don't care about the resulting state, we'll throw it away.
-      def runCommandAndRemaining(command: ExecCommand): State => State = { st: State =>
+      def runCommandAndRemaining(command: sbt.Exec): State => State = { st: State =>
         @annotation.tailrec
-        def runCommand(command: ExecCommand, state: State): State = {
-          val nextState = Parser.parse(command, state.combinedParser) match {
+        def runCommand(command: sbt.Exec, state: State): State = {
+          val nextState = Parser.parse(command.commandLine, state.combinedParser) match {
             case Right(cmd) => cmd()
             case Left(msg) => sys.error(s"Invalid programmatic input:\n$msg")
           }
@@ -90,7 +89,7 @@ object ProfilingPluginImplementation {
 
       // This is ugly, but the Command sbt API is constrained in this regard.
       val commandName = profilingWarmupCommand.asInstanceOf[sbt.SimpleCommand].name
-      runCommandAndRemaining(commandName)(tweakedState)
+      runCommandAndRemaining(sbt.Exec(commandName, None, None))(tweakedState)
       ()
     }
 
@@ -104,19 +103,19 @@ object ProfilingPluginImplementation {
     import sbt.{Scope, IO, Path}
 
     /**
-      * This command defines the warming up behaviour.
-      *
-      * After incessant attempts to get it working within tasks by only limiting ourselves
-      * to the task API, this task has proven itself impossible because sbt does not allow
-      * recursiveness at the task level. Any tried workaround (using task proxies et al) has
-      * miserably failed.
-      *
-      * As a result, we have no other choice than delegating to the Command API and using
-      * the state directly, implementing a traditional while loop that takes care of warming
-      * the compiler up.
-      *
-      * This command is private and SHOULD NOT be invoked directly. Use `profilingWarmupCompiler`.
-      */
+     * This command defines the warming up behaviour.
+     *
+     * After incessant attempts to get it working within tasks by only limiting ourselves
+     * to the task API, this task has proven itself impossible because sbt does not allow
+     * recursiveness at the task level. Any tried workaround (using task proxies et al) has
+     * miserably failed.
+     *
+     * As a result, we have no other choice than delegating to the Command API and using
+     * the state directly, implementing a traditional while loop that takes care of warming
+     * the compiler up.
+     *
+     * This command is private and SHOULD NOT be invoked directly. Use `profilingWarmupCompiler`.
+     */
     val profilingWarmupCommand: Command = Command.command("warmupCompileFor") { (st0: State) =>
       def getStateAttribute[T](key: sbt.AttributeKey[T]): T =
         st0.get(key).getOrElse(sys.error(s"The caller did not pass the attribute ${key.label}"))

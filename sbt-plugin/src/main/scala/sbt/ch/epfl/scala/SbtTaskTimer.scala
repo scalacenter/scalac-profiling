@@ -66,9 +66,9 @@ class SbtTaskTimer(timers: ConcurrentHashMap[ScopedKey[_], BoxedLong], isDebugEn
   def allCompleted(state: Unit, results: sbt.RMap[Task, sbt.Result]): Unit = ()
   def completed[T](state: Unit, task: Task[T], result: sbt.Result[T]): Unit = ()
   def ready(state: Unit, task: Task[_]): Unit = ()
-  def afterAllCompleted(results: sbt.internal.util.RMap[sbt.Task,sbt.Result]): Unit = ()
+  def afterAllCompleted(results: sbt.internal.util.RMap[sbt.Task, sbt.Result]): Unit = ()
   def afterReady(task: sbt.Task[_]): Unit = ()
-  def afterWork[A](task: sbt.Task[A],result: Either[sbt.Task[A],sbt.Result[A]]): Unit = ()
+  def afterWork[A](task: sbt.Task[A], result: Either[sbt.Task[A], sbt.Result[A]]): Unit = ()
   def beforeWork(task: sbt.Task[_]): Unit = ()
   def stop(): Unit = ()
 }

@@ -1,0 +1,25 @@
+changelog:
+  categories:
+    - title: scalac-profiling
+      labels:
+        - scalac-profiling
+      exclude:
+        labels:
+          - behind-the-scenes
+    - title: sbt-scalac-profiling
+      labels:
+        - sbt-scalac-profiling
+      exclude:
+        labels:
+          - behind-the-scenes
+
+    - title: Documentation
+      labels:
+        - docs
+      exclude:
+        labels:
+          - behind-the-scenes
+
+    - title: Behind the scenes
+      labels:
+        - "*"

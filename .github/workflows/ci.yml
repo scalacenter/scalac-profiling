@@ -7,19 +7,40 @@ on:
     branches: ['**', '!update/**', '!pr/**']
 
 jobs:
-  test:
-    name: ${{ matrix.command }}
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        command:
-          - sbt "+plugin/test" "profilingSbtPlugin/scripted compiler-profiling/scripted"
-          - sbt "showScalaInstances" "integrations/testOnly integration better-files wartremover"
+  scalafmt:
+    name: Formatting
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: coursier/cache-action@v6
+      - name: Check formatting
+        run: sbt -v "scalafmtSbtCheck" "scalafmtCheckAll"
+  docs:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: coursier/cache-action@v6
+      - run: sbt docs/run
+  plugin-tests:
+    name: Compiler and SBT plugin tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: olafurpg/setup-scala@v13
-      - uses: coursier/cache-action@v5
-      - run: ${{ matrix.command }}
+      - uses: coursier/cache-action@v6
+      - name: Compiler plugin tests
+        run: sbt -v "+plugin/test"
+      - name: SBT plugin tests
+        run: sbt -v "profilingSbtPlugin/scripted"
+  intergration-tests:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: coursier/cache-action@v6
+      - name: Running tests
+        run: sbt -v "showScalaInstances" "integrations/testOnly integration better-files wartremover"
