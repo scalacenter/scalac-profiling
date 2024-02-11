@@ -152,24 +152,25 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
         logger.info("Implicit searches by position", implicitSearchesPosition)
 
         val sortedImplicitSearches =
-          implementation.implicitSearchesSourceFilesByType.toVector.flatMap {
-            case (tpe, sourceFiles) =>
-              val firings = implementation.implicitSearchesByType.getOrElse(tpe, 0)
-              val files = sourceFiles.toList.flatMap {
-                case f if f.length > 0 =>
-                  List(f.path)
-                case _ =>
-                  List.empty
-              }
+          implementation.implicitSearchesSourceFilesByType.toVector
+            .flatMap {
+              case (tpe, sourceFiles) =>
+                val firings = implementation.implicitSearchesByType.getOrElse(tpe, 0)
+                val files = sourceFiles.toList.flatMap {
+                  case f if f.length > 0 =>
+                    List(f.path)
+                  case _ =>
+                    List.empty
+                }
 
-              ImplicitSearchDebugInfo(firings, files).map(tpe -> _)
-          }
+                ImplicitSearchDebugInfo(firings, files).map(tpe -> _)
+            }
             .sortBy(_._2.firings)
         // Make sure to stringify types right after typer to avoid compiler crashes
         val stringifiedSortedImplicitSearches =
           global.exitingTyper(
             sortedImplicitSearches
-              .map(kv => kv._1.toString() -> kv._2.toString())
+              .map(kv => kv._1.toString() -> kv._2)
           )
         logger.info("Implicit searches by type", toLinkedHashMap(stringifiedSortedImplicitSearches))
       }
