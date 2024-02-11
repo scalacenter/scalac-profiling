@@ -102,7 +102,7 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
 
     // This is just for displaying purposes
     import scala.collection.mutable.LinkedHashMap
-    private def toLinkedHashMap[K, V](xs: List[(K, V)]): LinkedHashMap[K, V] = {
+    private def toLinkedHashMap[K, V](xs: Seq[(K, V)]): LinkedHashMap[K, V] = {
       val builder = LinkedHashMap.newBuilder[K, V]
       builder.++=(xs)
       builder.result()
@@ -146,15 +146,33 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
         val macrosTypeLines = global.exitingTyper(macrosType.map(kv => kv._1.toString -> kv._2))
         logger.info("Macro expansions by type", toLinkedHashMap(macrosTypeLines))
 
-        import implementation.{implicitSearchesByPos, implicitSearchesByType}
-        val implicitSearchesPosition = toLinkedHashMap(implicitSearchesByPos.toList.sortBy(_._2))
+        val implicitSearchesPosition = toLinkedHashMap(
+          implementation.implicitSearchesByPos.toList.sortBy(_._2)
+        )
         logger.info("Implicit searches by position", implicitSearchesPosition)
-        val sortedImplicitSearches = implicitSearchesByType.toList.sortBy(_._2)
+
+        val sortedImplicitSearches =
+          implementation.implicitSearchesSourceFilesByType.toVector
+            .flatMap {
+              case (tpe, sourceFiles) =>
+                val firings = implementation.implicitSearchesByType.getOrElse(tpe, 0)
+                val files = sourceFiles.toList.flatMap {
+                  case f if f.length > 0 =>
+                    List(f.path)
+                  case _ =>
+                    List.empty
+                }
+
+                ImplicitSearchDebugInfo(firings, files).map(tpe -> _)
+            }
+            .sortBy(_._2.firings)
         // Make sure to stringify types right after typer to avoid compiler crashes
-        val stringifiedSearchCounter =
-          global.exitingTyper(sortedImplicitSearches.map(kv => kv._1.toString -> kv._2))
-        logger.info("Implicit searches by type", toLinkedHashMap(stringifiedSearchCounter))
-        ()
+        val stringifiedSortedImplicitSearches =
+          global.exitingTyper(
+            sortedImplicitSearches
+              .map(kv => kv._1.toString() -> kv._2)
+          )
+        logger.info("Implicit searches by type", toLinkedHashMap(stringifiedSortedImplicitSearches))
       }
     }
 
