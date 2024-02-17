@@ -9,14 +9,14 @@
 
 package ch.epfl.scala.profilers
 
-import java.nio.file.{Files, Path, StandardOpenOption}
-
 import ch.epfl.scala.PluginConfig
 import ch.epfl.scala.profiledb.utils.AbsolutePath
 import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker, SettingsOps}
 
 import scala.tools.nsc.Global
 import scala.reflect.internal.util.SourceFile
+
+import java.nio.file.{Files, Path, StandardOpenOption}
 
 final class ProfilingImpl[G <: Global](
     override val global: G,
@@ -608,7 +608,25 @@ final class ProfilingImpl[G <: Global](
 
                 statistics.stopTimer(macroTimer, head.start)
                 val previousNanos = stackedNanos.getOrElse(macroId, 0L)
-                stackedNanos.+=((macroId, macroTimer.nanos + previousNanos))
+                val nanos = macroTimer.nanos + previousNanos
+
+                stackedNanos.+=((macroId, nanos))
+
+                val callSitePos = desugared.pos
+                // Those that are not present failed to expand
+                macroInfos.get(callSitePos) match {
+                  case Some(found) =>
+                    macroInfos.update(
+                      callSitePos,
+                      found.copy(expansionNanos = nanos)
+                    )
+                  case None =>
+                    macroInfos.update(
+                      callSitePos,
+                      MacroInfo.Empty.copy(expansionNanos = nanos)
+                    )
+                }
+
                 prevData match {
                   case Some((prevTimer, prev)) =>
                     // Let's restart the timer of the previous macro expansion
@@ -703,7 +721,7 @@ final class ProfilingImpl[G <: Global](
           val treeSize = 0 // macroInfo.expandedNodes + guessTreeSize(expanded)
 
           // Use 0L for the timer because it will be filled in by the caller `apply`
-          macroInfos.put(callSitePos, MacroInfo(expandedMacros, treeSize, 0L))
+          macroInfos.put(callSitePos, MacroInfo(expandedMacros, treeSize, macroInfo.expansionNanos))
           expanded
         }
       }
