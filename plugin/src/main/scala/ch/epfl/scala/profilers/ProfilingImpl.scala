@@ -95,7 +95,12 @@ final class ProfilingImpl[G <: Global](
       .map(v => v.original -> v.count)
       .toMap*/
 
-    MacroProfiler(perCallSite, perFile, inTotal, Map.empty)
+    val callSiteMicros = perCallSite.map {
+      case (k, v) =>
+        k -> v.copy(expansionTime = FiniteDuration(v.expansionTime.toMicros, TimeUnit.MICROSECONDS))
+    }
+
+    MacroProfiler(callSiteMicros, perFile, inTotal, Map.empty)
   }
 
   case class ImplicitInfo(count: Int) {
