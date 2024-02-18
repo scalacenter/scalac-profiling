@@ -563,7 +563,7 @@ final class ProfilingImpl[G <: Global](
 
           val entry = MacroEntry(macroId, pt, start, None)
 
-          if (config.generateMacroFlamegraph) {
+          if (config.generateMacroFlamegraph || config.showProfiles) {
             // We add ourselves to the child list of our parent macro
             prevData.foreach {
               case (_, entry) =>
@@ -577,7 +577,7 @@ final class ProfilingImpl[G <: Global](
           try super.apply(desugared)
           finally {
             val children = macroChildren.getOrElse(macroId, Nil)
-            if (config.generateMacroFlamegraph) {
+            if (config.generateMacroFlamegraph || config.showProfiles) {
               // Complete stack names of triggered implicit searches
               prevData.foreach {
                 case (_, p) =>
@@ -619,15 +619,22 @@ final class ProfilingImpl[G <: Global](
                 // Those that are not present failed to expand
                 macroInfos.get(callSitePos) match {
                   case Some(found) =>
+                    val expandedNodes = macroChildren.getOrElse(macroId, Nil).length
                     macroInfos.update(
                       callSitePos,
-                      found.copy(expansionTime = FiniteDuration(nanos, TimeUnit.NANOSECONDS))
+                      found.copy(
+                        expandedNodes = expandedNodes,
+                        expansionTime = FiniteDuration(nanos, TimeUnit.NANOSECONDS)
+                      )
                     )
                   case None =>
+                    val expandedNodes = macroChildren.getOrElse(macroId, Nil).length
                     macroInfos.update(
                       callSitePos,
-                      MacroInfo.Empty.copy(expansionTime =
-                        FiniteDuration(nanos, TimeUnit.NANOSECONDS)
+                      MacroInfo(
+                        expandedMacros = 0,
+                        expandedNodes = expandedNodes,
+                        expansionTime = FiniteDuration(nanos, TimeUnit.NANOSECONDS)
                       )
                     )
                 }
