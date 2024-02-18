@@ -67,9 +67,6 @@ final class ProfilingImpl[G <: Global](
       repeatedExpansions: Map[Tree, Int]
   )
 
-  def toMillis(nanos: Long): Long =
-    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(nanos)
-
   def groupPerFile[V](
       kvs: Map[Position, V]
   )(empty: V, aggregate: (V, V) => V): Map[SourceFile, V] = {
