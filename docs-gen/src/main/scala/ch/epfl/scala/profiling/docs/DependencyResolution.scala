@@ -47,10 +47,10 @@ object DependencyResolution {
    * @return Either a coursier error or all the resolved files.
    */
   def resolveWithErrors(
-     artifacts: List[Artifact],
-     resolveSources: Boolean = false,
-     additionalRepositories: Seq[Repository] = Nil
-   ): Either[CoursierError, Array[AbsolutePath]] = {
+      artifacts: List[Artifact],
+      resolveSources: Boolean = false,
+      additionalRepositories: Seq[Repository] = Nil
+  ): Either[CoursierError, Array[AbsolutePath]] = {
     val dependencies = artifacts.map { artifact =>
       import artifact._
       val baseDep = coursierapi.Dependency.of(organization, module, version)
@@ -70,10 +70,10 @@ object DependencyResolution {
    * @return Either a coursier error or all the resolved files.
    */
   def resolveDependenciesWithErrors(
-     dependencies: Seq[coursierapi.Dependency],
-     resolveSources: Boolean = false,
-     additionalRepositories: Seq[Repository] = Nil
-   ): Either[CoursierError, Array[AbsolutePath]] = {
+      dependencies: Seq[coursierapi.Dependency],
+      resolveSources: Boolean = false,
+      additionalRepositories: Seq[Repository] = Nil
+  ): Either[CoursierError, Array[AbsolutePath]] = {
     val fetch = coursierapi.Fetch
       .create()
       .withDependencies(dependencies: _*)
