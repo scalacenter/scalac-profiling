@@ -12,7 +12,7 @@ import scala.jdk.CollectionConverters._
 final case class Release(version: String, lastModified: Date)
 
 object Sonatype {
-  lazy val releaseScalacProfiling = fetchLatest("scalac-profiling_2.12.18")
+  lazy val releaseScalacProfiling = fetchLatest("scalac-profiling_2.12.19")
   lazy val releaseSbtPlugin = fetchLatest("sbt-scalac-profiling_2.12_1.0")
 
   /** Returns the latest published snapshot release, or the current release if. */
