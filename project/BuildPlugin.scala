@@ -258,7 +258,7 @@ object BuildImplementation {
     Keys.organization := "ch.epfl.scala",
     Keys.resolvers += Resolver.jcenterRepo,
     Keys.updateOptions := Keys.updateOptions.value.withCachedResolution(true),
-    Keys.scalaVersion := "2.12.18",
+    Keys.scalaVersion := "2.12.19",
     sbt.nio.Keys.watchTriggeredMessage := Watch.clearScreenOnTrigger,
     BuildKeys.enableStatistics := true,
     BuildKeys.showScalaInstances := BuildDefaults.showScalaInstances.value
