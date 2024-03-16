@@ -22,12 +22,14 @@ trait CachedImplicits {
   implicit val pathParser: ArgParser[Path] = SimpleArgParser.from("A filepath parser") {
     case supposedPath: String =>
       val toPath = Try(Paths.get(supposedPath)).toEither
-      toPath.left.map(t => Other(s"The provided path ${supposedPath} is not valid: '${t.getMessage()}'."))
+      toPath.left.map(t =>
+        Other(s"The provided path ${supposedPath} is not valid: '${t.getMessage()}'.")
+      )
   }
 
   implicit val propertiesParser: ArgParser[PrettyProperties] = {
-    SimpleArgParser.from("A properties parser") {
-      _ => Left(Other("You cannot pass in properties through the command line."))
+    SimpleArgParser.from("A properties parser") { _ =>
+      Left(Other("You cannot pass in properties through the command line."))
     }
   }
 
@@ -57,9 +59,11 @@ trait CachedImplicits {
 
 object Parsers extends CachedImplicits {
 
-  implicit val labelledGenericCommonOptions: LabelledGeneric.Aux[CommonOptions, _] = LabelledGeneric.materializeProduct
+  implicit val labelledGenericCommonOptions: LabelledGeneric.Aux[CommonOptions, _] =
+    LabelledGeneric.materializeProduct
   implicit val commonOptionsParser: Parser.Aux[CommonOptions, _] = Parser.derive
-  implicit val labelledGenericCliOptions: LabelledGeneric.Aux[CliOptions, _] = LabelledGeneric.materializeProduct
+  implicit val labelledGenericCliOptions: LabelledGeneric.Aux[CliOptions, _] =
+    LabelledGeneric.materializeProduct
   implicit val cliOptionsParser: Parser.Aux[CliOptions, _] = Parser.derive
 
   implicit val strictAutocompleteParser: Parser.Aux[Commands.Autocomplete, _] = Parser.derive

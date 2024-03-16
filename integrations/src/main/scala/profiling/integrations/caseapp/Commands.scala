@@ -41,11 +41,11 @@ object Commands {
   }
 
   sealed trait CompilingCommand extends RawCommand {
-    //def project: String
-    //def reporter: ReporterKind
+    // def project: String
+    // def reporter: ReporterKind
   }
 
-/*  sealed trait Tree[A]
+  /*  sealed trait Tree[A]
   case class Leaf[A](value: A) extends Tree[A]
   case class Branch[A](
       left: Tree[A],
@@ -58,8 +58,8 @@ object Commands {
 
   case class Autocomplete(
       @Recurse cliOptions: CliOptions = CliOptions.default,
-      //mode: Mode,
-      //format: Format,
+      // mode: Mode,
+      // format: Format,
       /*      command: Option[String],
       project: Option[String]*/
   ) extends RawCommand
