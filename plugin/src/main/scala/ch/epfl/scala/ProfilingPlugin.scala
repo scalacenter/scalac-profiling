@@ -265,7 +265,7 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
         val currentPos = Some(toPos(pos))
         val expandedMacros = info.expandedMacros.toLong
         val approximateSize = info.expandedNodes.toLong
-        val duration = Some(toDuration(info.expansionNanos))
+        val duration = Some(toDuration(info.expansionTime.toNanos))
         schema.MacroProfile(
           position = currentPos,
           expandedMacros = expandedMacros,

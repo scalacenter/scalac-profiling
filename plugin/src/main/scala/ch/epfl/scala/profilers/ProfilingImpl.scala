@@ -9,14 +9,16 @@
 
 package ch.epfl.scala.profilers
 
-import java.nio.file.{Files, Path, StandardOpenOption}
-
 import ch.epfl.scala.PluginConfig
 import ch.epfl.scala.profiledb.utils.AbsolutePath
 import ch.epfl.scala.profilers.tools.{Logger, QuantitiesHijacker, SettingsOps}
 
+import scala.concurrent.duration._
 import scala.tools.nsc.Global
 import scala.reflect.internal.util.SourceFile
+
+import java.nio.file.{Files, Path, StandardOpenOption}
+import java.util.concurrent.TimeUnit
 
 final class ProfilingImpl[G <: Global](
     override val global: G,
@@ -40,18 +42,18 @@ final class ProfilingImpl[G <: Global](
    * want to be able to report/analyse such cases on their own, so
    * we keep it as a paramater of this entity.
    */
-  case class MacroInfo(expandedMacros: Int, expandedNodes: Int, expansionNanos: Long) {
+  case class MacroInfo(expandedMacros: Int, expandedNodes: Int, expansionTime: FiniteDuration) {
     def +(other: MacroInfo): MacroInfo = {
       val totalExpanded = expandedMacros + other.expandedMacros
       val totalNodes = expandedNodes + other.expandedNodes
-      val totalTime = expansionNanos + other.expansionNanos
+      val totalTime = expansionTime + other.expansionTime
       MacroInfo(totalExpanded, totalNodes, totalTime)
     }
   }
 
   object MacroInfo {
-    final val Empty = MacroInfo(0, 0, 0L)
-    implicit val macroInfoOrdering: Ordering[MacroInfo] = Ordering.by(_.expansionNanos)
+    final val Empty = MacroInfo(0, 0, 0.millis)
+    implicit val macroInfoOrdering: Ordering[MacroInfo] = Ordering.by(_.expansionTime)
     def aggregate(infos: Iterator[MacroInfo]): MacroInfo = {
       infos.foldLeft(MacroInfo.Empty)(_ + _)
     }
@@ -64,9 +66,6 @@ final class ProfilingImpl[G <: Global](
       inTotal: MacroInfo,
       repeatedExpansions: Map[Tree, Int]
   )
-
-  def toMillis(nanos: Long): Long =
-    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(nanos)
 
   def groupPerFile[V](
       kvs: Map[Position, V]
@@ -81,7 +80,10 @@ final class ProfilingImpl[G <: Global](
     val perCallSite = macroInfos.toMap
     val perFile = groupPerFile(perCallSite)(MacroInfo.Empty, _ + _)
       .map {
-        case (sf, mi) => sf -> mi.copy(expansionNanos = toMillis(mi.expansionNanos))
+        case (sf, mi) =>
+          sf -> mi.copy(expansionTime =
+            FiniteDuration(mi.expansionTime.toMillis, TimeUnit.MILLISECONDS)
+          )
       }
     val inTotal = MacroInfo.aggregate(perFile.valuesIterator)
 
@@ -90,11 +92,12 @@ final class ProfilingImpl[G <: Global](
       .map(v => v.original -> v.count)
       .toMap*/
 
-    // perFile and inTotal are already converted to millis
-    val callSiteNanos = perCallSite.map {
-      case (pos, mi) => pos -> mi.copy(expansionNanos = toMillis(mi.expansionNanos))
+    val callSiteMicros = perCallSite.map {
+      case (k, v) =>
+        k -> v.copy(expansionTime = FiniteDuration(v.expansionTime.toMicros, TimeUnit.MICROSECONDS))
     }
-    MacroProfiler(callSiteNanos, perFile, inTotal, Map.empty) // repeated)
+
+    MacroProfiler(callSiteMicros, perFile, inTotal, Map.empty)
   }
 
   case class ImplicitInfo(count: Int) {
@@ -560,7 +563,7 @@ final class ProfilingImpl[G <: Global](
 
           val entry = MacroEntry(macroId, pt, start, None)
 
-          if (config.generateMacroFlamegraph) {
+          if (config.generateMacroFlamegraph || config.showProfiles) {
             // We add ourselves to the child list of our parent macro
             prevData.foreach {
               case (_, entry) =>
@@ -574,7 +577,7 @@ final class ProfilingImpl[G <: Global](
           try super.apply(desugared)
           finally {
             val children = macroChildren.getOrElse(macroId, Nil)
-            if (config.generateMacroFlamegraph) {
+            if (config.generateMacroFlamegraph || config.showProfiles) {
               // Complete stack names of triggered implicit searches
               prevData.foreach {
                 case (_, p) =>
@@ -608,7 +611,34 @@ final class ProfilingImpl[G <: Global](
 
                 statistics.stopTimer(macroTimer, head.start)
                 val previousNanos = stackedNanos.getOrElse(macroId, 0L)
-                stackedNanos.+=((macroId, macroTimer.nanos + previousNanos))
+                val nanos = macroTimer.nanos + previousNanos
+
+                stackedNanos.+=((macroId, nanos))
+
+                val callSitePos = desugared.pos
+                // Those that are not present failed to expand
+                macroInfos.get(callSitePos) match {
+                  case Some(found) =>
+                    val expandedNodes = macroChildren.getOrElse(macroId, Nil).length
+                    macroInfos.update(
+                      callSitePos,
+                      found.copy(
+                        expandedNodes = expandedNodes,
+                        expansionTime = FiniteDuration(nanos, TimeUnit.NANOSECONDS)
+                      )
+                    )
+                  case None =>
+                    val expandedNodes = macroChildren.getOrElse(macroId, Nil).length
+                    macroInfos.update(
+                      callSitePos,
+                      MacroInfo(
+                        expandedMacros = 0,
+                        expandedNodes = expandedNodes,
+                        expansionTime = FiniteDuration(nanos, TimeUnit.NANOSECONDS)
+                      )
+                    )
+                }
+
                 prevData match {
                   case Some((prevTimer, prev)) =>
                     // Let's restart the timer of the previous macro expansion
@@ -703,7 +733,7 @@ final class ProfilingImpl[G <: Global](
           val treeSize = 0 // macroInfo.expandedNodes + guessTreeSize(expanded)
 
           // Use 0L for the timer because it will be filled in by the caller `apply`
-          macroInfos.put(callSitePos, MacroInfo(expandedMacros, treeSize, 0L))
+          macroInfos.put(callSitePos, MacroInfo(expandedMacros, treeSize, macroInfo.expansionTime))
           expanded
         }
       }
