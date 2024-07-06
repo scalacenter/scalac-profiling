@@ -52,7 +52,7 @@ final class ProfilingImpl[G <: Global](
   }
 
   object MacroInfo {
-    final val Empty = MacroInfo(0, 0, 0.millis)
+    final val Empty = MacroInfo(0, 0, 0.nanos)
     implicit val macroInfoOrdering: Ordering[MacroInfo] = Ordering.by(_.expansionTime)
     def aggregate(infos: Iterator[MacroInfo]): MacroInfo = {
       infos.foldLeft(MacroInfo.Empty)(_ + _)
@@ -79,12 +79,6 @@ final class ProfilingImpl[G <: Global](
     import ProfilingMacroPlugin.macroInfos // , repeatedTrees}
     val perCallSite = macroInfos.toMap
     val perFile = groupPerFile(perCallSite)(MacroInfo.Empty, _ + _)
-      .map {
-        case (sf, mi) =>
-          sf -> mi.copy(expansionTime =
-            FiniteDuration(mi.expansionTime.toMillis, TimeUnit.MILLISECONDS)
-          )
-      }
     val inTotal = MacroInfo.aggregate(perFile.valuesIterator)
 
     /*    val repeated = repeatedTrees.toMap.valuesIterator
@@ -92,12 +86,7 @@ final class ProfilingImpl[G <: Global](
       .map(v => v.original -> v.count)
       .toMap*/
 
-    val callSiteMicros = perCallSite.map {
-      case (k, v) =>
-        k -> v.copy(expansionTime = FiniteDuration(v.expansionTime.toMicros, TimeUnit.MICROSECONDS))
-    }
-
-    MacroProfiler(callSiteMicros, perFile, inTotal, Map.empty)
+    MacroProfiler(perCallSite, perFile, inTotal, Map.empty)
   }
 
   case class ImplicitInfo(count: Int) {
