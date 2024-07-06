@@ -32,6 +32,7 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
 
   private final lazy val ShowProfiles = "show-profiles"
   private final lazy val SourceRoot = "sourceroot"
+  private final lazy val CrossTarget = "cross-target"
   private final lazy val PrintSearchResult = "print-search-result"
   private final lazy val GenerateMacroFlamegraph = "generate-macro-flamegraph"
   private final lazy val GenerateGlobalFlamegraph = "generate-global-flamegraph"
@@ -40,6 +41,7 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
   private final lazy val ShowConcreteImplicitTparams = "show-concrete-implicit-tparams"
   private final lazy val PrintSearchRegex = s"$PrintSearchResult:(.*)".r
   private final lazy val SourceRootRegex = s"$SourceRoot:(.*)".r
+  private final lazy val CrossTargetRegex = s"$CrossTarget:(.*)".r
 
   def findOption(name: String, pattern: Regex): Option[String] = {
     super.options.find(_.startsWith(name)).flatMap {
@@ -55,18 +57,39 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
     }
   }
 
-  private final lazy val config = PluginConfig(
-    showProfiles = super.options.contains(ShowProfiles),
-    generateDb = super.options.contains(GenerateProfileDb),
-    sourceRoot = findOption(SourceRoot, SourceRootRegex)
+  private final lazy val config = {
+    val sourceRoot = findOption(SourceRoot, SourceRootRegex)
       .map(AbsolutePath.apply)
-      .getOrElse(AbsolutePath.workingDirectory),
-    printSearchIds = findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
-    generateMacroFlamegraph = super.options.contains(GenerateMacroFlamegraph),
-    generateGlobalFlamegraph = super.options.contains(GenerateGlobalFlamegraph),
-    printFailedMacroImplicits = super.options.contains(PrintFailedMacroImplicits),
-    concreteTypeParamsInImplicits = super.options.contains(ShowConcreteImplicitTparams)
-  )
+      .getOrElse(AbsolutePath.workingDirectory)
+    val crossTarget = findOption(CrossTarget, CrossTargetRegex)
+      .map(AbsolutePath.apply)
+      .getOrElse {
+        val scalaDir =
+          if (ScalaSettingsOps.isScala212)
+            "scala-2.12"
+          else if (ScalaSettingsOps.isScala213)
+            "scala-2.13"
+          else
+            sys.error(
+              s"Currently, only Scala 2.12 and 2.13 are supported, " +
+                s"but [${global.settings.source.value}] has been spotted"
+            )
+
+        sourceRoot.resolve(RelativePath(s"target/$scalaDir"))
+      }
+
+    PluginConfig(
+      showProfiles = super.options.contains(ShowProfiles),
+      generateDb = super.options.contains(GenerateProfileDb),
+      sourceRoot = sourceRoot,
+      crossTarget = crossTarget,
+      printSearchIds = findSearchIds(findOption(PrintSearchResult, PrintSearchRegex)),
+      generateMacroFlamegraph = super.options.contains(GenerateMacroFlamegraph),
+      generateGlobalFlamegraph = super.options.contains(GenerateGlobalFlamegraph),
+      printFailedMacroImplicits = super.options.contains(PrintFailedMacroImplicits),
+      concreteTypeParamsInImplicits = super.options.contains(ShowConcreteImplicitTparams)
+    )
+  }
 
   private lazy val logger = new Logger(global)
 
@@ -111,20 +134,9 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
     private def reportStatistics(graphsPath: AbsolutePath): Unit = {
       val globalDir =
         if (config.generateGlobalFlamegraph) {
-          val scalaDir =
-            if (ScalaSettingsOps.isScala212)
-              "scala-2.12"
-            else if (ScalaSettingsOps.isScala213)
-              "scala-2.13"
-            else
-              sys.error(
-                s"Currently, only Scala 2.12 and 2.13 are supported, " +
-                  s"but [${global.settings.source.value}] has been spotted"
-              )
-
           val globalDir =
             ProfileDbPath.toGraphsProfilePath(
-              config.sourceRoot.resolve(RelativePath(s"target/$scalaDir/classes"))
+              config.crossTarget.resolve(RelativePath("classes"))
             )
 
           Some(globalDir)

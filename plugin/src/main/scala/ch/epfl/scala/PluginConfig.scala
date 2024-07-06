@@ -6,6 +6,7 @@ final case class PluginConfig(
     showProfiles: Boolean,
     generateDb: Boolean,
     sourceRoot: AbsolutePath,
+    crossTarget: AbsolutePath,
     printSearchIds: Set[Int],
     generateMacroFlamegraph: Boolean,
     generateGlobalFlamegraph: Boolean,
