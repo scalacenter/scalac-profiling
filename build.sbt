@@ -69,7 +69,7 @@ lazy val profiledb = project
     libraryDependencies +=
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
     Compile / managedSourceDirectories += target.value / "protobuf-generated",
-    Compile / PB.targets in Compile := Seq(
+    Compile / PB.targets := Seq(
       scalapb.gen() -> (target.value / "protobuf-generated")
     ),
     buildInfoPackage := "scalac.profiling.internal.build",
