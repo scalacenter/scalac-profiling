@@ -100,7 +100,7 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
   // format: off
   override val optionsHelp: Option[String] = Some(
     s"""
-       |-P:$name:${pad20(GenerateGlobalFlamegraph)} Creates a global flamegraph of implicit searches for all compilation units. Use the `-P:$name:$SourceRoot` option to manage the root directory, otherwise, a working directory (defined by the `user.dir` property) will be picked.
+       |-P:$name:${pad20(GenerateGlobalFlamegraph)} Creates a global flamegraph of implicit searches for all compilation units. Use the `-P:$name:$CrossTarget` option to manage the target directory for the resulting flamegraph file, otherwise, the SBT target directory will be picked.
        |-P:$name:${pad20(GenerateMacroFlamegraph)} Generates a flamegraph for macro expansions. The flamegraph for implicit searches is enabled by default.
        |-P:$name:${pad20(GenerateProfileDb)} Generates profiledb (will be removed later).
        |-P:$name:${pad20(PrintFailedMacroImplicits)} Prints trees of all failed implicit searches that triggered a macro expansion.
@@ -108,7 +108,8 @@ class ProfilingPlugin(val global: Global) extends Plugin { self =>
        |-P:$name:${pad20(ShowConcreteImplicitTparams)} Shows types in flamegraphs of implicits with concrete type params.
        |-P:$name:${pad20(ShowProfiles)} Logs profile information for every call-site.
        |-P:$name:${pad20(SourceRoot)}:_ Sets the source root for this project.
-    """.stripMargin
+       |-P:$name:${pad20(CrossTarget)}:_ Sets the cross target for this project.
+  """.stripMargin
   ) // format: on
 
   lazy val implementation = new ProfilingImpl(ProfilingPlugin.this.global, config, logger)
