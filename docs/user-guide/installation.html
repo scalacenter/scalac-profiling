@@ -93,7 +93,7 @@ All the following options are prepended by the <code>-P:scalac-profiling:</code>
 <tr><th style="text-align:left">Name</th><th style="text-align:left">Description</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>generate-global-flamegraph</code></td><td style="text-align:left">Creates a global flamegraph of implicit searches for all compilation units. Use the <code>-P:scalac-profiling:sourceroot</code> option to manage the root directory, otherwise, a working directory (defined by the <code>user.dir</code> property) will be picked.</td></tr>
+<tr><td style="text-align:left"><code>generate-global-flamegraph</code></td><td style="text-align:left">Creates a global flamegraph of implicit searches for all compilation units. Use the <code>-P:scalac-profiling:cross-target</code> option to manage the target directory for the resulting flamegraph file, otherwise, the SBT target directory will be picked.</td></tr>
 <tr><td style="text-align:left"><code>generate-macro-flamegraph</code></td><td style="text-align:left">Generate a flamegraph for macro expansions. The flamegraph for implicit searches is enabled by default.</td></tr>
 <tr><td style="text-align:left"><code>generate-profiledb</code></td><td style="text-align:left">Generate profiledb.</td></tr>
 <tr><td style="text-align:left"><code>print-failed-implicit-macro-candidates</code></td><td style="text-align:left">Print trees of all failed implicit searches that triggered a macro expansion.</td></tr>
@@ -101,6 +101,7 @@ All the following options are prepended by the <code>-P:scalac-profiling:</code>
 <tr><td style="text-align:left"><code>show-concrete-implicit-tparams</code></td><td style="text-align:left">Use more concrete type parameters in the implicit search flamegraph. Note that it may change the shape of the flamegraph.</td></tr>
 <tr><td style="text-align:left"><code>show-profiles</code></td><td style="text-align:left">Show implicit searches and macro expansions by type and call-site.</td></tr>
 <tr><td style="text-align:left"><code>sourceroot</code></td><td style="text-align:left">Tell the plugin what is the source directory of the project. Example: <code>-P:scalac-profiling:sourceroot:$PROJECT_BASE_DIR</code>.</td></tr>
+<tr><td style="text-align:left"><code>cross-target</code></td><td style="text-align:left">Tell the plugin what is the cross target directory of the project. Example: <code>-P:scalac-profiling:cross-target:$PROJECT_TARGET</code>.</td></tr>
 </tbody>
 </table>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/scalac-profiling/docs/user-guide/motivation.html"><span class="arrow-prev">← </span><span>What is scalac-profiling?</span></a><a class="docs-next button" href="/scalac-profiling/docs/user-guide/usage.html"><span>Usage</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer" style="background-color:#005028"><section class="sitemap"><a href="/scalac-profiling/" class="nav-home"><img src="/scalac-profiling/img/scalac-profiling-logo.png" alt="scalac-profiling" width="52" height="52"/></a><div><h5>Docs</h5><a href="
