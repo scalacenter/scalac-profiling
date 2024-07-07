@@ -75,7 +75,7 @@ object BuildKeys {
     val targetDir = (Compile / Keys.target).value
     val compiledClassesDir = targetDir / s"scala-$scalaBinVersion/classes"
     val testClassesDir = targetDir / s"scala-$scalaBinVersion/test-classes"
-    val libraryJar = Keys.scalaInstance.value.libraryJar.getAbsolutePath
+    val libraryJar = Keys.scalaInstance.value.libraryJars.head.getAbsolutePath
     val deps = (Compile / Keys.libraryDependencies).value.mkString(":")
     val classpath = s"$compiledClassesDir:$testClassesDir:$libraryJar:$deps"
     val resourceDir = (Compile / Keys.resourceManaged).value
@@ -109,7 +109,7 @@ object BuildKeys {
   ////////////////////////////////////////////////////////////////////////////////
 
   def inProject(ref: Reference)(ss: Seq[Setting[_]]): Seq[Setting[_]] =
-    sbt.inScope(sbt.ThisScope.in(project = ref))(ss)
+    sbt.inScope(sbt.ThisScope.copy(project = Select(ref)))(ss)
 
   def inProjectRefs(refs: Seq[Reference])(ss: Setting[_]*): Seq[Setting[_]] =
     refs.flatMap(inProject(_)(ss))
