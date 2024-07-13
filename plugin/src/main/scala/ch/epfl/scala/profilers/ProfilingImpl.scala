@@ -535,18 +535,18 @@ final class ProfilingImpl[G <: Global](
         private var alreadyTracking: Boolean = false
 
         /** The default method that expands all macros. */
-        override def apply(desugared: Tree): Tree = {   
-        def updateExpansionTime(desugared: Tree, start: statistics.TimerSnapshot): Unit = {
-          statistics.stopTimer(preciseMacroTimer, start)
-          val (nanos0, _) = start
-          val timeNanos = (preciseMacroTimer.nanos - nanos0)
-          val callSitePos = desugared.pos
-          // Those that are not present failed to expand
-          macroInfos.get(callSitePos).foreach { found =>
-            val updatedInfo = found.copy(expansionNanos = timeNanos)
-            macroInfos(callSitePos) = updatedInfo
+        override def apply(desugared: Tree): Tree = {
+          def updateExpansionTime(desugared: Tree, start: statistics.TimerSnapshot): Unit = {
+            statistics.stopTimer(preciseMacroTimer, start)
+            val (nanos0, _) = start
+            val timeNanos = (preciseMacroTimer.nanos - nanos0)
+            val callSitePos = desugared.pos
+            // Those that are not present failed to expand
+            macroInfos.get(callSitePos).foreach { found =>
+              val updatedInfo = found.copy(expansionNanos = timeNanos)
+              macroInfos(callSitePos) = updatedInfo
+            }
           }
-        }
           val shouldTrack = statistics.enabled && !alreadyTracking
 
           val prevData = macrosStack.headOption.map { prev =>
