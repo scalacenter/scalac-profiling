@@ -24,8 +24,20 @@ lazy val root = project
         (integrations / watchSources).value
   )
 
-val bin212 = Seq("2.12.18", "2.12.17", "2.12.16", "2.12.15", "2.12.14", "2.12.13")
-val bin213 = Seq("2.13.12", "2.13.11", "2.13.10", "2.13.9", "2.13.8", "2.13.7", "2.13.6", "2.13.5")
+val bin212 = Seq("2.12.19", "2.12.18", "2.12.17", "2.12.16", "2.12.15", "2.12.14", "2.12.13")
+val bin213 =
+  Seq(
+    "2.13.14",
+    "2.13.13",
+    "2.13.12",
+    "2.13.11",
+    "2.13.10",
+    "2.13.9",
+    "2.13.8",
+    "2.13.7",
+    "2.13.6",
+    "2.13.5"
+  )
 
 // Copied from
 // https://github.com/scalameta/scalameta/blob/370e304b0d10db1dd65fc79a5abc1f39004aeffd/build.sbt#L724-L737
@@ -36,7 +48,7 @@ lazy val fullCrossVersionSettings = Seq(
     // NOTE: SBT 1.x provides cross-version support for Scala sources
     // (https://www.scala-sbt.org/1.x/docs/Cross-Build.html#Scala-version+specific+source+directory).
     // Unfortunately, it only includes directories like "scala_2.12" or "scala_2.13",
-    // not "scala_2.12.18" or "scala_2.13.12" that we need.
+    // not "scala_2.12.19" or "scala_2.13.14" that we need.
     // That's why we have to work around here.
     val base = (Compile / sourceDirectory).value
     val versionDir = scalaVersion.value.replaceAll("-.*", "")
@@ -57,7 +69,7 @@ lazy val profiledb = project
     libraryDependencies +=
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf",
     Compile / managedSourceDirectories += target.value / "protobuf-generated",
-    Compile / PB.targets in Compile := Seq(
+    Compile / PB.targets := Seq(
       scalapb.gen() -> (target.value / "protobuf-generated")
     ),
     buildInfoPackage := "scalac.profiling.internal.build",
@@ -77,7 +89,7 @@ lazy val plugin = project
     fullCrossVersionSettings,
     name := "scalac-profiling",
     libraryDependencies ++= List(
-      "com.lihaoyi" %% "pprint" % "0.8.1",
+      "com.lihaoyi" %% "pprint" % "0.9.0",
       scalaOrganization.value % "scala-compiler" % scalaVersion.value
     ),
     libraryDependencies ++= List(
