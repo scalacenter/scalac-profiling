@@ -80,9 +80,6 @@ final class ProfilingImpl[G <: Global](
     import ProfilingMacroPlugin.macroInfos // , repeatedTrees}
     val perCallSite = macroInfos.toMap
     val perFile = groupPerFile(perCallSite)(MacroInfo.Empty, _ + _)
-      .map {
-        case (sf, mi) => sf -> mi.copy(expansionNanos = toMillis(mi.expansionNanos))
-      }
     val inTotal = MacroInfo.aggregate(perFile.valuesIterator)
 
     /*    val repeated = repeatedTrees.toMap.valuesIterator
@@ -91,9 +88,7 @@ final class ProfilingImpl[G <: Global](
       .toMap*/
 
     // perFile and inTotal are already converted to millis
-    val callSiteNanos = perCallSite.map {
-      case (pos, mi) => pos -> mi.copy(expansionNanos = toMillis(mi.expansionNanos))
-    }
+    val callSiteNanos = perCallSite
     MacroProfiler(callSiteNanos, perFile, inTotal, Map.empty) // repeated)
   }
 
@@ -537,9 +532,23 @@ final class ProfilingImpl[G <: Global](
       macroCounter = macroCounter + 1
 
       object expander extends analyzer.DefMacroExpander(t, expandee, md, pt) {
+        private var alreadyTracking: Boolean = false
 
         /** The default method that expands all macros. */
         override def apply(desugared: Tree): Tree = {
+          def updateExpansionTime(desugared: Tree, start: statistics.TimerSnapshot): Unit = {
+            statistics.stopTimer(preciseMacroTimer, start)
+            val (nanos0, _) = start
+            val timeNanos = (preciseMacroTimer.nanos - nanos0)
+            val callSitePos = desugared.pos
+            // Those that are not present failed to expand
+            macroInfos.get(callSitePos).foreach { found =>
+              val updatedInfo = found.copy(expansionNanos = timeNanos)
+              macroInfos(callSitePos) = updatedInfo
+            }
+          }
+          val shouldTrack = statistics.enabled && !alreadyTracking
+
           val prevData = macrosStack.headOption.map { prev =>
             macroIdsToTimers.getOrElse(
               prev.id,
@@ -556,7 +565,10 @@ final class ProfilingImpl[G <: Global](
           val searchPrefix = s"  macro ${macroId}"
           val macroTimer = registerTyperTimerFor(searchPrefix)
           macroIdsToTimers += ((macroId, macroTimer))
-          val start = statistics.startTimer(macroTimer)
+          val start = {
+            alreadyTracking = true
+            statistics.startTimer(macroTimer)
+          }
 
           val entry = MacroEntry(macroId, pt, start, None)
 
@@ -573,6 +585,11 @@ final class ProfilingImpl[G <: Global](
           macrosStack = entry :: macrosStack
           try super.apply(desugared)
           finally {
+            if (shouldTrack) {
+              alreadyTracking = false
+              updateExpansionTime(desugared, start)
+            }
+
             val children = macroChildren.getOrElse(macroId, Nil)
             if (config.generateMacroFlamegraph) {
               // Complete stack names of triggered implicit searches
@@ -714,9 +731,9 @@ final class ProfilingImpl[G <: Global](
 
 trait ProfilingStats {
   val global: Global
-  import global.statistics.{newSubCounter, macroExpandCount, implicitSearchCount}
+  import global.statistics.{newSubCounter, macroExpandCount, implicitSearchCount, newTimer}
   macroExpandCount.children.clear()
-
+  final val preciseMacroTimer = newTimer("precise time in macroExpand")
   final val failedMacros = newSubCounter("  of which failed macros", macroExpandCount)
   final val delayedMacros = newSubCounter("  of which delayed macros", macroExpandCount)
   final val suppressedMacros = newSubCounter("  of which suppressed macros", macroExpandCount)
