@@ -73,7 +73,7 @@ jobs:
         run: sbt -v '++ ${{ matrix.scala }}' plugin/test
       - name: SBT plugin tests
         run: sbt -v '++ ${{ matrix.scala }}' profilingSbtPlugin/scripted
-  intergration-tests:
+  integration-tests:
     name: Integration tests
     runs-on: ubuntu-latest
     steps:
