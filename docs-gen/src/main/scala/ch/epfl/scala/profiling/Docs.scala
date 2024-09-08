@@ -14,7 +14,7 @@ object Docs {
     def prepareVersions(prefix: String): Seq[String] => String =
       _.sortWith {
         case (l, r) =>
-          l.replaceFirst(prefix + ".", "").toInt <=
+          l.replaceFirst(prefix + ".", "").toInt >=
             r.replaceFirst(prefix + ".", "").toInt
       }.mkString(", ")
 
