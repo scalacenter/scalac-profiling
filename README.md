@@ -21,7 +21,7 @@ Also, you may wish to read the [Speeding Up Compilation Time with `scalac-profil
 
 This tool was created at the [Scala Center](http://scala.epfl.ch) in 2017 and 2018 as the result of the proposal [SCP-10](https://github.com/scalacenter/advisoryboard/blob/main/proposals/010-compiler-profiling.md), submitted by a [corporate member](https://scala.epfl.ch/corporate-membership.html) of the board. The Center is seeking new corporate members to fund activities such as these, to benefit the entire Scala community.
 
-The plugin is now community-maintained, with maintenance overseen by the Center. Thanks to volunteer contributors, the latest release 1.1.0 now support both Scala 2.13 (in addition to 2.12).
+The plugin is now community-maintained, with maintenance overseen by the Center. Thanks to volunteer contributors, the latest release 1.1.0 supports both Scala 2.13 and 2.12.
 
 ## Historical context
 
