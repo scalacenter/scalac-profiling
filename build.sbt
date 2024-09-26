@@ -49,7 +49,7 @@ lazy val fullCrossVersionSettings = Seq(
     // NOTE: SBT 1.x provides cross-version support for Scala sources
     // (https://www.scala-sbt.org/1.x/docs/Cross-Build.html#Scala-version+specific+source+directory).
     // Unfortunately, it only includes directories like "scala_2.12" or "scala_2.13",
-    // not "scala_2.12.20" or "scala_2.13.14" that we need.
+    // not "scala_2.12.20" or "scala_2.13.15" that we need.
     // That's why we have to work around here.
     val base = (Compile / sourceDirectory).value
     val versionDir = scalaVersion.value.replaceAll("-.*", "")
