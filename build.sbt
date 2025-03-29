@@ -42,6 +42,8 @@ val bin213 =
     "2.13.5"
   )
 
+ThisBuild / allowUnsafeScalaLibUpgrade := true
+
 // Copied from
 // https://github.com/scalameta/scalameta/blob/370e304b0d10db1dd65fc79a5abc1f39004aeffd/build.sbt#L724-L737
 lazy val fullCrossVersionSettings = Seq(
