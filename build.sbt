@@ -77,7 +77,7 @@ lazy val plugin = project
     fullCrossVersionSettings,
     name := "scalac-profiling",
     libraryDependencies ++= List(
-      "com.lihaoyi" %% "pprint" % "0.9.0",
+      "com.lihaoyi" %% "pprint" % "0.9.4",
       scalaOrganization.value % "scala-compiler" % scalaVersion.value
     ),
     libraryDependencies ++= List(
