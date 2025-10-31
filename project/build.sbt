@@ -5,7 +5,7 @@ lazy val root = project
     addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.8"),
     addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.3.1"),
     addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.11.2"),
-    addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.5"),
+    addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.6"),
     addSbtPlugin("com.github.sbt" % "sbt-ghpages" % "0.9.0"),
     addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.8.0"),
     addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.13.1"),
