@@ -25,7 +25,7 @@ lazy val root = project
   )
 
 val bin212 = Seq("2.12.20", "2.12.19", "2.12.18")
-val bin213 = Seq("2.13.17", "2.13.16", "2.13.15", "2.13.14")
+val bin213 = Seq("2.13.18", "2.13.17", "2.13.16", "2.13.15", "2.13.14")
 
 // Copied from
 // https://github.com/scalameta/scalameta/blob/370e304b0d10db1dd65fc79a5abc1f39004aeffd/build.sbt#L724-L737
