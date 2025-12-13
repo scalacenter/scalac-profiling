@@ -24,7 +24,7 @@ lazy val root = project
         (integrations / watchSources).value
   )
 
-val bin212 = Seq("2.12.20", "2.12.19", "2.12.18")
+val bin212 = Seq("2.12.21", "2.12.20", "2.12.19", "2.12.18")
 val bin213 = Seq("2.13.18", "2.13.17", "2.13.16", "2.13.15", "2.13.14")
 
 // Copied from
