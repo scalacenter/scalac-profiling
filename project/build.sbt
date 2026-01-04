@@ -7,7 +7,7 @@ lazy val root = project
     addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.11.2"),
     addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.6"),
     addSbtPlugin("com.github.sbt" % "sbt-ghpages" % "0.9.0"),
-    addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.8.1"),
+    addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.8.2"),
     addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.13.1"),
     // // Let's add our sbt plugin to the sbt too ;)
     // unmanagedSourceDirectories in Compile ++= {
