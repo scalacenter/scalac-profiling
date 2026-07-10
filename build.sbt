@@ -115,13 +115,15 @@ lazy val plugin = project
       IO.write(pluginOptionsFile, stringOptions)
       List(pluginOptionsFile.getAbsoluteFile)
     }.taskValue,
-    inCompileAndTest(unmanagedSourceDirectories ++= {
-      val scalaPartialVersion = CrossVersion partialVersion scalaVersion.value
-      scalaPartialVersion.collect {
-        case (2, y) if y == 12 => new File(scalaSource.value.getPath + "-2.12")
-        case (2, y) if y >= 13 => new File(scalaSource.value.getPath + "-2.13")
-      }.toList
-    }),
+    inCompileAndTest(
+      unmanagedSourceDirectories ++= {
+        val scalaPartialVersion = CrossVersion partialVersion scalaVersion.value
+        scalaPartialVersion.collect {
+          case (2, y) if y == 12 => new File(scalaSource.value.getPath + "-2.12")
+          case (2, y) if y >= 13 => new File(scalaSource.value.getPath + "-2.13")
+        }.toList
+      }
+    ),
     Compile / Keys.packageBin := (Compile / assembly).value,
     assembly / test := {}
   )
