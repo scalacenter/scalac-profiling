@@ -6,7 +6,7 @@ lazy val root = project
     addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.4.1"),
     addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.12.0"),
     addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.6.2"),
-    addSbtPlugin("com.github.sbt" % "sbt-ghpages" % "0.9.0"),
+    addSbtPlugin("com.github.sbt" % "sbt-ghpages" % "0.10.0"),
     addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.9.1"),
     addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.13.1"),
     // // Let's add our sbt plugin to the sbt too ;)
