@@ -3,7 +3,7 @@ lazy val root = project
   .settings(
     addSbtPlugin("com.github.sbt" % "sbt-git" % "2.2.0"),
     addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.8"),
-    addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.4.2"),
+    addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.5.0"),
     addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.12.1"),
     addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.6.2"),
     addSbtPlugin("com.github.sbt" % "sbt-ghpages" % "0.10.0"),
